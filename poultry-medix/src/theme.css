@@ -1,0 +1,874 @@
+html {
+  transition: color 180ms ease, background-color 180ms ease;
+}
+
+html[data-theme="dark"] body {
+  color: #e2e9e1;
+  background: #111a15;
+}
+
+html[data-theme="dark"] .app-shell {
+  color: #e2e9e1;
+  background: #111a15;
+}
+
+html[data-theme="dark"] .login-panel {
+  background:
+    radial-gradient(ellipse at 100% 100%, rgba(73, 111, 75, 0.13), transparent 45%),
+    #141e18;
+}
+
+html[data-theme="dark"] .login-card {
+  color: #e2e9e1;
+}
+
+html[data-theme="dark"] .mobile-brand-row .brand,
+html[data-theme="dark"] .card-heading h2,
+html[data-theme="dark"] .field-label,
+html[data-theme="dark"] .input-wrap input,
+html[data-theme="dark"] .input-wrap select:valid,
+html[data-theme="dark"] .check-row,
+html[data-theme="dark"] .outline-button,
+html[data-theme="dark"] .legal-note a {
+  color: #e0e9df;
+}
+
+html[data-theme="dark"] .card-heading p,
+html[data-theme="dark"] .legal-note,
+html[data-theme="dark"] .mobile-footer {
+  color: #9baa9d;
+}
+
+html[data-theme="dark"] .input-wrap,
+html[data-theme="dark"] .custom-checkbox,
+html[data-theme="dark"] .outline-button {
+  border-color: #35483a;
+  background-color: #1c2a20;
+}
+
+html[data-theme="dark"] .input-wrap:focus-within {
+  border-color: #76a67b;
+}
+
+html[data-theme="dark"] .consent-card {
+  border-color: #37533c;
+  background: #1b2b20;
+}
+
+html[data-theme="dark"] .language-switch--mobile,
+html[data-theme="dark"] .theme-toggle {
+  border-color: #3a4c3e;
+  color: #c0cdc0;
+  background: #1c2920;
+}
+
+html[data-theme="dark"] .language-switch--mobile button.active,
+html[data-theme="dark"] .theme-toggle-option[aria-pressed="true"] {
+  color: #d9ead7;
+}
+
+html[data-theme="dark"] .theme-toggle-option[aria-pressed="true"] {
+  background: #344b38;
+  box-shadow: none;
+}
+
+html[data-theme="dark"] .dashboard-shell {
+  color: #dce6dc;
+  background:
+    radial-gradient(ellipse at 98% 0, rgba(75, 109, 74, 0.2), transparent 27rem),
+    #111a15;
+}
+
+html[data-theme="dark"] .dashboard-header,
+html[data-theme="dark"] .feature-navigation {
+  border-color: #2a3b2e;
+  background: rgba(20, 31, 23, 0.96);
+}
+
+html[data-theme="dark"] .dashboard-brand,
+html[data-theme="dark"] .dashboard-greeting h1,
+html[data-theme="dark"] .settings-header h2,
+html[data-theme="dark"] .settings-block-heading h3,
+html[data-theme="dark"] .settings-label,
+html[data-theme="dark"] .team-lead-identity h2,
+html[data-theme="dark"] .team-member-details h3,
+html[data-theme="dark"] .clinical-record-card,
+html[data-theme="dark"] .medicine-result-card,
+html[data-theme="dark"] .amr-analytics-card h2,
+html[data-theme="dark"] .data-hub-form h2 {
+  color: #e0e9df;
+}
+
+html[data-theme="dark"] .dashboard-greeting > div > p:last-child,
+html[data-theme="dark"] .dashboard-kicker,
+html[data-theme="dark"] .veterinary-page-heading p,
+html[data-theme="dark"] .veterinary-kicker,
+html[data-theme="dark"] .team-lead-academics,
+html[data-theme="dark"] .team-lead-location,
+html[data-theme="dark"] .team-roles-section p,
+html[data-theme="dark"] .team-about-content p,
+html[data-theme="dark"] .team-member-role,
+html[data-theme="dark"] .team-member-bio,
+html[data-theme="dark"] .notice-copy p,
+html[data-theme="dark"] .settings-block-heading p,
+html[data-theme="dark"] .toggle-row,
+html[data-theme="dark"] .manual-item p,
+html[data-theme="dark"] .clinical-record-card p {
+  color: #a3b1a3;
+}
+
+html[data-theme="dark"] .dashboard-language-button,
+html[data-theme="dark"] .icon-button,
+html[data-theme="dark"] .profile-button,
+html[data-theme="dark"] .weather-card:not(.weather-card--night),
+html[data-theme="dark"] .guideline-card,
+html[data-theme="dark"] .guidelines-accordion-trigger,
+html[data-theme="dark"] .notice-item,
+html[data-theme="dark"] .settings-modal,
+html[data-theme="dark"] .sos-modal,
+html[data-theme="dark"] .team-lead-card,
+html[data-theme="dark"] .team-member-card,
+html[data-theme="dark"] .clinical-record-card,
+html[data-theme="dark"] .prescription-lookup,
+html[data-theme="dark"] .drug-info-accordion,
+html[data-theme="dark"] .dose-calculator-accordion,
+html[data-theme="dark"] .amr-map-card,
+html[data-theme="dark"] .amr-analytics-card,
+html[data-theme="dark"] .data-hub-form,
+html[data-theme="dark"] .recent-contributions {
+  border-color: #304235;
+  background-color: #1a271e;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) {
+  background-image: linear-gradient(120deg, #1d2c21, #202f24);
+}
+
+html[data-theme="dark"] .weather-card--rain,
+html[data-theme="dark"] .weather-card--storm {
+  background-image: linear-gradient(120deg, #1b2b38, #243746);
+}
+
+html[data-theme="dark"] .weather-card--snow,
+html[data-theme="dark"] .weather-card--mist,
+html[data-theme="dark"] .weather-card--cloudy {
+  background-image: linear-gradient(120deg, #252f34, #303d42);
+}
+
+html[data-theme="dark"] .weather-card--night {
+  background-image: linear-gradient(120deg, #101b2b, #1a2c42);
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .weather-location h2,
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .weather-condition,
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .weather-metrics strong {
+  color: #e0e9df;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .weather-metrics,
+html[data-theme="dark"] .team-roles-section,
+html[data-theme="dark"] .team-about-section,
+html[data-theme="dark"] .team-member-bio {
+  border-color: #344638;
+}
+
+html[data-theme="dark"] .team-roles-section,
+html[data-theme="dark"] .team-about-toggle,
+html[data-theme="dark"] .team-member-bio {
+  background: #1d2a21;
+}
+
+html[data-theme="dark"] .team-about-toggle {
+  color: #c2d8c0;
+}
+
+html[data-theme="dark"] .team-about-toggle:hover {
+  background: #27392b;
+}
+
+html[data-theme="dark"] .team-brief-description {
+  color: #d7ddc8 !important;
+  background: #302d22;
+}
+
+html[data-theme="dark"] .team-acknowledgements {
+  border-color: #72583d;
+  background: linear-gradient(115deg, #3c3023, #32291f);
+}
+
+html[data-theme="dark"] .team-acknowledgements h2 {
+  color: #f0d1a8;
+}
+
+html[data-theme="dark"] .team-acknowledgements p,
+html[data-theme="dark"] .team-acknowledgements .veterinary-kicker {
+  color: #d2b995;
+}
+
+html[data-theme="dark"] .team-acknowledgements-icon {
+  color: #f0d1a8;
+  background: #5c432c;
+}
+
+html[data-theme="dark"] .team-member-count,
+html[data-theme="dark"] .veterinary-section-icon,
+html[data-theme="dark"] .settings-icon {
+  color: #bdd1b9;
+  background: #293a2d;
+}
+
+html[data-theme="dark"] .diagnosis-hub,
+html[data-theme="dark"] .ai-answer-card {
+  border-color: #334638;
+  background: linear-gradient(120deg, #1a281e, #202d22);
+}
+
+html[data-theme="dark"] .diagnosis-heading-copy h2,
+html[data-theme="dark"] .diagnosis-symptom-label,
+html[data-theme="dark"] .diagnosis-attachment-button strong,
+html[data-theme="dark"] .attachment-label strong,
+html[data-theme="dark"] .ai-answer-text,
+html[data-theme="dark"] .visual-classification strong,
+html[data-theme="dark"] .chat-welcome > strong {
+  color: #dfe9dd;
+}
+
+html[data-theme="dark"] .diagnosis-heading-copy p,
+html[data-theme="dark"] .diagnosis-kicker,
+html[data-theme="dark"] .diagnosis-attachment-button small,
+html[data-theme="dark"] .attachment-label small,
+html[data-theme="dark"] .ai-safety-label,
+html[data-theme="dark"] .ai-answer-text,
+html[data-theme="dark"] .chat-welcome > p {
+  color: #a1b0a1;
+}
+
+html[data-theme="dark"] .diagnosis-symptom-input,
+html[data-theme="dark"] .diagnosis-attachment,
+html[data-theme="dark"] .diagnosis-input-option,
+html[data-theme="dark"] .diagnosis-reset,
+html[data-theme="dark"] .settings-label input,
+html[data-theme="dark"] .settings-label select,
+html[data-theme="dark"] .feedback-form textarea,
+html[data-theme="dark"] .chat-composer-wrap,
+html[data-theme="dark"] .chat-composer {
+  border-color: #344739;
+  color: #dce6dc;
+  background: #17231b;
+}
+
+html[data-theme="dark"] .diagnosis-input-option {
+  border-color: #394d3c;
+  color: #c1d9bd;
+  background: #202e23;
+}
+
+html[data-theme="dark"] .diagnosis-input-option:nth-child(2) {
+  border-color: #66513c;
+  color: #f0d1a8;
+  background: #3b3025;
+}
+
+html[data-theme="dark"] .diagnosis-input-option:nth-child(2) > span,
+html[data-theme="dark"] .diagnosis-input-option:nth-child(2) .voice-record-button {
+  color: #f0d1a8;
+}
+
+html[data-theme="dark"] .diagnosis-input-option:hover {
+  border-color: #55785a;
+  background: #293b2c;
+}
+
+html[data-theme="dark"] .diagnosis-input-option--record .voice-record-button {
+  color: #c1d9bd;
+}
+
+html[data-theme="dark"] .ai-chat-panel {
+  border-color: #344739;
+  background: #17231b;
+}
+
+html[data-theme="dark"] .ai-chat-messages {
+  background: radial-gradient(ellipse at 5% 0, rgba(56, 83, 56, 0.22), transparent 45%), #141f18;
+}
+
+html[data-theme="dark"] .chat-message,
+html[data-theme="dark"] .chat-typing {
+  border-color: #35473a;
+  color: #d4dfd4;
+  background: #202d23;
+}
+
+html[data-theme="dark"] .chat-message--user {
+  border-color: #3b5b40;
+  background: #273a2a;
+}
+
+html[data-theme="dark"] .chat-message--error {
+  border-color: #67423c;
+  color: #f0b8aa;
+  background: #342522;
+}
+
+html[data-theme="dark"] .chat-composer > textarea {
+  color: #dce6dc;
+}
+
+html[data-theme="dark"] .chat-tool-button,
+html[data-theme="dark"] .toggle-switch,
+html[data-theme="dark"] .settings-action {
+  border-color: #3a4e3c;
+  color: #c2d3c0;
+  background: #253528;
+}
+
+html[data-theme="dark"] .settings-header {
+  border-color: #304235;
+  background: linear-gradient(110deg, #1c2a20, #222b21);
+}
+
+html[data-theme="dark"] .settings-block,
+html[data-theme="dark"] .manual-item,
+html[data-theme="dark"] .clinical-records-heading {
+  border-color: #304235;
+}
+
+html[data-theme="dark"] .toggle-row,
+html[data-theme="dark"] .manual-item summary,
+html[data-theme="dark"] .clinical-log-form .veterinary-field,
+html[data-theme="dark"] .veterinary-field,
+html[data-theme="dark"] .data-hub-field-grid label {
+  color: #c6d2c4;
+}
+
+html[data-theme="dark"] .veterinary-field input,
+html[data-theme="dark"] .veterinary-field textarea,
+html[data-theme="dark"] .veterinary-field select,
+html[data-theme="dark"] .data-hub-field input,
+html[data-theme="dark"] .data-hub-field textarea,
+html[data-theme="dark"] .data-hub-field select {
+  border-color: #394c3c;
+  color: #d9e3d8;
+  background: #17231b;
+}
+
+html[data-theme="dark"] .bottom-navigation {
+  border-color: #2c3d30;
+  background: rgba(20, 31, 23, 0.96);
+}
+
+html[data-theme="dark"] .bottom-navigation button {
+  color: #a3b3a2;
+}
+
+html[data-theme="dark"] .bottom-navigation button.active {
+  color: #c9e2c5;
+  background: #293b2c;
+}
+
+html[data-theme="dark"] .ai-safety-banner {
+  border-color: #9c514a;
+  border-left-color: #f07869;
+  color: #ffe3de;
+  background: linear-gradient(110deg, #402522, #35211f);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme="dark"] .ai-safety-banner > svg {
+  color: #ff9486;
+}
+
+html[data-theme="dark"] .diagnosis-warning,
+html[data-theme="dark"] .chat-warning,
+html[data-theme="dark"] .chat-composer-error {
+  color: #e4c58e;
+}
+
+html[data-theme="dark"] .dashboard-language-button,
+html[data-theme="dark"] .theme-toggle-option[aria-pressed="true"] {
+  color: #d5e5d2;
+}
+
+html[data-theme="dark"] .points-pill {
+  border-color: #55492e;
+  color: #e4c987;
+  background: #302a1c;
+}
+
+html[data-theme="dark"] .points-pill strong,
+html[data-theme="dark"] .points-pill span {
+  color: #e4c987;
+}
+
+html[data-theme="dark"] .veterinary-section-heading h2,
+html[data-theme="dark"] .veterinary-section-heading h3,
+html[data-theme="dark"] .map-card-heading h2,
+html[data-theme="dark"] .medicine-facts dd,
+html[data-theme="dark"] .dose-helper h4,
+html[data-theme="dark"] .withdrawal-guidelines h4,
+html[data-theme="dark"] .withdrawal-guidelines article strong,
+html[data-theme="dark"] .drug-info-heading h4,
+html[data-theme="dark"] .withdrawal-guidelines article p,
+html[data-theme="dark"] .drug-info-accordion-title,
+html[data-theme="dark"] .dose-calculator-trigger,
+html[data-theme="dark"] .reference-video-section h3,
+html[data-theme="dark"] .amr-class-group > summary,
+html[data-theme="dark"] .amr-class-group li,
+html[data-theme="dark"] .amr-class-group li strong,
+html[data-theme="dark"] .antimicrobial-data-fields h2,
+html[data-theme="dark"] .clinical-observation-fields > h2,
+html[data-theme="dark"] .contribution-list strong,
+html[data-theme="dark"] .veterinary-primary-button,
+html[data-theme="dark"] .veterinary-success {
+  color: #dce7da;
+}
+
+html[data-theme="dark"] .veterinary-section-heading p,
+html[data-theme="dark"] .map-card-heading p,
+html[data-theme="dark"] .medicine-facts dt,
+html[data-theme="dark"] .dose-helper > p,
+html[data-theme="dark"] .drug-info-heading > p,
+html[data-theme="dark"] .drug-info-prompt,
+html[data-theme="dark"] .drug-info-source,
+html[data-theme="dark"] .drug-info-accordion-content .drug-info-source,
+html[data-theme="dark"] .withdrawal-guidelines article p,
+html[data-theme="dark"] .medicine-reference,
+html[data-theme="dark"] .veterinary-disclaimer,
+html[data-theme="dark"] .map-privacy-note,
+html[data-theme="dark"] .amr-role-note,
+html[data-theme="dark"] .reference-video-section p,
+html[data-theme="dark"] .contribution-list small,
+html[data-theme="dark"] .veterinary-hint,
+html[data-theme="dark"] .upload-size-note {
+  color: #a4b2a2;
+}
+
+html[data-theme="dark"] .medicine-search-form input,
+html[data-theme="dark"] .dose-inputs input,
+html[data-theme="dark"] .medicine-facts > div,
+html[data-theme="dark"] .dose-helper,
+html[data-theme="dark"] .drug-info-accordion-trigger,
+html[data-theme="dark"] .dose-calculator-trigger,
+html[data-theme="dark"] .drug-info-accordion-content,
+html[data-theme="dark"] .withdrawal-guidelines article,
+html[data-theme="dark"] .reference-video-section,
+html[data-theme="dark"] .amr-view-toggle,
+html[data-theme="dark"] .amr-class-group,
+html[data-theme="dark"] .antimicrobial-data-fields,
+html[data-theme="dark"] .multimodal-upload,
+html[data-theme="dark"] .upload-type-card,
+html[data-theme="dark"] .data-hub-file-list li,
+html[data-theme="dark"] .share-location-consent,
+html[data-theme="dark"] .veterinary-error button {
+  border-color: #394d3c;
+  background-color: #202e23;
+}
+
+html[data-theme="dark"] .bird-information-accordion {
+  border-color: #66533a;
+  background: #30291f;
+}
+
+html[data-theme="dark"] .bird-information-trigger {
+  color: #f0d5ad;
+  background: #30291f;
+}
+
+html[data-theme="dark"] .bird-information-icon {
+  color: #f0d5ad;
+  background: #52402c;
+}
+
+html[data-theme="dark"] .bird-information-fields {
+  border-color: #66533a;
+}
+
+html[data-theme="dark"] .bird-choice-field {
+  border-color: #66533a;
+}
+
+html[data-theme="dark"] .bird-choice-field legend,
+html[data-theme="dark"] .bird-choice-options label {
+  color: #d8c5a9;
+}
+
+html[data-theme="dark"] .bird-information-fields .veterinary-field,
+html[data-theme="dark"] .bird-information-fields .veterinary-field input,
+html[data-theme="dark"] .bird-information-fields .veterinary-field select,
+html[data-theme="dark"] .bird-information-fields .veterinary-field textarea {
+  color: #dce6dc;
+}
+
+html[data-theme="dark"] .bird-information-fields .veterinary-field input,
+html[data-theme="dark"] .bird-information-fields .veterinary-field select,
+html[data-theme="dark"] .bird-information-fields .veterinary-field textarea {
+  border-color: #66533a;
+  background-color: #211e19;
+}
+
+html[data-theme="dark"] .withdrawal-guidelines article.withdrawal-local {
+  border-color: #3d6443;
+  background: #243b29;
+}
+
+html[data-theme="dark"] .withdrawal-guidelines article.withdrawal-international {
+  border-color: #414b43;
+  background: #29342c;
+}
+
+html[data-theme="dark"] .drug-info-accordion-trigger {
+  color: #dce7da;
+}
+
+html[data-theme="dark"] .dose-calculator-trigger {
+  color: #dce7da;
+}
+
+html[data-theme="dark"] .drug-info-accordion-icon {
+  color: #fff;
+  background: #c97631;
+}
+
+html[data-theme="dark"] .drug-info-accordion-close {
+  border-color: #3d6443;
+  color: #c4dfbf;
+  background: #243b29;
+}
+
+html[data-theme="dark"] .drug-info-accordion-content .drug-info-source {
+  color: #c4dfbf;
+  background: #243b29;
+}
+
+html[data-theme="dark"] .dose-guideline-reference {
+  border-color: #3a526f;
+  color: #d7e5f5 !important;
+  background: #243449;
+}
+
+html[data-theme="dark"] .dose-guideline-reference strong {
+  color: #d7e5f5;
+}
+
+html[data-theme="dark"] .dose-calculation {
+  border-color: #3d6945;
+  color: #d5f0d6;
+  background: #253c29;
+}
+
+html[data-theme="dark"] .dose-helper .dose-safety-warning {
+  border-color: #394d3c;
+  color: #e0a99e;
+}
+
+html[data-theme="dark"] .drug-class-badge {
+  border-color: #3f5f87;
+  color: #c3ddff;
+  background: #263c56;
+}
+
+html[data-theme="dark"] .medicine-search-form input,
+html[data-theme="dark"] .dose-inputs input,
+html[data-theme="dark"] .medicine-search-form input::placeholder,
+html[data-theme="dark"] .veterinary-field input::placeholder,
+html[data-theme="dark"] .veterinary-field textarea::placeholder {
+  color: #d3ded1;
+}
+
+html[data-theme="dark"] .medicine-search-form button,
+html[data-theme="dark"] .map-locate-button,
+html[data-theme="dark"] .amr-view-toggle button,
+html[data-theme="dark"] .upload-type-card strong,
+html[data-theme="dark"] .data-hub-file-list li,
+html[data-theme="dark"] .share-location-consent strong,
+html[data-theme="dark"] .veterinary-error button {
+  color: #c8d8c5;
+}
+
+html[data-theme="dark"] .medicine-search-form button,
+html[data-theme="dark"] .map-locate-button,
+html[data-theme="dark"] .amr-view-toggle button.active,
+html[data-theme="dark"] .share-location-consent {
+  background-color: #293b2d;
+}
+
+html[data-theme="dark"] .medicine-facts .medicine-antibiotic {
+  border-color: #754b38;
+  background: #38291f;
+}
+
+html[data-theme="dark"] .medicine-facts .medicine-antibiotic dt,
+html[data-theme="dark"] .medicine-facts .medicine-antibiotic dd,
+html[data-theme="dark"] .antibiotic-highlight {
+  color: #f0bd98;
+}
+
+html[data-theme="dark"] .antibiotic-highlight {
+  border-color: #754b38;
+  background: #38291f;
+}
+
+html[data-theme="dark"] .medicine-ban-alert {
+  border-color: #bd5149;
+  color: #ffd8d2;
+  background: #392220;
+}
+
+html[data-theme="dark"] .medicine-ban-alert p {
+  color: #e6aaa2;
+}
+
+html[data-theme="dark"] .medicine-facts > div,
+html[data-theme="dark"] .withdrawal-guidelines article,
+html[data-theme="dark"] .data-hub-file-list li {
+  color: #d1ddd0;
+}
+
+html[data-theme="dark"] .amr-class-group li,
+html[data-theme="dark"] .contribution-list li {
+  border-color: #344638;
+}
+
+html[data-theme="dark"] .amr-class-group li small,
+html[data-theme="dark"] .amr-class-group > summary::after {
+  color: #a1b19e;
+}
+
+html[data-theme="dark"] .veterinary-primary-button {
+  border-color: #4f8155;
+  background-color: #3b7044;
+}
+
+html[data-theme="dark"] .veterinary-primary-button:hover:not(:disabled) {
+  background-color: #477f50;
+}
+
+html[data-theme="dark"] .veterinary-error {
+  color: #f0a99e;
+}
+
+html[data-theme="dark"] .veterinary-success {
+  color: #a9d4a7;
+}
+
+html[data-theme="dark"] .contribution-list li {
+  border-top-color: #344638;
+}
+
+html[data-theme="dark"] .submission-status {
+  color: #e2cf96;
+  background: #393321;
+}
+
+html[data-theme="dark"] .submission-status--verified {
+  color: #b9dcb2;
+  background: #263a29;
+}
+
+html[data-theme="dark"] .submission-status--rejected {
+  color: #efb4a9;
+  background: #3a2623;
+}
+
+html[data-theme="dark"] .weather-error {
+  color: #bac7b8;
+}
+
+html[data-theme="dark"] .weather-error button {
+  border-color: #3a4c3e;
+  color: #c5d8c2;
+  background: #202e23;
+}
+
+html[data-theme="dark"] .section-heading h2,
+html[data-theme="dark"] .guidelines-accordion-copy h2,
+html[data-theme="dark"] .guideline-card h3,
+html[data-theme="dark"] .notice-copy h3,
+html[data-theme="dark"] .settings-header h2,
+html[data-theme="dark"] .settings-block-heading h3,
+html[data-theme="dark"] .manual-item summary {
+  color: #dce7da;
+}
+
+html[data-theme="dark"] .section-heading p,
+html[data-theme="dark"] .guidelines-accordion-copy > span,
+html[data-theme="dark"] .guideline-card p,
+html[data-theme="dark"] .notice-copy p,
+html[data-theme="dark"] .notice-item time,
+html[data-theme="dark"] .settings-block-heading p,
+html[data-theme="dark"] .manual-item p,
+html[data-theme="dark"] .toggle-row {
+  color: #a4b2a2;
+}
+
+html[data-theme="dark"] .section-icon,
+html[data-theme="dark"] .settings-icon {
+  border-color: #3b503d;
+  color: #bdd1b9;
+  background: #293a2d;
+}
+
+html[data-theme="dark"] .section-icon--sun {
+  border-color: #54472e;
+  color: #ddc28b;
+  background: #342f22;
+}
+
+html[data-theme="dark"] .guideline-card,
+html[data-theme="dark"] .guidelines-accordion-trigger,
+html[data-theme="dark"] .notices-section,
+html[data-theme="dark"] .notice-item,
+html[data-theme="dark"] .notice-search,
+html[data-theme="dark"] .feedback-form textarea {
+  border-color: #344638;
+  background-color: #1a271e;
+}
+
+html[data-theme="dark"] .guideline-card:hover {
+  border-color: #506c50;
+}
+
+html[data-theme="dark"] .local-district-alerts {
+  border-color: #624044;
+  background: #302327;
+}
+
+html[data-theme="dark"] .local-district-alerts h3 {
+  color: #f0b4b4;
+}
+
+html[data-theme="dark"] .local-district-alerts h3 svg {
+  color: #f28b8b;
+}
+
+html[data-theme="dark"] .local-district-alerts ul {
+  color: #dfc7c7;
+}
+
+html[data-theme="dark"] .local-district-alerts > p {
+  color: #c99b9b;
+}
+
+html[data-theme="dark"] .feedback-form textarea,
+html[data-theme="dark"] .notice-search input {
+  color: #d5e0d3;
+}
+
+html[data-theme="dark"] .feedback-form textarea::placeholder,
+html[data-theme="dark"] .notice-search input::placeholder {
+  color: #8d9d8c;
+}
+
+html[data-theme="dark"] .notice-item--important {
+  border-color: #5b4035;
+  background: #2c241f;
+}
+
+html[data-theme="dark"] .notice-symbol {
+  color: #b8d0b0;
+  background: #293a2d;
+}
+
+html[data-theme="dark"] .notice-symbol--red {
+  color: #edaa99;
+  background: #402923;
+}
+
+html[data-theme="dark"] .notice-type,
+html[data-theme="dark"] .notice-item--important .notice-type {
+  color: #b5bfae;
+}
+
+html[data-theme="dark"] .weather-card--sunny {
+  --weather-text: #f0ead7;
+  --weather-muted: #c8c0aa;
+  --weather-accent: #e8cd8e;
+  --weather-border: #5a4930;
+  --weather-divider: #51442f;
+  --weather-icon-bg: #4a3d2a;
+  --weather-live-bg: #413725;
+  --weather-live-border: #5a4b31;
+  --weather-live-text: #e4ce99;
+  background-image: linear-gradient(120deg, #403725, #4b3d27);
+}
+
+html[data-theme="dark"] .weather-card--partly-cloudy {
+  --weather-text: #e0e9df;
+  --weather-muted: #aab7a8;
+  --weather-accent: #c3d5bc;
+  background-image: linear-gradient(120deg, #29372d, #303b35);
+}
+
+html[data-theme="dark"] .weather-card--rain,
+html[data-theme="dark"] .weather-card--storm {
+  --weather-text: #e0eaf0;
+  --weather-muted: #a8bac6;
+  --weather-accent: #bdd7e8;
+  --weather-icon-bg: #304757;
+  --weather-live-bg: #283d4c;
+  --weather-live-border: #3d596b;
+  --weather-live-text: #c4deee;
+}
+
+html[data-theme="dark"] .weather-card--snow,
+html[data-theme="dark"] .weather-card--mist,
+html[data-theme="dark"] .weather-card--cloudy {
+  --weather-text: #e0e9eb;
+  --weather-muted: #aab9bd;
+  --weather-accent: #c5d7dd;
+  --weather-icon-bg: #3a484d;
+  --weather-live-bg: #303e43;
+  --weather-live-border: #46575d;
+  --weather-live-text: #c6d9de;
+}
+
+html[data-theme="dark"] .weather-card--rain,
+html[data-theme="dark"] .weather-card--storm,
+html[data-theme="dark"] .weather-card--snow,
+html[data-theme="dark"] .weather-card--mist,
+html[data-theme="dark"] .weather-card--cloudy,
+html[data-theme="dark"] .weather-card--night {
+  color: #e0e9df;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert {
+  color: #b8c8b4;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert strong {
+  color: #d6e2d1;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert small {
+  color: #a6b4a3;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-badge {
+  color: #c5dfbf;
+  background: #2c402e;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert--high,
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert--high strong {
+  color: #ffb4a5;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert--high small {
+  color: #e4a99f;
+}
+
+html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert--high .heat-badge {
+  color: #ffd1c7;
+  background: #512d28;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html,
+  html body,
+  html .dashboard-shell,
+  html .login-panel,
+  html .dashboard-header,
+  html .feature-navigation {
+    transition: color 180ms ease, background-color 220ms ease, border-color 180ms ease;
+  }
+}
