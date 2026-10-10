@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import Icon from '../components/Icon.jsx'
+import { saveHistoryEntry } from './historyStore.js'
 import './Telemedicine.css'
 
 const paymentMethods = [
@@ -93,7 +94,26 @@ export default function Telemedicine() {
     event.preventDefault()
     setBookingConfirmed(true)
     setCallMode('')
-    setBookingMessage(`Mock booking confirmed with ${paymentMethods.find(({ id }) => id === booking.payment)?.label}. No payment was processed.`)
+    const paymentMethodLabel = paymentMethods.find(({ id }) => id === booking.payment)?.label || booking.payment
+    try {
+      saveHistoryEntry('appointment', {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        date: booking.date,
+        time: booking.time,
+        vetName: 'PoultryMedix Veterinary Team (not assigned)',
+        concern: booking.concern,
+        amount: 0,
+        currency: 'BDT',
+        paymentMethod: booking.payment,
+        paymentMethodLabel,
+        paymentStatusKey: 'historyPaymentNotProcessed',
+      })
+      setBookingMessage(`Mock booking confirmed with ${paymentMethodLabel}. No payment was processed.`)
+    } catch (error) {
+      console.error('Unable to save the mock consultation booking to history.', error)
+      setBookingMessage(`Mock booking confirmed with ${paymentMethodLabel}, but it could not be saved to history.`)
+    }
   }
 
   function printPrescription() {
