@@ -5,6 +5,9 @@ import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
+import { findLocalPoultryKnowledge } from './lib/poultryKnowledge.js'
+import { searchWikipedia } from './lib/wikipedia.js'
+import { saveHistoryEntry } from './veterinary/historyStore.js'
 
 const supportedMimeTypes = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
@@ -14,20 +17,64 @@ const supportedMimeTypes = new Set([
 const maxFileSize = 8 * 1024 * 1024
 
 export default function AIChat() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState(null)
   const [files, setFiles] = useState([])
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [loadingStatusKey, setLoadingStatusKey] = useState('analyzing')
   const [dragError, setDragError] = useState('')
   const [modelWarning, setModelWarning] = useState('')
+  const [historyWarning, setHistoryWarning] = useState('')
   const inputRef = useRef(null)
   const listRef = useRef(null)
   const fabRef = useRef(null)
   const dragRef = useRef(null)
   const draggedRef = useRef(false)
+  const chatSessionId = useRef('')
+  if (!chatSessionId.current) chatSessionId.current = crypto.randomUUID()
+
+  function saveChatResponse(question, queuedFiles, assistantMessage) {
+    try {
+      const previousMessages = messages
+        .filter((item) => item.role !== 'error')
+        .slice(-36)
+        .map(({ role, text, files: attachedFiles, sources, externalReference }) => ({
+          role,
+          text,
+          ...(attachedFiles?.length ? { files: attachedFiles } : {}),
+          ...(sources?.length ? { sources } : {}),
+          ...(externalReference ? { externalReference } : {}),
+        }))
+      const userMessage = { role: 'user', text: question || t('attachedFilesOnly') }
+      if (queuedFiles.length) userMessage.files = queuedFiles.map(({ name }) => name)
+      const existing = JSON.parse(localStorage.getItem('poultry-history-chats') || '[]')
+        .find((record) => record.id === chatSessionId.current)
+      const now = new Date().toISOString()
+      saveHistoryEntry('chat', {
+        id: chatSessionId.current,
+        createdAt: existing?.createdAt || now,
+        updatedAt: now,
+        summary: existing?.summary || question.slice(0, 140) || t('attachedFilesOnly'),
+        transcript: [
+          ...previousMessages,
+          userMessage,
+          {
+            role: 'assistant',
+            text: assistantMessage.text,
+            ...(assistantMessage.sources?.length ? { sources: assistantMessage.sources } : {}),
+            ...(assistantMessage.externalReference ? { externalReference: assistantMessage.externalReference } : {}),
+          },
+        ].slice(-40),
+      })
+      setHistoryWarning('')
+    } catch (historyError) {
+      console.error('Unable to save AI chat history.', historyError)
+      setHistoryWarning(t('historySaveError'))
+    }
+  }
 
   useEffect(() => {
     function constrainPosition() {
@@ -145,36 +192,106 @@ export default function AIChat() {
     setDragError('')
     setModelWarning('')
     setLoading(true)
+    setLoadingStatusKey(question ? 'searchingOnlineSources' : 'analyzing')
     try {
+      const localKnowledge = question ? findLocalPoultryKnowledge(question, language) : null
+      if (localKnowledge && queuedFiles.length === 0) {
+        const assistantMessage = {
+          role: 'assistant',
+          text: localKnowledge.answer,
+          sources: [t('aiLocalKnowledgeSource')],
+        }
+        saveChatResponse(question, queuedFiles, assistantMessage)
+        setMessages((previous) => [...previous, {
+          id: `${Date.now()}-assistant`,
+          ...assistantMessage,
+        }])
+        return
+      }
+
+      let externalReference = null
+      if (question && !localKnowledge) {
+        const controller = new AbortController()
+        const timeout = window.setTimeout(() => controller.abort(), 12000)
+        try {
+          externalReference = await searchWikipedia(question, language, controller.signal)
+        } catch {
+          throw new Error(t('externalSearchError'))
+        } finally {
+          window.clearTimeout(timeout)
+        }
+      }
+
+      if (question && !localKnowledge && !externalReference && queuedFiles.length === 0) {
+        const assistantMessage = { role: 'assistant', text: t('noExternalSearchResult'), sources: [] }
+        saveChatResponse(question, queuedFiles, assistantMessage)
+        setMessages((previous) => [...previous, {
+          id: `${Date.now()}-assistant`,
+          ...assistantMessage,
+        }])
+        return
+      }
+
+      setLoadingStatusKey('analyzing')
       const { data, error } = await supabase.auth.getSession()
       if (error) throw error
-      if (!data.session?.access_token) throw new Error(t('aiSignInRequired'))
+      if (!data.session?.access_token) {
+        if (externalReference && queuedFiles.length === 0) {
+          const assistantMessage = {
+            role: 'assistant',
+            text: externalReference.extract,
+            sources: [],
+            externalReference,
+          }
+          saveChatResponse(question, queuedFiles, assistantMessage)
+          setMessages((previous) => [...previous, {
+            id: `${Date.now()}-assistant`,
+            ...assistantMessage,
+          }])
+          return
+        }
+        throw new Error(t('aiSignInRequired'))
+      }
       const transcript = messages
         .filter((item) => item.role !== 'error')
         .slice(-6)
         .map((item) => `${item.role === 'assistant' ? 'Assistant' : 'Farmer'}: ${item.text}`)
         .join('\n')
-      const contextualQuestion = transcript
-        ? `${t('chatHistoryContext')}\n${transcript}\nFarmer: ${question || t('attachedFilesOnly')}`
-        : question
+      const searchContext = [
+        localKnowledge ? `${t('aiLocalKnowledgeSource')}: ${localKnowledge.answer}` : '',
+        externalReference ? `External reference: ${externalReference.title}\n${externalReference.extract}\n${externalReference.url}` : '',
+      ].filter(Boolean).join('\n\n')
+      const contextualQuestion = [
+        transcript ? `${t('chatHistoryContext')}\n${transcript}\nFarmer: ${question || t('attachedFilesOnly')}` : question,
+        searchContext ? `${t('retrievedKnowledgeContext')}\n${searchContext}` : '',
+      ].filter(Boolean).join('\n\n')
       const result = await runMultimodalDiagnosis({
         text: contextualQuestion,
         files: queuedFiles,
         accessToken: data.session.access_token,
         onModelWarning: () => setModelWarning(t('visualModelUnavailable')),
       })
-      setMessages((previous) => [...previous, {
-        id: `${Date.now()}-assistant`,
+      const assistantMessage = {
         role: 'assistant',
         text: result.answer,
         sources: result.sources,
         visualResult: result.visualResult,
+        externalReference,
+      }
+      saveChatResponse(question, queuedFiles, assistantMessage)
+      setMessages((previous) => [...previous, {
+        id: `${Date.now()}-assistant`,
+        ...assistantMessage,
       }])
     } catch (error) {
+      const localizedErrorKey = ['externalSearchError', 'aiSignInRequired']
+        .find((key) => error.message === t(key))
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-error`,
         role: 'error',
-        text: error.message || t('aiRequestFailed'),
+        text: language === 'en'
+          ? error.message || t('aiRequestFailed')
+          : localizedErrorKey ? t(localizedErrorKey) : t('aiRequestFailed'),
       }])
     } finally {
       setLoading(false)
@@ -199,11 +316,19 @@ export default function AIChat() {
             {item.role === 'assistant' && <>
               {item.visualResult && <span className="chat-visual-result">{t('visualClassification')}: {item.visualResult.label} ({Math.round(item.visualResult.confidence * 100)}%)</span>}
               <span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>
-              <div className="chat-source-list">{item.sources.map((source) => <span key={source}>{source}</span>)}</div>
+              <div className="chat-source-list">
+                {item.sources.map((source) => <span key={source}>{source}</span>)}
+                {item.externalReference && <a href={item.externalReference.url} target="_blank" rel="noreferrer">{t('wikipediaSource')}: {item.externalReference.title}</a>}
+              </div>
+              <aside className="chat-message-safety" role="note">
+                <strong>{t('veterinaryConsultingAlertTitle')}</strong>
+                <p>{t('veterinaryConsultingAlert')}</p>
+              </aside>
             </>}
           </article>)}
-          {loading && <div className="chat-typing"><span /><span /><span />{t('analyzing')}</div>}
+          {loading && <div className="chat-typing"><span /><span /><span />{t(loadingStatusKey)}</div>}
           {modelWarning && <p className="chat-warning" role="status">{modelWarning}</p>}
+          {historyWarning && <p className="chat-warning" role="status">{historyWarning}</p>}
         </div>
         <div className="chat-composer-wrap">
           {files.length > 0 && <div className="chat-queued-files">{files.map((file, index) => <span className="queued-file" key={`${file.name}-${index}`}><Icon name={file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'mic'} size={13} /><span>{file.name}</span><button type="button" aria-label={t('removeFile', { name: file.name })} onClick={() => setFiles((previous) => previous.filter((_, fileIndex) => fileIndex !== index))}><Icon name="close" size={12} /></button></span>)}</div>}

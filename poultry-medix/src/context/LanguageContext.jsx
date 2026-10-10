@@ -6,13 +6,14 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = language
+    document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr'
   }, [language])
 
   const value = useMemo(() => ({
     language,
     setLanguage,
     t: (key, values = {}) => {
-      const template = translations[language][key] ?? key
+      const template = translations[language]?.[key] ?? translations[language]?.translationUnavailable ?? translations.en.translationUnavailable
       return template.replace(/\{(\w+)\}/g, (_match, name) => values[name] ?? `{${name}}`)
     },
   }), [language])

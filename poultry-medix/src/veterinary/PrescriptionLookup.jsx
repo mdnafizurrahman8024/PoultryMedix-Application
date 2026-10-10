@@ -93,12 +93,12 @@ export default function PrescriptionLookup() {
           onClick={() => setDoseExpanded((isExpanded) => !isExpanded)}
         >
           <span className="dose-calculator-icon"><Icon name="calculator" size={18} /></span>
-          <span>Dose Calculator</span>
+          <span>{t('doseCalculatorTitle')}</span>
           <Icon className="drug-info-accordion-chevron" name="chevron" size={17} />
         </button>
         {doseExpanded && (
           <section className="dose-helper" id="dose-calculator-details" aria-labelledby="dose-helper-title">
-            <h4 id="dose-helper-title">Dose Calculator</h4>
+            <h4 id="dose-helper-title">{t('doseCalculatorTitle')}</h4>
             <p>Enter a veterinarian-prescribed dose to calculate the total amount.</p>
             <form className="dose-calculator" onSubmit={calculateDose}>
               <div className="dose-inputs">

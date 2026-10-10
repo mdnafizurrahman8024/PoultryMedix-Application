@@ -7,6 +7,13 @@ import { getCountries } from './data/countries.js'
 import './App.css'
 import ThemeToggle from './components/ThemeToggle.jsx'
 
+const languages = [
+  ['en', 'EN'],
+  ['bn', 'বাংলা'],
+  ['hi', 'हिंदी'],
+  ['ur', 'اردو'],
+]
+
 function BrandMark({ compact = false }) {
   return (
     <img className={`brand-mark${compact ? ' brand-mark--compact' : ''}`} src="/images/logo.png" alt="" />
@@ -60,7 +67,6 @@ function App() {
   }, [])
 
   const isPhone = authMode === 'phone'
-  const isBangla = language === 'bn'
   const countries = getCountries(language)
 
   function mapAuthError(error) {
@@ -188,19 +194,10 @@ function App() {
           <ThemeToggle />
           <div className="language-switch" aria-label={t('language')}>
             <Icon name="globe" size={16} />
-            <button
-              type="button"
-              className={!isBangla ? 'active' : ''}
-              aria-pressed={!isBangla}
-              onClick={() => setLanguage('en')}
-            >EN</button>
-            <span className="language-divider" />
-            <button
-              type="button"
-              className={isBangla ? 'active' : ''}
-              aria-pressed={isBangla}
-              onClick={() => setLanguage('bn')}
-            >বাংলা</button>
+            {languages.map(([code, label], index) => [
+              index > 0 && <span className="language-divider" key={`${code}-divider`} />,
+              <button key={code} type="button" className={language === code ? 'active' : ''} aria-pressed={language === code} onClick={() => setLanguage(code)}>{label}</button>,
+            ])}
           </div>
         </div>
 
@@ -241,9 +238,10 @@ function App() {
           </a>
           <ThemeToggle />
           <div className="language-switch language-switch--mobile" aria-label={t('language')}>
-            <button type="button" className={!isBangla ? 'active' : ''} aria-pressed={!isBangla} onClick={() => setLanguage('en')}>EN</button>
-            <span className="language-divider" />
-            <button type="button" className={isBangla ? 'active' : ''} aria-pressed={isBangla} onClick={() => setLanguage('bn')}>বাংলা</button>
+            {languages.map(([code, label], index) => [
+              index > 0 && <span className="language-divider" key={`${code}-divider`} />,
+              <button key={code} type="button" className={language === code ? 'active' : ''} aria-pressed={language === code} onClick={() => setLanguage(code)}>{label}</button>,
+            ])}
           </div>
         </div>
 

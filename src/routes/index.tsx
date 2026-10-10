@@ -32,18 +32,24 @@ function App() {
   const [lang, setLang] = useState<Lang>("en");
   const [screen, setScreen] = useState<Screen>("onboard");
   const [points, setPoints] = useState(140);
-  const [user, setUser] = useState({ name: "Farmer", loc: 0, photo: "" });
-  const t = T[lang] as TT;
+  const [user, setUser] = useState({ name: T.en.defaultFarmer, loc: 0, photo: "" });
+  const t = T[lang];
+  const changeLanguage = (nextLang: Lang) => {
+    setLang(nextLang);
+    setUser((current) => current.name === T[lang].defaultFarmer
+      ? { ...current, name: T[nextLang].defaultFarmer }
+      : current);
+  };
   const go: Nav = (s) => { setScreen(s); if (typeof window !== "undefined") window.scrollTo({ top: 0 }); };
 
   return (
     <div className="min-h-screen bg-app" lang={lang}>
-      <div className="mx-auto flex min-h-screen max-w-md flex-col pb-28">
-        <Header lang={lang} setLang={setLang} t={t} authed={screen !== "onboard"} points={points} user={user} go={go} />
+      <div dir={lang === "ur" ? "rtl" : "ltr"} className="mx-auto flex min-h-screen max-w-md flex-col pb-28">
+        <Header lang={lang} setLang={changeLanguage} t={t} authed={screen !== "onboard"} points={points} user={user} go={go} />
         <main key={screen + lang} className="flex-1 px-5 animate-in fade-in duration-300">
           {screen === "onboard" && <Onboard t={t} onDone={() => go("home")} />}
-          {screen === "home" && <HomeScreen t={t} go={go} />}
-          {screen === "chat" && <ChatScreen t={t} go={go} />}
+          {screen === "home" && <HomeScreen t={t} go={go} lang={lang} />}
+          {screen === "chat" && <ChatScreen t={t} go={go} lang={lang} />}
           {screen === "rx" && <RxScreen t={t} go={go} />}
           {screen === "drug" && <DrugScreen t={t} go={go} />}
           {screen === "hub" && <HubScreen t={t} onPoints={() => setPoints((p) => p + 20)} />}
@@ -90,15 +96,17 @@ function Header({ lang, setLang, t, authed, points, user, go }: { lang: Lang; se
       </div>
       <div className="flex items-center gap-1.5">
         {authed && (
-          <span className="flex items-center gap-1 rounded-full bg-sunrise px-2.5 py-1.5 text-xs font-black text-accent-foreground shadow-soft" title="Research Points">
+          <span className="flex items-center gap-1 rounded-full bg-sunrise px-2.5 py-1.5 text-xs font-black text-accent-foreground shadow-soft" title={t.points}>
             <Star className="h-3.5 w-3.5" />{points}
           </span>
         )}
         <div className="flex rounded-full bg-muted p-1 text-xs font-bold">
-          {(["en", "bn"] as Lang[]).map((l) => (
+          {(["en", "bn", "hi", "ur"] as Lang[]).map((l) => (
             <button key={l} onClick={() => setLang(l)}
-              className={`min-h-8 rounded-full px-2.5 transition ${lang === l ? "bg-primary text-primary-foreground shadow-soft" : "text-muted-foreground"}`}>
-              {l === "en" ? "EN" : "বাংলা"}
+              aria-label={`${t.language}: ${l === "en" ? "English" : l === "bn" ? "বাংলা" : l === "hi" ? "हिंदी" : "اردو"}`}
+              aria-pressed={lang === l}
+              className={`min-h-8 rounded-full px-1.5 text-[10px] transition ${lang === l ? "bg-primary text-primary-foreground shadow-soft" : "text-muted-foreground"}`}>
+              {l === "en" ? "EN" : l === "bn" ? "বাংলা" : l === "hi" ? "हिंदी" : "اردو"}
             </button>
           ))}
         </div>
@@ -234,10 +242,79 @@ function Noticeboard({ t }: { t: TT }) {
   );
 }
 
-function TipCard({ t }: { t: TT }) {
+type ExternalTip = { title: string; extract: string; url: string };
+type WikipediaSearchResponse = {
+  query?: { pages?: Record<string, { pageid: number; title: string; extract?: string }> };
+};
+
+function TipCard({ t, lang }: { t: TT; lang: Lang }) {
   const [q, setQ] = useState("");
+  const [externalTip, setExternalTip] = useState<ExternalTip | null>(null);
+  const [isSearchingOnline, setIsSearchingOnline] = useState(false);
+  const [externalSearchMessage, setExternalSearchMessage] = useState("");
   const tip = t.tips[new Date().getDate() % t.tips.length];
-  const hits = q.trim() ? t.kb.filter((k) => (k.q + k.a).toLowerCase().includes(q.trim().toLowerCase())) : [];
+  const query = q.trim();
+  const hits = query ? t.kb.filter((k) => (k.q + k.a).toLowerCase().includes(query.toLowerCase())) : [];
+
+  useEffect(() => {
+    if (!query || hits.length) {
+      setExternalTip(null);
+      setIsSearchingOnline(false);
+      setExternalSearchMessage("");
+      return;
+    }
+
+    setIsSearchingOnline(true);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      setExternalTip(null);
+      setExternalSearchMessage("");
+
+      void (async () => {
+        try {
+          const params = new URLSearchParams({
+            action: "query",
+            generator: "search",
+            gsrsearch: query,
+            gsrnamespace: "0",
+            gsrlimit: "1",
+            prop: "extracts",
+            exintro: "1",
+            explaintext: "1",
+            format: "json",
+            origin: "*",
+          });
+          const response = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`, { signal: controller.signal });
+          if (!response.ok) throw new Error(`Wikipedia search failed with status ${response.status}`);
+
+          const data = await response.json() as WikipediaSearchResponse;
+          const page = Object.values(data.query?.pages ?? {})[0];
+          if (!page?.extract?.trim()) {
+            setExternalSearchMessage(t.noOnlineResult);
+            return;
+          }
+
+          setExternalTip({
+            title: page.title,
+            extract: page.extract,
+            url: `https://${lang}.wikipedia.org/?curid=${page.pageid}`,
+          });
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          console.error("Online farming information search failed", error);
+          setExternalSearchMessage(t.externalSearchError);
+        } finally {
+          if (!controller.signal.aborted) setIsSearchingOnline(false);
+        }
+      })();
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, hits.length, t.kb, t.externalSearchError, t.noOnlineResult, lang]);
+
   return (
     <Card>
       <h2 className="flex items-center gap-2 font-black"><Lightbulb className="h-5 w-5 text-accent" />{t.tipT}</h2>
@@ -248,9 +325,22 @@ function TipCard({ t }: { t: TT }) {
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.tipSearch} className="min-h-11 min-w-0 flex-1 bg-transparent text-sm outline-none" />
       </div>
       {q.trim() && (
-        <div className="mt-2 space-y-2">
+        <div className="mt-2 space-y-2" aria-live="polite">
           {hits.length ? hits.map((h) => <div key={h.q} className="rounded-2xl bg-secondary/70 p-3 text-sm"><b>{h.q}</b><p className="text-muted-foreground">{h.a}</p></div>)
-            : <p className="text-xs text-muted-foreground">{t.noResult}</p>}
+            : isSearchingOnline ? <p className="text-xs text-muted-foreground">{t.searchingOnline}</p>
+              : externalTip ? (
+                <a href={externalTip.url} target="_blank" rel="noreferrer" className="flex gap-3 rounded-2xl bg-muted/60 p-3">
+                  <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-info" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black">{externalTip.title}</span>
+                      <span className="shrink-0 rounded-full bg-card/60 px-2 py-0.5 text-[10px] text-muted-foreground">{t.externalBadge}</span>
+                    </div>
+                    <p className="text-sm">{externalTip.extract}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">{t.externalSource}</p>
+                  </div>
+                </a>
+              ) : <p className="text-xs text-muted-foreground">{externalSearchMessage || t.noResult}</p>}
         </div>
       )}
     </Card>
@@ -275,7 +365,7 @@ function AudioActions({ t }: { t: TT }) {
   );
 }
 
-function HomeScreen({ t, go }: { t: TT; go: Nav }) {
+function HomeScreen({ t, go, lang }: { t: TT; go: Nav; lang: Lang }) {
   const [audio, setAudio] = useState(false);
   const sub = [
     { icon: Camera, l: t.scanImage, on: () => go("chat") },
@@ -325,7 +415,7 @@ function HomeScreen({ t, go }: { t: TT; go: Nav }) {
         ))}
       </div>
 
-      <TipCard t={t} />
+      <TipCard t={t} lang={lang} />
 
       <a href="tel:16358" className="flex items-center gap-3 rounded-3xl bg-sos p-4 text-destructive-foreground active:scale-[0.98]">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-destructive-foreground/20"><Phone className="h-5 w-5" /></span>
@@ -336,32 +426,194 @@ function HomeScreen({ t, go }: { t: TT; go: Nav }) {
 }
 
 /* ---------- chat ---------- */
-type Msg = { from: "me" | "bot"; text: string; src?: string; videos?: boolean };
-function ChatScreen({ t, go }: { t: TT; go: Nav }) {
+type Msg = { from: "me" | "bot"; text: string; src?: string; videos?: boolean; reference?: { label: string; url?: string } };
+type ChatKnowledge = { title: string; answer: string };
+type SpeechRecognitionConstructor = new () => {
+  lang: string;
+  interimResults: boolean;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+function findLocalChatKnowledge(query: string, t: TT): ChatKnowledge | null {
+  const entries: ChatKnowledge[] = [
+    ...t.kb.map((entry) => ({ title: entry.q, answer: entry.a })),
+    ...t.tips.map((entry) => ({ title: t.tipT, answer: entry.t })),
+    ...t.notices.map((entry) => ({ title: entry.tag, answer: entry.text })),
+  ];
+  const normalizedQuery = query.toLocaleLowerCase();
+  const exactMatch = entries.find((entry) => `${entry.title} ${entry.answer}`.toLocaleLowerCase().includes(normalizedQuery));
+  if (exactMatch) return exactMatch;
+
+  const words = normalizedQuery.split(/\s+/).filter((word) => word.length > 2);
+  if (!words.length) return null;
+  const threshold = Math.min(2, words.length);
+  const matches = entries
+    .map((entry) => ({
+      entry,
+      score: words.filter((word) => `${entry.title} ${entry.answer}`.toLocaleLowerCase().includes(word)).length,
+    }))
+    .filter((match) => match.score >= threshold)
+    .sort((a, b) => b.score - a.score);
+  return matches[0]?.entry ?? null;
+}
+
+function ChatScreen({ t, go, lang }: { t: TT; go: Nav; lang: Lang }) {
   const [msgs, setMsgs] = useState<Msg[]>([{ from: "bot", text: t.chatHello }]);
   const [text, setText] = useState("");
   const [stage, setStage] = useState<null | "local" | "cloud">(null);
   const [rec, setRec] = useState(false);
+  const [chatError, setChatError] = useState("");
   const imgRef = useRef<HTMLInputElement>(null);
   const end = useRef<HTMLDivElement>(null);
+  const mediaRecorder = useRef<MediaRecorder | null>(null);
+  const mediaStream = useRef<MediaStream | null>(null);
+  const audioChunks = useRef<Blob[]>([]);
+  const recognition = useRef<InstanceType<SpeechRecognitionConstructor> | null>(null);
+  const transcript = useRef("");
+  const requestId = useRef(0);
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [msgs, stage]);
+  useEffect(() => () => {
+    requestId.current += 1;
+    if (mediaRecorder.current) mediaRecorder.current.onstop = null;
+    if (mediaRecorder.current?.state === "recording") mediaRecorder.current.stop();
+    recognition.current?.stop();
+    mediaStream.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
-  const reply = (kind: "img" | "audio" | "text", userText: string) => {
+  const reply = async (kind: "file" | "audio" | "text", userText: string, query = userText) => {
+    const currentRequest = ++requestId.current;
     setMsgs((m) => [...m, { from: "me", text: userText }]);
     setStage("local");
-    if (kind === "img") {
-      setTimeout(() => setStage("cloud"), 1200);
-      setTimeout(() => { setStage(null); setMsgs((m) => [...m, { from: "bot", text: t.botImg, src: t.srcCloud, videos: true }]); }, 3000);
-    } else {
-      setTimeout(() => { setStage(null); setMsgs((m) => [...m, { from: "bot", text: kind === "audio" ? t.botAudio : t.botText, src: kind === "audio" ? t.srcDb : t.srcWeb, videos: kind === "text" }]); }, 1500);
+    setChatError("");
+    const isCurrentRequest = () => requestId.current === currentRequest;
+
+    try {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 350));
+      if (!isCurrentRequest()) return;
+      const localMatch = query ? findLocalChatKnowledge(query, t) : null;
+      if (localMatch || kind === "audio" && !query.trim()) {
+        setMsgs((m) => [...m, {
+          from: "bot",
+          text: localMatch ? `${localMatch.title}: ${localMatch.answer}` : t.botAudio,
+          src: t.srcDb,
+          videos: kind === "file" || kind === "text",
+          reference: { label: t.chatLocalReference },
+        }]);
+        return;
+      }
+
+      setStage("cloud");
+      const params = new URLSearchParams({
+        action: "query",
+        generator: "search",
+        gsrsearch: query,
+        gsrnamespace: "0",
+        gsrlimit: "1",
+        prop: "extracts",
+        exintro: "1",
+        explaintext: "1",
+        format: "json",
+        origin: "*",
+      });
+      const response = await fetch(`https://${lang}.wikipedia.org/w/api.php?${params}`, { signal: AbortSignal.timeout(12000) });
+      if (!response.ok) throw new Error(`Online veterinary search failed with status ${response.status}`);
+      const data = await response.json() as WikipediaSearchResponse;
+      if (!isCurrentRequest()) return;
+
+      const page = Object.values(data.query?.pages ?? {})[0];
+      if (!page?.extract?.trim()) {
+        setMsgs((m) => [...m, { from: "bot", text: t.chatNoOnlineResult, src: t.srcWeb }]);
+        return;
+      }
+      setMsgs((m) => [...m, {
+        from: "bot",
+        text: page.extract ?? "",
+        src: t.srcWeb,
+        videos: kind !== "audio",
+        reference: { label: page.title, url: `https://${lang}.wikipedia.org/?curid=${page.pageid}` },
+      }]);
+    } catch (error) {
+      if (!isCurrentRequest()) return;
+      console.error("Online veterinary information search failed", error);
+      setChatError(t.chatOnlineError);
+      setMsgs((m) => [...m, { from: "bot", text: t.chatOnlineError }]);
+    } finally {
+      if (isCurrentRequest()) setStage(null);
     }
+  };
+
+  const startRecording = async () => {
+    setChatError("");
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        throw new Error("Audio recording is not supported in this browser");
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaStream.current = stream;
+      mediaRecorder.current = recorder;
+      audioChunks.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) audioChunks.current.push(event.data);
+      };
+      transcript.current = "";
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        mediaStream.current = null;
+        setRec(false);
+        const spokenQuery = transcript.current.trim();
+        const recording = new Blob(audioChunks.current, { type: recorder.mimeType || "audio/webm" });
+        audioChunks.current = [];
+        if (recording.size) void reply("audio", spokenQuery || t.audioSent, spokenQuery);
+      };
+
+      const speechWindow = window as Window & {
+        SpeechRecognition?: SpeechRecognitionConstructor;
+        webkitSpeechRecognition?: SpeechRecognitionConstructor;
+      };
+      const SpeechRecognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const speech = new SpeechRecognition();
+        speech.lang = lang === "bn" ? "bn-BD" : lang === "hi" ? "hi-IN" : lang === "ur" ? "ur-PK" : "en-US";
+        speech.interimResults = false;
+        speech.onresult = (event) => {
+          const result = event.results[event.results.length - 1];
+          if (result?.[0]?.transcript) transcript.current = result[0].transcript;
+        };
+        speech.onerror = () => setChatError(t.chatRecordError);
+        recognition.current = speech;
+        speech.start();
+      }
+
+      recorder.start();
+      setRec(true);
+    } catch (error) {
+      mediaStream.current?.getTracks().forEach((track) => track.stop());
+      mediaStream.current = null;
+      recognition.current?.stop();
+      recognition.current = null;
+      console.error("Voice recording could not be started", error);
+      setChatError(t.chatRecordError);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (mediaRecorder.current?.state === "recording") {
+      recognition.current?.stop();
+      mediaRecorder.current.stop();
+      return;
+    }
+    void startRecording();
   };
 
   return (
     <div className="space-y-4">
       <Back t={t} go={go} title={t.chatTitle} />
       <p className="flex items-center gap-2 rounded-2xl bg-secondary p-3 text-xs font-bold text-secondary-foreground"><MessageCircle className="h-4 w-4 shrink-0" />{t.botLangs}</p>
-      <div className="space-y-3">
+      <div className="space-y-3" aria-live="polite">
         {msgs.map((m, i) => m.from === "me" ? (
           <div key={i} className="ml-auto max-w-[80%] rounded-3xl rounded-br-md bg-primary px-4 py-3 text-sm text-primary-foreground">{m.text}</div>
         ) : (
@@ -369,37 +621,54 @@ function ChatScreen({ t, go }: { t: TT; go: Nav }) {
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sunrise text-accent-foreground"><Bot className="h-5 w-5" /></span>
             <div className="glass min-w-0 max-w-[85%] rounded-3xl rounded-tl-md p-4 text-sm">
               <p>{m.text}</p>
+              {m.reference && (
+                m.reference.url
+                  ? <a href={m.reference.url} target="_blank" rel="noreferrer" className="mt-2 block text-xs font-bold text-info underline">{t.sourceLbl} {m.reference.label}</a>
+                  : <span className="mt-2 block text-xs text-muted-foreground">{t.sourceLbl} {m.reference.label}</span>
+              )}
               {m.videos && (
                 <div className="mt-3 space-y-1.5 border-t border-border pt-3">
                   <p className="text-xs font-black">{t.videos}</p>
-                  {t.vidList.map((v) => (
-                    <a key={v} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(v + " poultry")}`} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-2 rounded-xl bg-destructive/10 p-2 text-xs font-bold text-destructive"><PlayCircle className="h-4 w-4 shrink-0" />{v}</a>
+                  {t.vidList.map((video) => (
+                    <a key={video} href={`https://www.youtube.com/results?search_query=${encodeURIComponent(video)}`} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-2 rounded-xl bg-destructive/10 p-2 text-xs font-bold text-destructive"><PlayCircle className="h-4 w-4 shrink-0" />{video}</a>
                   ))}
                 </div>
               )}
               {m.src && <span className="mt-3 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-secondary px-2 py-0.5 text-[10px] font-bold text-primary"><ShieldCheck className="h-3 w-3" />{m.src}</span>}
+              <p className="mt-3 rounded-xl border border-warning/50 bg-warning/10 p-2 text-[11px] font-semibold text-foreground">
+                <strong>{t.chatDisclaimerTitle}: </strong>{t.chatDisclaimer}
+              </p>
             </div>
           </div>
         ))}
         {stage && (
           <div className={`flex items-center gap-2 rounded-2xl p-3 text-xs font-bold transition-all ${stage === "cloud" ? "bg-info text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
             {stage === "cloud" ? <Cloud className="h-4 w-4 animate-bounce" /> : <Loader2 className="h-4 w-4 animate-spin" />}
-            {stage === "cloud" ? t.cloud : t.localModel}
+            {stage === "cloud" ? t.chatSearchOnline : t.localModel}
           </div>
         )}
         <div ref={end} />
       </div>
       <div className="glass sticky bottom-24 flex items-center gap-1.5 rounded-full p-1.5 pl-2">
         <button onClick={() => imgRef.current?.click()} aria-label={t.scanImage} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-secondary text-primary"><ImageIcon className="h-5 w-5" /></button>
-        <input ref={imgRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) reply("img", t.imgSent); e.target.value = ""; }} />
+        <input ref={imgRef} type="file" accept="image/*,audio/*,video/*" className="hidden" onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) {
+            const label = file.type.startsWith("image/") ? t.imgSent : t.chatAttachment;
+            void reply("file", `${label}: ${file.name}`, file.name.replace(/\.[^.]+$/, ""));
+          }
+          e.target.value = "";
+        }} />
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder={t.chatPh}
-          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { reply("text", text); setText(""); } }}
+          aria-label={t.chatPh}
+          onKeyDown={(e) => { if (e.key === "Enter" && text.trim()) { void reply("text", text); setText(""); } }}
           className="min-w-0 flex-1 bg-transparent px-2 py-2 text-sm outline-none" />
-        <button onClick={() => { if (rec) reply("audio", t.audioSent); setRec(!rec); }} aria-label={t.recordAudio}
+        <button onClick={toggleRecording} aria-label={t.recordAudio}
           className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-primary-foreground ${rec ? "bg-sos animate-pulse" : "bg-meadow"}`}>{rec ? <Square className="h-4 w-4" /> : <Mic className="h-5 w-5" />}</button>
-        <button onClick={() => { if (text.trim()) { reply("text", text); setText(""); } }} aria-label="Send" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sunrise text-accent-foreground"><Send className="h-5 w-5" /></button>
+        <button onClick={() => { if (text.trim()) { void reply("text", text); setText(""); } }} aria-label={t.chatSend} className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sunrise text-accent-foreground"><Send className="h-5 w-5" /></button>
       </div>
+      {chatError && <p role="alert" className="text-xs text-destructive">{chatError}</p>}
     </div>
   );
 }
@@ -638,12 +907,12 @@ function HistoryScreen({ t }: { t: TT }) {
 /* ---------- team ---------- */
 // ✏️ Edit contact links here
 const LEAD_LINKS = { email: "mailto:you@example.com", whatsapp: "https://wa.me/8801000000000", linkedin: "#", facebook: "#" };
-function Socials({ links, small }: { links: typeof LEAD_LINKS; small?: boolean }) {
+function Socials({ links, t, small }: { links: typeof LEAD_LINKS; t: TT; small?: boolean }) {
   const items = [
-    { href: links.email, icon: Mail, label: "Email", cls: "text-primary" },
-    { href: links.whatsapp, icon: MessageCircle, label: "WhatsApp", cls: "text-success" },
-    { href: links.linkedin, icon: Linkedin, label: "LinkedIn", cls: "text-info" },
-    { href: links.facebook, icon: Facebook, label: "Facebook", cls: "text-info" },
+    { href: links.email, icon: Mail, label: t.email, cls: "text-primary" },
+    { href: links.whatsapp, icon: MessageCircle, label: t.whatsapp, cls: "text-success" },
+    { href: links.linkedin, icon: Linkedin, label: t.linkedin, cls: "text-info" },
+    { href: links.facebook, icon: Facebook, label: t.facebook, cls: "text-info" },
   ];
   const s = small ? "h-9 w-9" : "h-11 w-11";
   return (
@@ -676,7 +945,7 @@ function TeamScreen({ t }: { t: TT }) {
           <span className="mt-3 rounded-full bg-sunrise px-3 py-0.5 text-xs font-bold text-accent-foreground">{t.leadBadge}</span>
           <h2 className="mt-2 text-2xl font-black">{t.leadName}</h2>
           <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{t.hometownT}: {t.hometown}</p>
-          <div className="mt-4"><Socials links={LEAD_LINKS} /></div>
+          <div className="mt-4"><Socials links={LEAD_LINKS} t={t} /></div>
         </div>
         <div className="space-y-3 px-5 pb-5">
           <InfoBlock icon={Briefcase} title={t.rolesT} text={t.roles} />

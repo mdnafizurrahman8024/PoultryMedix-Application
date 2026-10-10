@@ -10,6 +10,7 @@ import TeamPage from './veterinary/TeamPage.jsx'
 import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
+import { searchWikipedia } from './lib/wikipedia.js'
 import './Dashboard.css'
 import './VeterinaryFeatures.css'
 
@@ -18,24 +19,36 @@ const guidelinesData = [
     id: 1,
     title: 'Respiratory health',
     titleBn: 'শ্বাসতন্ত্রের স্বাস্থ্য',
+    titleHi: 'श्वसन स्वास्थ्य',
+    titleUr: 'تنفسی صحت',
     description: 'Observe breathing, coughing, nasal discharge, and changes in flock activity. Record when signs began and how many birds are affected. Improve ventilation and reduce dust while arranging an assessment by a veterinarian. Do not start antibiotics without a diagnosis and prescription.',
     descriptionBn: 'শ্বাস-প্রশ্বাস, কাশি, নাক দিয়ে স্রাব এবং পালের সক্রিয়তার পরিবর্তন লক্ষ্য করুন। লক্ষণ কখন শুরু হয়েছে এবং কতটি পাখি আক্রান্ত তা লিখে রাখুন। পশুচিকিৎসকের মূল্যায়নের ব্যবস্থা করার সময় বায়ু চলাচল উন্নত করুন এবং ধুলা কমান। রোগ নির্ণয় ও প্রেসক্রিপশন ছাড়া অ্যান্টিবায়োটিক শুরু করবেন না।',
+    descriptionHi: 'साँस, खाँसी, नाक से स्राव और झुंड की गतिविधि में बदलाव देखें। लक्षण कब शुरू हुए और कितने पक्षी प्रभावित हैं, दर्ज करें। पशु चिकित्सक से जाँच की व्यवस्था करते समय हवा का प्रवाह बेहतर करें और धूल घटाएँ। निदान और पर्चे के बिना एंटीबायोटिक शुरू न करें।',
+    descriptionUr: 'سانس، کھانسی، ناک کے اخراج اور ریوڑ کی سرگرمی میں تبدیلی دیکھیں۔ علامات کب شروع ہوئیں اور کتنے پرندے متاثر ہیں، درج کریں۔ ویٹرنری معائنے کا بندوبست کرتے ہوئے ہوا کی آمدورفت بہتر اور گرد کم کریں۔ تشخیص اور نسخے کے بغیر اینٹی بایوٹک شروع نہ کریں۔',
     images: [],
   },
   {
     id: 2,
     title: 'Digestive health',
     titleBn: 'পরিপাকতন্ত্রের স্বাস্থ্য',
+    titleHi: 'पाचन स्वास्थ्य',
+    titleUr: 'نظامِ ہاضمہ کی صحت',
     description: 'Track feed and water intake, droppings, and the number of birds showing signs. Keep clean water available and separate visibly unwell birds when safe to do so. Share the timeline and any recent feed or management changes with your veterinarian.',
     descriptionBn: 'খাদ্য ও পানির গ্রহণ, বিষ্ঠা এবং লক্ষণযুক্ত পাখির সংখ্যা নথিভুক্ত করুন। পরিষ্কার পানি দিন এবং নিরাপদ হলে অসুস্থ পাখিকে আলাদা রাখুন। সময়রেখা এবং খাদ্য বা ব্যবস্থাপনায় সাম্প্রতিক পরিবর্তনের তথ্য পশুচিকিৎসককে জানান।',
+    descriptionHi: 'चारे और पानी की खपत, बीट तथा लक्षण दिखाने वाले पक्षियों की संख्या दर्ज करें। साफ़ पानी उपलब्ध रखें और सुरक्षित होने पर स्पष्ट रूप से अस्वस्थ पक्षियों को अलग करें। समय-क्रम और चारे या प्रबंधन में हाल के बदलाव पशु चिकित्सक को बताएँ।',
+    descriptionUr: 'خوراک اور پانی کی مقدار، فضلے اور علامات والے پرندوں کی تعداد درج کریں۔ صاف پانی دستیاب رکھیں اور محفوظ ہونے پر واضح طور پر بیمار پرندوں کو الگ کریں۔ علامات کی ترتیب اور خوراک یا انتظام میں حالیہ تبدیلیاں ویٹرنری ڈاکٹر کو بتائیں۔',
     images: [],
   },
   {
     id: 3,
     title: 'Prevention & biosecurity',
     titleBn: 'প্রতিরোধ ও জৈব-নিরাপত্তা',
+    titleHi: 'रोकथाम और जैव-सुरक्षा',
+    titleUr: 'بچاؤ اور حیاتیاتی تحفظ',
     description: 'Limit unnecessary visitors, clean and disinfect equipment between groups, and protect feed and water from contamination. Follow local vaccination and farm biosecurity plans with veterinary guidance, and report unusual illness or mortality promptly.',
     descriptionBn: 'অপ্রয়োজনীয় দর্শনার্থী সীমিত করুন, এক দল থেকে অন্য দলে যাওয়ার আগে সরঞ্জাম পরিষ্কার ও জীবাণুমুক্ত করুন এবং খাদ্য ও পানি দূষণ থেকে রক্ষা করুন। পশুচিকিৎসকের নির্দেশনায় স্থানীয় টিকাদান ও খামারের জৈব-নিরাপত্তা পরিকল্পনা অনুসরণ করুন এবং অস্বাভাবিক অসুস্থতা বা মৃত্যুর খবর দ্রুত জানান।',
+    descriptionHi: 'अनावश्यक आगंतुक सीमित करें, समूहों के बीच उपकरण साफ़ और कीटाणुरहित करें, तथा चारे और पानी को दूषित होने से बचाएँ। पशु चिकित्सक के मार्गदर्शन में स्थानीय टीकाकरण और फार्म जैव-सुरक्षा योजना अपनाएँ और असामान्य बीमारी या मृत्यु की तुरंत सूचना दें।',
+    descriptionUr: 'غیر ضروری مہمانوں کو محدود کریں، گروہوں کے درمیان آلات صاف اور جراثیم سے پاک کریں، اور خوراک و پانی کو آلودگی سے بچائیں۔ ویٹرنری رہنمائی کے ساتھ مقامی ویکسین اور فارم کے حیاتیاتی تحفظ کے منصوبے پر عمل کریں، اور غیر معمولی بیماری یا اموات کی اطلاع فوراً دیں۔',
     images: [],
   },
 ]
@@ -79,6 +92,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [noticeSearch, setNoticeSearch] = useState('')
   const [visibleNotices, setVisibleNotices] = useState(notices)
   const [noticeSearchLoading, setNoticeSearchLoading] = useState(false)
+  const [noticeSearchError, setNoticeSearchError] = useState('')
   const [points, setPoints] = useState(140)
   const [pointsToast, setPointsToast] = useState(false)
   const [fontSize, setFontSize] = useState(() => {
@@ -104,29 +118,61 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   useEffect(() => {
     const query = noticeSearch.trim().toLocaleLowerCase()
     let active = true
-    const loadingTimeout = query
-      ? window.setTimeout(() => {
-        if (active) setNoticeSearchLoading(true)
-      }, 0)
-      : null
-    const searchTimeout = window.setTimeout(() => {
+    const controller = new AbortController()
+    const searchTimeout = window.setTimeout(async () => {
       const results = query
         ? notices.filter(({ titleKey, descriptionKey, typeKey }) => (
           `${t(titleKey)} ${t(descriptionKey)} ${t(typeKey)}`.toLocaleLowerCase().includes(query)
         ))
         : notices
-      if (active) {
+      if (!active) return
+      setNoticeSearchError('')
+      if (!query || results.length) {
         setVisibleNotices(results)
         setNoticeSearchLoading(false)
+        return
+      }
+
+      setNoticeSearchLoading(true)
+      try {
+        const externalResult = await searchWikipedia(noticeSearch.trim(), language, controller.signal)
+        if (!active) return
+        setVisibleNotices(externalResult ? [{
+          id: `external-${externalResult.title}`,
+          typeKey: 'dailyTip',
+          external: externalResult,
+        }] : [])
+        if (!externalResult) setNoticeSearchError('noExternalSearchResult')
+      } catch {
+        if (active && !controller.signal.aborted) {
+          setVisibleNotices([])
+          setNoticeSearchError('externalSearchError')
+        }
+      } finally {
+        if (active) setNoticeSearchLoading(false)
       }
     }, query ? 350 : 0)
 
     return () => {
       active = false
-      if (loadingTimeout !== null) window.clearTimeout(loadingTimeout)
+      controller.abort()
       window.clearTimeout(searchTimeout)
     }
-  }, [noticeSearch, t])
+  }, [noticeSearch, language, t])
+
+  function handleNoticeSearchChange(event) {
+    const nextQuery = event.target.value
+    const normalizedQuery = nextQuery.trim().toLocaleLowerCase()
+    const localResults = normalizedQuery
+      ? notices.filter(({ titleKey, descriptionKey, typeKey }) => (
+        `${t(titleKey)} ${t(descriptionKey)} ${t(typeKey)}`.toLocaleLowerCase().includes(normalizedQuery)
+      ))
+      : notices
+
+    setNoticeSearch(nextQuery)
+    setNoticeSearchError('')
+    setNoticeSearchLoading(Boolean(normalizedQuery && localResults.length === 0))
+  }
 
   useEffect(() => {
     if (!pointsToast) return undefined
@@ -314,9 +360,9 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         <div className="dashboard-header-actions">
           <div className="points-pill" aria-label={`${t('points')}: ${points}`}><Icon name="star" size={14} /><strong>{points}</strong> <span>{t('points')}</span></div>
           <ThemeToggle />
-          <button className="dashboard-language-button" type="button" aria-label={t('language')} title={t('language')} onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}>
-            {language === 'en' ? 'বাংলা' : 'EN'}
-          </button>
+          <select className="dashboard-language-button" aria-label={t('language')} title={t('language')} value={language} onChange={(event) => setLanguage(event.target.value)}>
+            {['en', 'bn', 'hi', 'ur'].map((code) => <option key={code} value={code}>{t(`language${{ en: 'English', bn: 'Bangla', hi: 'Hindi', ur: 'Urdu' }[code]}`)}</option>)}
+          </select>
           <button className="profile-button" type="button" onClick={() => { setSettingsOpen(true); setSettingsMessage('') }} aria-label={t('profileSettings')}>
             {avatar ? <img src={avatar} alt="" /> : <Icon name="user" size={19} />}
           </button>
@@ -389,11 +435,11 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             {guidelinesData.map((guideline) => (
               <article className="guideline-card" key={guideline.id}>
                 <div className="guideline-card-content">
-                  <h3>{language === 'bn' ? guideline.titleBn : guideline.title}</h3>
-                  <p>{language === 'bn' ? guideline.descriptionBn : guideline.description}</p>
+                  <h3>{guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}</h3>
+                  <p>{guideline[`description${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}</p>
                   {guideline.images.length > 0 && (
                     <div className="guideline-image-grid">
-                      {guideline.images.map((imagePath) => <img key={imagePath} src={imagePath} alt={language === 'bn' ? guideline.titleBn : guideline.title} />)}
+                      {guideline.images.map((imagePath) => <img key={imagePath} src={imagePath} alt={guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]} />)}
                     </div>
                   )}
                 </div>
@@ -405,17 +451,24 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         <section className="notices-section" aria-labelledby="notices-heading">
           <div className="section-heading notices-heading">
             <div><span className="section-icon section-icon--sun"><Icon name="bell" size={18} /></span><div><h2 id="notices-heading">{t('noticesTitle')}</h2><p>{t('noticesSubtitle')}</p></div></div>
-            <label className="notice-search"><Icon name="search" size={17} /><input type="search" placeholder={t('searchNotices')} value={noticeSearch} onChange={(event) => setNoticeSearch(event.target.value)} aria-label={t('searchNotices')} /></label>
+            <div className="notice-search-wrap">
+              <label className="notice-search"><Icon name="search" size={17} /><input type="search" placeholder={t('searchNotices')} value={noticeSearch} onChange={handleNoticeSearchChange} aria-label={t('searchNotices')} /></label>
+              {noticeSearchLoading && <p className="notice-search-status" role="status">{t('searchingOnlineSources')}</p>}
+            </div>
           </div>
-          {noticeSearchLoading && <p className="notice-search-status" role="status">Fetching official data...</p>}
           <div className="notice-list">
-            {!noticeSearchLoading && (visibleNotices.length ? visibleNotices.map(({ id, typeKey, titleKey, descriptionKey, dateKey }) => (
+            {!noticeSearchLoading && (visibleNotices.length ? visibleNotices.map(({ id, typeKey, titleKey, descriptionKey, dateKey, external }) => (
               <article className={`notice-item${id === 'colistin' ? ' notice-item--important' : ''}`} key={id}>
                 <span className={`notice-symbol${id === 'colistin' ? ' notice-symbol--red' : ''}`}><Icon name={id === 'colistin' ? 'alert' : 'leaf'} size={17} /></span>
-                <div className="notice-copy"><span className="notice-type">{t(typeKey)}</span><h3>{t(titleKey)}</h3><p>{t(descriptionKey)}</p></div>
-                <time>{t(dateKey)}</time>
+                <div className="notice-copy">
+                  <span className="notice-type">{external ? t('externalSourceBadge') : t(typeKey)}</span>
+                  <h3>{external?.title || t(titleKey)}</h3>
+                  <p>{external?.extract || t(descriptionKey)}</p>
+                  {external && <a className="external-source-badge" href={external.url} target="_blank" rel="noreferrer">{t('wikipediaSource')}</a>}
+                </div>
+                {!external && <time>{t(dateKey)}</time>}
               </article>
-            )) : <p className="empty-notices">{t('noNotices')}</p>)}
+            )) : <p className="empty-notices">{noticeSearchError ? t(noticeSearchError) : t('noNotices')}</p>)}
           </div>
           <p className="notice-disclaimer">{t('noticeDisclaimer')}</p>
         </section>

@@ -6,6 +6,7 @@ import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
 import PrescriptionLookup from './veterinary/PrescriptionLookup.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
+import { saveHistoryEntry } from './veterinary/historyStore.js'
 
 const maxFileSize = 8 * 1024 * 1024
 
@@ -19,11 +20,11 @@ export default function DiagnosisHub() {
   const [image, setImage] = useState(null)
   const [audio, setAudio] = useState(null)
   const [prescription, setPrescription] = useState(null)
-  const [prescriptionAnalyzed, setPrescriptionAnalyzed] = useState(false)
   const [symptoms, setSymptoms] = useState('')
   const [answer, setAnswer] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [historyWarning, setHistoryWarning] = useState('')
   const [modelWarning, setModelWarning] = useState('')
 
   function acceptFile(file, expected) {
@@ -56,7 +57,6 @@ export default function DiagnosisHub() {
     setError('')
     setModelWarning('')
     setAnswer(null)
-    setPrescriptionAnalyzed(Boolean(prescription))
     setLoading(true)
     try {
       const { data, error: sessionError } = await supabase.auth.getSession()
@@ -69,6 +69,21 @@ export default function DiagnosisHub() {
         onModelWarning: () => setModelWarning(t('visualModelUnavailable')),
       })
       setAnswer(result)
+      try {
+        saveHistoryEntry('diagnosis', {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          summary: symptoms.trim().slice(0, 140) || result.answer.slice(0, 140),
+          answer: result.answer,
+          sources: result.sources || [],
+          visualResult: result.visualResult || null,
+          files: files.map(({ name }) => name),
+        })
+        setHistoryWarning('')
+      } catch (historyError) {
+        console.error('Unable to save Smart Diagnosis history.', historyError)
+        setHistoryWarning(t('historySaveError'))
+      }
     } catch (requestError) {
       setError(requestError.message || t('aiRequestFailed'))
     } finally {
@@ -81,7 +96,6 @@ export default function DiagnosisHub() {
     setImage(null)
     setAudio(null)
     setPrescription(null)
-    setPrescriptionAnalyzed(false)
     setAnswer(null)
     setError('')
     setModelWarning('')
@@ -156,11 +170,11 @@ export default function DiagnosisHub() {
             <div className="diagnosis-input-card-heading">
               <span className="attachment-icon attachment-icon--pdf"><Icon name="pdf" size={19} /></span>
               <div><h3 id="diagnosis-prescription-title">{t('prescriptionTitle')}</h3><p>{prescription?.name || t('prescriptionDescription')}</p></div>
-              {prescription && <button className="remove-attachment" type="button" aria-label={t('removePrescription')} onClick={() => { setPrescription(null); setPrescriptionAnalyzed(false); if (prescriptionInput.current) prescriptionInput.current.value = ''; if (prescriptionCameraInput.current) prescriptionCameraInput.current.value = '' }}><Icon name="remove" size={16} /></button>}
+              {prescription && <button className="remove-attachment" type="button" aria-label={t('removePrescription')} onClick={() => { setPrescription(null); if (prescriptionInput.current) prescriptionInput.current.value = ''; if (prescriptionCameraInput.current) prescriptionCameraInput.current.value = '' }}><Icon name="remove" size={16} /></button>}
             </div>
             <div className="diagnosis-input-options">
-              <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => { setPrescriptionAnalyzed(false); setPrescription(acceptFile(event.target.files?.[0], 'prescription')) }} />
-              <input ref={prescriptionCameraInput} className="visually-hidden-input" type="file" accept="image/jpeg,image/png" capture="environment" aria-label={t('useLiveCamera')} onChange={(event) => { setPrescriptionAnalyzed(false); setPrescription(acceptFile(event.target.files?.[0], 'prescription')) }} />
+              <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => setPrescription(acceptFile(event.target.files?.[0], 'prescription'))} />
+              <input ref={prescriptionCameraInput} className="visually-hidden-input" type="file" accept="image/jpeg,image/png" capture="environment" aria-label={t('useLiveCamera')} onChange={(event) => setPrescription(acceptFile(event.target.files?.[0], 'prescription'))} />
               <button className={`diagnosis-input-option${prescription ? ' has-file' : ''}`} type="button" aria-label={t('uploadPrescription')} onClick={() => prescriptionInput.current?.click()}>
                 <Icon name="upload" size={15} /><span>{t('uploadShort')}</span>
               </button>
@@ -174,6 +188,7 @@ export default function DiagnosisHub() {
         <p className="diagnosis-accuracy-note"><Icon name="spark" size={15} />{t('accuracyTip')}</p>
         {error && <p className="diagnosis-error" role="alert">{error}</p>}
         {modelWarning && <p className="diagnosis-warning" role="status">{modelWarning}</p>}
+        {historyWarning && <p className="diagnosis-warning" role="status">{historyWarning}</p>}
 
         <div className="diagnosis-actions">
           <button className="diagnosis-submit" type="submit" disabled={loading}>
@@ -184,7 +199,7 @@ export default function DiagnosisHub() {
         </div>
       </form>
 
-      {prescription && prescriptionAnalyzed && <PrescriptionLookup />}
+      <PrescriptionLookup />
 
       {answer && <div className="ai-answer-card" aria-live="polite">
         <div className="ai-answer-heading"><span><Icon name="spark" size={17} />{t('aiTriageSummary')}</span><span className="ai-safety-label">{t('informationalOnly')}</span></div>

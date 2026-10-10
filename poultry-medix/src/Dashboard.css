@@ -77,13 +77,15 @@ html[data-font-size="large"] {
 
 .dashboard-language-button {
   min-height: 34px;
-  padding: 0 9px;
+  max-width: 100px;
+  padding: 0 7px;
   border: 1px solid #dce6d7;
   border-radius: 999px;
   color: #365c3c;
   background: #fff;
   font-size: 11px;
   font-weight: 700;
+  cursor: pointer;
 }
 
 .points-pill {
@@ -797,6 +799,15 @@ html[data-font-size="large"] {
   background: rgba(255, 255, 255, 0.85);
 }
 
+.notice-search-wrap {
+  width: min(225px, 36%);
+  flex: 0 0 auto;
+}
+
+.notice-search-wrap .notice-search {
+  width: 100%;
+}
+
 .notice-search:focus-within {
   border-color: #9eb89a;
   box-shadow: 0 0 0 3px rgba(75, 128, 83, 0.08);
@@ -862,6 +873,20 @@ html[data-font-size="large"] {
   letter-spacing: 0.8px;
 }
 
+.external-source-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 5px;
+  padding: 3px 6px;
+  border: 1px solid #e5eadf;
+  border-radius: 999px;
+  color: #73836f;
+  background: #f4f7f1;
+  font-size: 7px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
 .notice-item--important .notice-type {
   color: #b45f4d;
 }
@@ -896,9 +921,9 @@ html[data-font-size="large"] {
 }
 
 .notice-search-status {
-  margin: 0 0 8px;
+  margin: 4px 2px 0;
   color: #718271;
-  font-size: 10px;
+  font-size: 9px;
   font-style: italic;
 }
 
@@ -2242,6 +2267,37 @@ html[data-font-size="large"] {
   background: transparent;
 }
 
+.chat-source-list a {
+  max-width: 100%;
+  overflow: hidden;
+  color: #6f806d;
+  font-size: 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-message-safety {
+  margin-top: 9px;
+  padding: 6px 7px;
+  border: 1px solid #f0d9d1;
+  border-left: 2px solid #bd5548;
+  border-radius: 6px;
+  color: #8f473d;
+  background: #fff8f5;
+}
+
+.chat-message-safety strong {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 7px;
+}
+
+.chat-message-safety p {
+  margin: 0;
+  font-size: 7px;
+  line-height: 1.45;
+}
+
 .chat-visual-result {
   display: flex;
   width: fit-content;
@@ -2586,6 +2642,10 @@ html[data-font-size="large"] {
   }
 
   .notice-search {
+    width: 100%;
+  }
+
+  .notice-search-wrap {
     width: 100%;
   }
 
