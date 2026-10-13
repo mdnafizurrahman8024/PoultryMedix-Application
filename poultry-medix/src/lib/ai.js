@@ -43,7 +43,7 @@ export async function classifyPoultryImage(file) {
   }
 }
 
-export async function requestDiagnosis({ text, files, accessToken, visualResult }) {
+export async function requestDiagnosis({ text, files, accessToken, visualResult, userRole, appLanguage }) {
   const attachments = await Promise.all(files.map(async (file) => ({
     name: file.name,
     mimeType: file.type,
@@ -55,14 +55,14 @@ export async function requestDiagnosis({ text, files, accessToken, visualResult 
       'content-type': 'application/json',
       authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ text, attachments, visualResult }),
+    body: JSON.stringify({ text, attachments, visualResult, userRole, appLanguage }),
   })
   const result = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(result.error || 'AI diagnosis could not be completed.')
   return result
 }
 
-export async function runMultimodalDiagnosis({ text, files, accessToken, onModelWarning }) {
+export async function runMultimodalDiagnosis({ text, files, accessToken, userRole, appLanguage, onModelWarning }) {
   let visualResult = null
   const image = files.find((file) => file.type.startsWith('image/'))
   if (image) {
@@ -72,6 +72,6 @@ export async function runMultimodalDiagnosis({ text, files, accessToken, onModel
       onModelWarning(error)
     }
   }
-  const result = await requestDiagnosis({ text, files, accessToken, visualResult })
+  const result = await requestDiagnosis({ text, files, accessToken, visualResult, userRole, appLanguage })
   return { ...result, visualResult }
 }

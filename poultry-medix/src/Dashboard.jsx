@@ -96,8 +96,12 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [points, setPoints] = useState(140)
   const [pointsToast, setPointsToast] = useState(false)
   const [fontSize, setFontSize] = useState(() => {
-    const savedSize = localStorage.getItem('poultry-font-size')
-    return ['small', 'normal', 'large'].includes(savedSize) ? savedSize : 'normal'
+    const savedSize = Number(localStorage.getItem('poultry-font-size'))
+    return Number.isInteger(savedSize) && savedSize >= 14 && savedSize <= 24 ? savedSize : 16
+  })
+  const [fontFamily, setFontFamily] = useState(() => {
+    const savedFamily = localStorage.getItem('poultry-font-family')
+    return ['system', 'hind-siliguri', 'noto-bengali', 'inter', 'poppins'].includes(savedFamily) ? savedFamily : 'system'
   })
   const [name, setName] = useState(() => localStorage.getItem('poultry-profile-name') || initialName || '')
   const [profileLocation, setProfileLocation] = useState(() => localStorage.getItem('poultry-profile-location') || initialLocation || '')
@@ -112,8 +116,14 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [activeView, setActiveView] = useState('home')
 
   useEffect(() => {
-    document.documentElement.dataset.fontSize = fontSize
+    const root = document.documentElement
+    root.style.setProperty('--app-font-size', `${fontSize}px`)
+    root.style.setProperty('--app-scale', String(fontSize / 16))
   }, [fontSize])
+
+  useEffect(() => {
+    document.documentElement.dataset.fontFamily = fontFamily
+  }, [fontFamily])
 
   useEffect(() => {
     const query = noticeSearch.trim().toLocaleLowerCase()
@@ -273,10 +283,21 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   }
 
   function updateFontSize(event) {
-    const nextSize = event.target.value
+    const nextSize = Number(event.target.value)
     setFontSize(nextSize)
     try {
       localStorage.setItem('poultry-font-size', nextSize)
+      setSettingsMessage('')
+    } catch {
+      setSettingsMessage(t('fontSizeSaveError'))
+    }
+  }
+
+  function updateFontFamily(event) {
+    const nextFamily = event.target.value
+    setFontFamily(nextFamily)
+    try {
+      localStorage.setItem('poultry-font-family', nextFamily)
       setSettingsMessage('')
     } catch {
       setSettingsMessage(t('fontSizeSaveError'))
@@ -530,11 +551,19 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
               <section className="settings-block">
                <div className="settings-block-heading"><span className="settings-icon"><Icon name="globe" size={17} /></span><div><h3>{t('fontSize')}</h3><p>{t('fontSizeDescription')}</p></div></div>
-               <label className="settings-label">{t('fontSize')}
-                 <select value={fontSize} onChange={updateFontSize}>
-                   <option value="small">{t('fontSizeSmall')}</option>
-                   <option value="normal">{t('fontSizeNormal')}</option>
-                   <option value="large">{t('fontSizeLarge')}</option>
+               <label className="settings-label" htmlFor="font-size-range">
+                 Font size: <strong>{fontSize}px</strong>
+                 <input id="font-size-range" type="range" min="14" max="24" step="1" value={fontSize} onChange={updateFontSize} />
+                 <span className="settings-range-labels"><span>14px</span><span>24px</span></span>
+               </label>
+               <label className="settings-label" htmlFor="font-family-select">
+                 Font style / family
+                 <select id="font-family-select" value={fontFamily} onChange={updateFontFamily}>
+                   <option value="system">Default (System UI)</option>
+                   <option value="hind-siliguri">Hind Siliguri (English + Bengali)</option>
+                   <option value="noto-bengali">Noto Sans Bengali</option>
+                   <option value="inter">Inter</option>
+                   <option value="poppins">Poppins</option>
                  </select>
                </label>
               </section>

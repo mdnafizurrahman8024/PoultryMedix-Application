@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useLanguage } from '../context/useLanguage.js'
 import Icon from '../components/Icon.jsx'
+import AntibioticUsageAccordion from './AntibioticUsageAccordion.jsx'
 
 const bangladeshCenter = [23.685, 90.3563]
 const diseaseRatios = [
@@ -10,39 +11,6 @@ const diseaseRatios = [
   { key: 'digestive', ratio: 27 },
   { key: 'parasitic', ratio: 21 },
   { key: 'other', ratio: 14 },
-]
-
-const antibioticClasses = [
-  {
-    name: 'Tetracyclines',
-    ratio: 38,
-    antibiotics: [
-      { name: 'Doxycycline', ratio: 24, generations: [{ name: '3rd Gen', ratio: 62 }, { name: '2nd Gen', ratio: 38 }] },
-      { name: 'Oxytetracycline', ratio: 14, generations: [{ name: '1st Gen', ratio: 100 }] },
-    ],
-  },
-  {
-    name: 'Beta-lactams',
-    ratio: 31,
-    antibiotics: [
-      { name: 'Amoxicillin', ratio: 19, generations: [{ name: '3rd Gen', ratio: 70 }, { name: '2nd Gen', ratio: 30 }] },
-      { name: 'Ampicillin', ratio: 12, generations: [{ name: '2nd Gen', ratio: 100 }] },
-    ],
-  },
-  {
-    name: 'Macrolides',
-    ratio: 19,
-    antibiotics: [
-      { name: 'Tylosin', ratio: 19, generations: [{ name: '1st Gen', ratio: 100 }] },
-    ],
-  },
-  {
-    name: 'Sulfonamides',
-    ratio: 12,
-    antibiotics: [
-      { name: 'Sulfadiazine', ratio: 12, generations: [{ name: '1st Gen', ratio: 100 }] },
-    ],
-  },
 ]
 
 function MapViewport({ center }) {
@@ -123,11 +91,13 @@ export default function EpidemiologyMap() {
           </div>
         </div>
         <MapContainer center={center} zoom={7} scrollWheelZoom className="amr-leaflet-map">
-          <MapViewport center={center} />
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <>
+            <MapViewport center={center} />
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          </>
         </MapContainer>
         <p className="map-privacy-note"><Icon name="shield" size={14} />{t('mapDemoNotice')}</p>
       </section>
@@ -178,43 +148,7 @@ export default function EpidemiologyMap() {
           </div>
         </section>
 
-        <section className="amr-analytics-section" aria-labelledby="class-usage-title">
-          <h3 id="class-usage-title">{t('classToAntibioticUsage')}</h3>
-          <div className="amr-hierarchy">
-            {antibioticClasses.map((group) => (
-              <details className="amr-class-group" key={group.name} open>
-                <summary><span>{group.name}</span><strong>{t('mapUsageRatio')}: {formatPercent(group.ratio, language)}</strong></summary>
-                <ul>
-                  {group.antibiotics.map((antibiotic) => (
-                    <li key={antibiotic.name}>
-                      <span>{antibiotic.name}</span>
-                      <span><strong>{formatPercent(antibiotic.ratio, language)}</strong><small>{t('specificAntibioticName')}</small></span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ))}
-          </div>
-        </section>
-
-        <section className="amr-analytics-section" aria-labelledby="generation-usage-title">
-          <h3 id="generation-usage-title">{t('antibioticToGenerationUsage')}</h3>
-          <div className="amr-hierarchy">
-            {antibioticClasses.flatMap((group) => group.antibiotics).map((antibiotic) => (
-              <details className="amr-class-group" key={antibiotic.name}>
-                <summary><span>{antibiotic.name}</span><strong>{t('specificAntibioticName')}</strong></summary>
-                <ul>
-                  {antibiotic.generations.map((generation) => (
-                    <li key={generation.name}>
-                      <span>{generation.name}</span>
-                      <span><strong>{formatPercent(generation.ratio, language)}</strong><small>{t('antibioticGeneration')}</small></span>
-                    </li>
-                  ))}
-                </ul>
-              </details>
-            ))}
-          </div>
-        </section>
+        <AntibioticUsageAccordion language={language} t={t} />
 
         <p className="veterinary-disclaimer">{t('amrDataDisclaimer')}</p>
       </section>

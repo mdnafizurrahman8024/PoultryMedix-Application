@@ -16,6 +16,8 @@ export default function Icon({ name, size = 20, className = '' }) {
     share: <><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.7 10.7 6.6-4.4m-6.6 8 6.6 4.4" /></>,
     bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12h4" /></>,
     close: <><path d="m18 6-12 12M6 6l12 12" /></>,
+    expand: <><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m18 0v5h-5" /><path d="m3 8 5-5m8 0 5 5M3 16l5 5m8 0 5-5" /></>,
+    minimize: <><path d="M9 3v6H3m12-6v6h6M9 21v-6H3m12 0v6h6" /></>,
     cloud: <><path d="M20 16.2A4.5 4.5 0 0 0 18 7.5 6 6 0 0 0 6.6 9.2 4 4 0 0 0 7 17h12" /></>,
     sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></>,
     droplet: <><path d="M12 22a7 7 0 0 0 7-7c0-4-7-13-7-13S5 11 5 15a7 7 0 0 0 7 7Z" /></>,
