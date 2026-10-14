@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import { saveHistoryEntry } from './historyStore.js'
+import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
 import './Telemedicine.css'
 
 const paymentMethods = [
@@ -140,6 +141,19 @@ export default function Telemedicine() {
         medications: medications.map((medication) => ({ ...medication })),
       }
       localStorage.setItem('poultry-telemedicine-prescriptions', JSON.stringify([record, ...stored].slice(0, 100)))
+      const analyticsRecord = {
+        ...record,
+        source: 'consult',
+        medications: record.medications.map((medication) => ({
+          ...medication,
+          generic: medication.generic || medication.name,
+          tradeName: medication.tradeName || medication.name,
+          company: medication.company || 'Company not recorded',
+        })),
+      }
+      const analyticsRecords = JSON.parse(localStorage.getItem(prescriptionStorageKeys.consult) || '[]')
+      localStorage.setItem(prescriptionStorageKeys.consult, JSON.stringify([analyticsRecord, ...analyticsRecords].slice(0, 100)))
+      notifyPrescriptionDataChanged()
       setSaveMessage('Prescription saved to this device’s simulated Farmer Clinical History.')
     } catch (error) {
       setSaveError(`Could not save prescription: ${error.message}`)

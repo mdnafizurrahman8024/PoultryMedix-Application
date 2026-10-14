@@ -15,6 +15,48 @@ const supportedMimeTypes = new Set([
 ])
 const maxFileSize = 8 * 1024 * 1024
 
+function PoultryMedixChatLogo({ size = 56 }) {
+  return (
+    <svg
+      aria-label="PoultryMedix AI Diagnostic"
+      role="img"
+      width={size}
+      height={size}
+      viewBox="0 0 100 100"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient id="chat-logo-ring" x1="14" y1="10" x2="88" y2="92" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#A3E635" />
+          <stop offset=".5" stopColor="#34D399" />
+          <stop offset="1" stopColor="#059669" />
+        </linearGradient>
+        <linearGradient id="chat-logo-cross" x1="40" y1="33" x2="61" y2="67" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#D9F99D" />
+          <stop offset="1" stopColor="#10B981" />
+        </linearGradient>
+        <filter id="chat-logo-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="2.2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      <circle cx="50" cy="50" r="48" fill="#050A07" />
+      <circle cx="50" cy="50" r="42" stroke="#163B2A" strokeWidth="2" />
+      <path d="M20 66C10 43 20 18 43 11C64 4 87 15 92 37" stroke="url(#chat-logo-ring)" strokeWidth="5" strokeLinecap="round" filter="url(#chat-logo-glow)" />
+      <path d="M79 28C91 47 84 76 63 87C43 98 19 87 13 67" stroke="url(#chat-logo-ring)" strokeWidth="3" strokeLinecap="round" opacity=".8" />
+      <path d="M50 31V69M31 50H69" stroke="url(#chat-logo-cross)" strokeWidth="9" strokeLinecap="round" />
+      <path d="M68 36C79 39 84 49 80 59C77 67 69 69 65 76C62 81 66 87 72 88" stroke="#A3E635" strokeWidth="3.5" strokeLinecap="round" />
+      <circle cx="74" cy="87" r="6" fill="#059669" stroke="#D9F99D" strokeWidth="2" />
+      <path d="M29 74C31 68 39 66 46 70C52 73 55 80 51 84C46 89 35 87 29 82C26 80 26 77 29 74Z" fill="#F8FAFC" />
+      <path d="M34 70C31 65 35 61 40 64C44 66 44 70 41 73" fill="#F8FAFC" />
+      <circle cx="38" cy="67" r="1.5" fill="#050A07" />
+      <path d="M43 70L50 68L46 75" fill="#A3E635" />
+      <path d="M29 82C24 83 21 81 20 78M48 84C53 86 57 84 59 81" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 export default function AIChat() {
   const { t, language } = useLanguage()
   const [userRole, setUserRole] = useState('farmer')
@@ -374,7 +416,20 @@ export default function AIChat() {
 
   return (
     <div className="ai-chat-widget">
-      {open && <section className={`ai-chat-panel${expanded ? ' ai-chat-panel--expanded' : ''}`} aria-label={t('aiChatTitle')}>
+      {open && <section
+        className={`ai-chat-panel${expanded ? ' ai-chat-panel--expanded' : ''}`}
+        aria-label={t('aiChatTitle')}
+        style={expanded ? {
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 9999,
+          borderRadius: 0,
+          right: 'auto',
+          bottom: 'auto',
+        } : undefined}
+      >
         <AiSafetyBanner />
         <header
           className="ai-chat-header"
@@ -389,9 +444,21 @@ export default function AIChat() {
             }
           }}
         >
-          <span className="chat-avatar"><img src="/images/logo.png" alt="" /></span>
+          <span className="chat-avatar"><PoultryMedixChatLogo size={36} /></span>
           <span className="chat-title"><strong>PoultryMedix AI</strong><small><span className="chat-online-dot" />AI Diagnostic • Online</small></span>
           <span className="chat-header-actions">
+            <button
+              className="chat-header-action"
+              type="button"
+              aria-label={expanded ? 'Exit fullscreen chat' : 'Expand chat'}
+              title={expanded ? 'Exit fullscreen chat' : 'Expand chat'}
+              onClick={(event) => {
+                event.stopPropagation()
+                setExpanded((value) => !value)
+              }}
+            >
+              <span aria-hidden="true">[ ]</span>
+            </button>
             <button
               className="chat-header-action"
               type="button"
@@ -400,21 +467,10 @@ export default function AIChat() {
               onClick={(event) => {
                 event.stopPropagation()
                 setOpen(false)
+                setExpanded(false)
               }}
             >
-              <Icon name="message" size={17} />
-            </button>
-            <button
-              className="chat-header-action"
-              type="button"
-              aria-label="Expand chat"
-              title="Expand chat"
-              onClick={(event) => {
-                event.stopPropagation()
-                setExpanded((value) => !value)
-              }}
-            >
-              <Icon name="expand" size={17} />
+              <span aria-hidden="true">✕</span>
             </button>
           </span>
         </header>
@@ -457,14 +513,19 @@ export default function AIChat() {
             <div className="chat-composer-actions">
               <input ref={inputRef} className="visually-hidden-input" type="file" accept="image/*,audio/*,application/pdf" multiple onChange={(event) => { if (event.target.files) queueFiles(event.target.files); event.target.value = ''; setAttachmentMenuOpen(false) }} aria-label={t('attachFiles')} />
               <input ref={cameraInputRef} className="visually-hidden-input" type="file" accept="image/*" capture="environment" onChange={(event) => { if (event.target.files) queueFiles(event.target.files); event.target.value = ''; setAttachmentMenuOpen(false) }} aria-label="Take Photo / Camera" />
-              <div className="chat-attachment-menu-wrap">
+              <div className="chat-attachment-menu-wrap" style={{ position: 'relative' }}>
                 <button className="chat-tool-button" type="button" aria-label={t('attachFiles')} aria-expanded={attachmentMenuOpen} onClick={() => setAttachmentMenuOpen((value) => !value)} disabled={loading}><Icon name="plus" size={17} /></button>
-                {attachmentMenuOpen && <div className="chat-attachment-menu bg-white text-gray-700" role="menu" onClick={(event) => event.stopPropagation()}>
-                  <button className="chat-menu-item text-gray-700 hover:bg-gray-100" type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="upload" size={15} />Upload Files</button>
-                  <button className="chat-menu-item text-gray-700 hover:bg-gray-100" type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setDragError('Google Drive integration is not configured yet.') }}><Icon name="cloud" size={15} />Google Drive</button>
-                  <button className="chat-menu-item text-gray-700 hover:bg-gray-100" type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); cameraInputRef.current?.click() }}><Icon name="camera" size={15} />Take Photo / Camera</button>
-                  <button className="chat-menu-item text-gray-700 hover:bg-gray-100" type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="pdf" size={15} />Prescription PDF</button>
-                  <button className="chat-menu-item text-gray-700 hover:bg-gray-100" type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); startRecording() }}><Icon name="mic" size={15} />Voice / Audio Note</button>
+                {attachmentMenuOpen && <div
+                  className="chat-attachment-menu"
+                  role="menu"
+                  onClick={(event) => event.stopPropagation()}
+                  style={{ position: 'absolute', bottom: '68px', left: '16px', width: '240px', backgroundColor: '#ffffff', border: '1px solid #d1fae5', borderRadius: '16px', padding: '8px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.18)', zIndex: 9999 }}
+                >
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="upload" size={15} />Upload Files</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setDragError('Google Drive integration is not configured yet.') }}><Icon name="cloud" size={15} />Google Drive</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); cameraInputRef.current?.click() }}><Icon name="camera" size={15} />Take Photo / Camera</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="pdf" size={15} />Prescription PDF</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); startRecording() }}><Icon name="mic" size={15} />Voice / Audio Note</button>
                 </div>}
               </div>
               <button className="chat-send-button" type="submit" disabled={loading || (!message.trim() && !files.length)} aria-label={t('sendMessage')}><Icon name="send" size={16} /></button>
@@ -475,20 +536,38 @@ export default function AIChat() {
       </section>}
 
       {!open && <button
-        className={`ai-chat-fab${open ? ' ai-chat-fab--open' : ''}`}
+        className={`ai-chat-fab group${open ? ' ai-chat-fab--open' : ''}`}
         ref={fabRef}
         type="button"
         aria-label={open ? t('close') : t('openAiChat')}
         aria-expanded={open}
         title={t('dragChat')}
-        style={position ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' } : undefined}
+        style={{
+          ...(position
+            ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' }
+            : { right: '1.5rem', bottom: '5rem' }),
+          width: 'auto',
+          height: 'auto',
+          minWidth: 0,
+          minHeight: 0,
+          padding: 0,
+          border: 0,
+          background: 'transparent',
+          boxShadow: 'none',
+          zIndex: 9998,
+        }}
         onPointerDown={pointerDown}
         onPointerMove={pointerMove}
         onPointerUp={pointerUp}
         onPointerCancel={pointerCancel}
         onClick={activateFab}
       >
-        <><Icon name="stethoscope" size={22} /><Icon name="message" size={15} className="fab-chat-bubble" /></>
+        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+          <span className="w-16 h-16 rounded-full shadow-2xl border-2 border-emerald-400/70 transition-transform duration-200 group-hover:scale-105 group-active:scale-95" style={{ display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#050a07' }}>
+            <PoultryMedixChatLogo size={64} />
+          </span>
+          <span style={{ backgroundColor: '#064e3b', borderRadius: '999px', color: '#ffffff', fontSize: '12px', fontWeight: '700', lineHeight: 1, padding: '6px 10px', whiteSpace: 'nowrap' }}>AI Diagnostic</span>
+        </span>
       </button>}
     </div>
   )

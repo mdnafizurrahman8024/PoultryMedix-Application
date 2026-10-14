@@ -1,157 +1,204 @@
-import { useEffect, useState } from 'react'
-import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useLanguage } from '../context/useLanguage.js'
-import Icon from '../components/Icon.jsx'
-import AntibioticUsageAccordion from './AntibioticUsageAccordion.jsx'
+import L from 'leaflet'
+import { useEffect, useRef, useState } from 'react'
+import {
+  getPrescriptionAnalytics,
+  prescriptionDataChangedEvent,
+} from './prescriptionAnalytics.js'
 
 const bangladeshCenter = [23.685, 90.3563]
-const diseaseRatios = [
-  { key: 'respiratory', ratio: 38 },
-  { key: 'digestive', ratio: 27 },
-  { key: 'parasitic', ratio: 21 },
-  { key: 'other', ratio: 14 },
+const themeStyles = {
+  emerald: { background: 'rgba(16, 185, 129, .13)', border: '#6ee7b7', accent: '#047857' },
+  indigo: { background: 'rgba(79, 70, 229, .13)', border: '#a5b4fc', accent: '#3730a3' },
+  rose: { background: 'rgba(244, 63, 94, .13)', border: '#fda4af', accent: '#be123c' },
+  amber: { background: 'rgba(245, 158, 11, .15)', border: '#fcd34d', accent: '#b45309' },
+}
+
+const outbreakDistricts = [
+  { name: 'Rajshahi', coordinates: [24.3745, 88.6042], disease: 'Avian Influenza', severity: 'Critical', farms: 18, risk: 'High AMR risk', color: '#dc2626' },
+  { name: 'Bogura', coordinates: [24.8481, 89.372], disease: 'Newcastle / Ranikhet', severity: 'High', farms: 12, risk: 'Elevated AMR risk', color: '#ea580c' },
+  { name: 'Gazipur', coordinates: [24.0958, 90.4125], disease: 'Gumboro', severity: 'Moderate', farms: 9, risk: 'Moderate AMR risk', color: '#d97706' },
+  { name: 'Mymensingh', coordinates: [24.7471, 90.4203], disease: 'Coccidiosis', severity: 'High', farms: 15, risk: 'Elevated AMR risk', color: '#ea580c' },
+  { name: 'Cumilla', coordinates: [23.4607, 91.1809], disease: 'Newcastle / Ranikhet', severity: 'Moderate', farms: 7, risk: 'Moderate AMR risk', color: '#d97706' },
 ]
 
-function MapViewport({ center }) {
-  const map = useMap()
-
-  useEffect(() => {
-    map.setView(center, map.getZoom(), { animate: true })
-  }, [center, map])
-
-  return null
+function severityStyle(severity) {
+  if (severity === 'Critical') return { background: '#fee2e2', color: '#b91c1c' }
+  if (severity === 'High') return { background: '#ffedd5', color: '#c2410c' }
+  return { background: '#fef3c7', color: '#a16207' }
 }
 
-function formatPercent(value, language) {
-  return `${new Intl.NumberFormat(language === 'bn' ? 'bn-BD' : 'en').format(value)}%`
+function ProgressBar({ percentage, color }) {
+  return (
+    <span style={{ background: 'rgba(148, 163, 184, .2)', borderRadius: 999, display: 'block', height: 8, overflow: 'hidden' }}>
+      <span style={{ background: `linear-gradient(90deg, ${color}, #fbbf24)`, display: 'block', height: '100%', width: `${percentage}%` }} />
+    </span>
+  )
 }
 
-export default function EpidemiologyMap() {
-  const { t, language } = useLanguage()
-  const [center, setCenter] = useState(bangladeshCenter)
-  const [view, setView] = useState('community')
-  const [locationMessage, setLocationMessage] = useState('')
-  const hasGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
+function AntibioticHierarchy({ source, district }) {
+  const [analytics, setAnalytics] = useState(() => getPrescriptionAnalytics(source, district))
+  const [expandedClasses, setExpandedClasses] = useState(() => new Set(['Tetracyclines']))
+  const [expandedGenerics, setExpandedGenerics] = useState(() => new Set())
+  const [selectedGeneration, setSelectedGeneration] = useState(null)
 
   useEffect(() => {
-    if (!hasGeolocation) return undefined
-
-    let active = true
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (!active) return
-        setCenter([coords.latitude, coords.longitude])
-        setLocationMessage(t('mapGpsReady'))
-      },
-      () => {
-        if (active) setLocationMessage(t('mapGpsFallback'))
-      },
-      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 600_000 },
-    )
-
-    return () => { active = false }
-  }, [hasGeolocation, t])
-
-  function centerOnCurrentLocation() {
-    setLocationMessage('')
-    if (!hasGeolocation) {
-      setLocationMessage(t('mapLocationUnavailable'))
-      return
+    const refresh = () => setAnalytics(getPrescriptionAnalytics(source, district))
+    refresh()
+    window.addEventListener('storage', refresh)
+    window.addEventListener(prescriptionDataChangedEvent, refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener(prescriptionDataChangedEvent, refresh)
     }
+  }, [source, district])
 
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        setCenter([coords.latitude, coords.longitude])
-        setLocationMessage(t('mapGpsReady'))
-      },
-      () => setLocationMessage(t('mapGpsFallback')),
-      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 600_000 },
-    )
+  function toggle(setter, key) {
+    setter((current) => {
+      const next = new Set(current)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
   }
 
   return (
-    <div className="veterinary-page epidemiology-page">
-      <section className="veterinary-page-heading">
-        <span className="veterinary-kicker">{t('veterinaryToolsEyebrow')}</span>
-        <h1>{t('amrMapTitle')}</h1>
-        <p>{t('amrMapDescription')}</p>
-      </section>
-
-      <section className="amr-map-card" aria-label={t('amrMapTitle')}>
-        <div className="map-card-heading">
-          <div>
-            <h2>{t('amrLiveMap')}</h2>
-            <p role="status">{locationMessage || (hasGeolocation ? t('mapLocationLoading') : t('mapLocationUnavailable'))}</p>
-          </div>
-          <div className="map-actions">
-            <button className="map-locate-button" type="button" onClick={centerOnCurrentLocation}>
-              <Icon name="pin" size={15} />{t('mapMyLocation')}
-            </button>
-          </div>
+    <section className="amr-analytics-card" aria-labelledby="antibiotic-hierarchy-title">
+      <div className="amr-analytics-heading">
+        <div>
+          <span className="veterinary-kicker">4 levels</span>
+          <h2 id="antibiotic-hierarchy-title">Antibiotic Usage Hierarchy</h2>
+          <p>Generic Antibiotic Class → Specific Generic → Trade Name (Company) → Generation Usage Ratio (%)</p>
         </div>
-        <MapContainer center={center} zoom={7} scrollWheelZoom className="amr-leaflet-map">
-          <>
-            <MapViewport center={center} />
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-          </>
-        </MapContainer>
-        <p className="map-privacy-note"><Icon name="shield" size={14} />{t('mapDemoNotice')}</p>
-      </section>
+      </div>
+      <div style={{ alignItems: 'center', backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 8px 20px rgba(15, 23, 42, .1)', display: 'flex', flexWrap: 'wrap', gap: '.6rem', marginBottom: '1rem', padding: '.75rem' }}>
+        <strong>Total Analyzed: {analytics.total} Prescriptions</strong>
+        {[
+          ['all', 'All Combined (100%)'],
+          ['home', 'Home Page Data'],
+          ['consult', 'Consult Vet Data'],
+        ].map(([value, label]) => (
+          <button key={value} type="button" onClick={() => window.dispatchEvent(new CustomEvent('poultrymedix-source-filter', { detail: value }))} className="cursor-pointer transition-all active:scale-95" style={{ background: source === value ? '#0f766e' : 'rgba(255, 255, 255, .7)', border: 0, borderRadius: 999, color: source === value ? 'white' : '#334155', cursor: 'pointer', padding: '.45rem .7rem' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gap: '1rem' }}>
+        {analytics.classes.map((classEntry, index) => {
+          const theme = themeStyles[['emerald', 'indigo', 'rose', 'amber'][index % 4]]
+          const classOpen = expandedClasses.has(classEntry.name)
+          return (
+            <article key={classEntry.name} style={{ backdropFilter: 'blur(18px)', background: theme.background, border: `1px solid ${theme.border}`, borderRadius: '1rem', boxShadow: '0 8px 24px rgba(15, 23, 42, .1)', padding: '1rem' }}>
+              <button type="button" onClick={() => toggle(setExpandedClasses, classEntry.name)} aria-expanded={classOpen} className="cursor-pointer transition-all hover:-translate-y-0.5 active:scale-95" style={{ alignItems: 'center', background: 'transparent', border: 0, color: theme.accent, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: 0, width: '100%' }}>
+                <span><strong>{classEntry.name}</strong> · {classEntry.percentage}% · {classEntry.count} prescriptions</span>
+                <b aria-hidden="true">{classOpen ? '−' : '+'}</b>
+              </button>
+              <ProgressBar percentage={classEntry.percentage} color={theme.accent} />
+              {classOpen && <div style={{ display: 'grid', gap: '.75rem', marginTop: '.85rem', paddingLeft: '.75rem' }}>
+                {classEntry.generics.map((generic) => {
+                  const genericKey = `${classEntry.name}-${generic.name}`
+                  const genericOpen = expandedGenerics.has(genericKey)
+                  return (
+                    <div key={genericKey} style={{ background: 'rgba(255, 255, 255, .45)', borderRadius: '.8rem', padding: '.7rem' }}>
+                      <button type="button" onClick={() => toggle(setExpandedGenerics, genericKey)} aria-expanded={genericOpen} className="cursor-pointer transition-all active:scale-95" style={{ alignItems: 'center', background: 'transparent', border: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: 0, width: '100%' }}>
+                        <span><strong>{generic.name}</strong> · {generic.percentage}%</span><b>{genericOpen ? '−' : '+'}</b>
+                      </button>
+                      <ProgressBar percentage={generic.percentage} color={theme.accent} />
+                      {genericOpen && <div style={{ display: 'grid', gap: '.7rem', marginTop: '.7rem' }}>
+                        {generic.trades.map((trade) => (
+                          <div key={`${genericKey}-${trade.name}-${trade.company}`}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>{trade.name} <small>({trade.company})</small></span><strong>{trade.percentage}%</strong></div>
+                            <ProgressBar percentage={trade.percentage} color={theme.accent} />
+                            <div style={{ display: 'grid', gap: '.35rem', marginTop: '.45rem' }}>
+                              {trade.generations.map((generation) => {
+                                const generationKey = `${genericKey}-${trade.name}-${generation.name}`
+                                const open = selectedGeneration === generationKey
+                                return (
+                                  <div key={generationKey}>
+                                    <button type="button" onClick={() => setSelectedGeneration(open ? null : generationKey)} className="cursor-pointer transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: 'rgba(255, 255, 255, .7)', border: '1px solid rgba(255, 255, 255, .8)', borderRadius: '.65rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: '.45rem .6rem', textAlign: 'left', width: '100%' }}>
+                                      <span>{generation.name}</span><strong>{generation.percentage}%</strong>
+                                    </button>
+                                    {open && <div style={{ backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .82)', border: '1px solid rgba(255, 255, 255, .7)', borderRadius: '.7rem', fontSize: '.82rem', marginTop: '.3rem', padding: '.55rem' }}>
+                                      WHO AWaRe: <strong>{generation.aware}</strong> · AMR Resistance Risk: <strong>{generation.risk}</strong> · Meat: <strong>{generation.meatDays}</strong> · Egg: <strong>{generation.eggDays}</strong>
+                                    </div>}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>}
+                    </div>
+                  )
+                })}
+              </div>}
+            </article>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
 
-      <section className="local-district-alerts" aria-labelledby="local-district-alerts-title">
-        <h3 id="local-district-alerts-title"><span aria-hidden="true">🚨</span>{t('localDistrictAlerts')}</h3>
-        <p>{t('sampleDistrictAlertNotice')}</p>
-        <ul>
-          <li>{t('districtAlertPaba')}</li>
-          <li>{t('districtAlertSavar')}</li>
-        </ul>
-      </section>
+export default function EpidemiologyMap() {
+  const mapContainerRef = useRef(null)
+  const mapRef = useRef(null)
+  const [selectedDistrict, setSelectedDistrict] = useState('')
+  const [source, setSource] = useState('all')
 
-      <section className="amr-analytics-card" aria-labelledby="amr-analytics-title">
-        <div className="amr-analytics-heading">
-          <div className="veterinary-section-heading">
-            <span className="veterinary-section-icon"><Icon name="chart" size={18} /></span>
-            <div><h2 id="amr-analytics-title">{t('amrAnalyticsTitle')}</h2><p>{t('sampleAnalyticsNotice')}</p></div>
-          </div>
-          <div className="amr-view-toggle" role="group" aria-label={t('amrAnalyticsView')}>
-            <button
-              type="button"
-              className={view === 'community' ? 'active' : ''}
-              aria-pressed={view === 'community'}
-              onClick={() => setView('community')}
-            >{t('amrCommunityView')}</button>
-            <button
-              type="button"
-              className={view === 'officer' ? 'active' : ''}
-              aria-pressed={view === 'officer'}
-              onClick={() => setView('officer')}
-            >{t('amrOfficerView')}</button>
-          </div>
+  useEffect(() => {
+    const onSourceFilter = (event) => setSource(event.detail || 'all')
+    window.addEventListener('poultrymedix-source-filter', onSourceFilter)
+    return () => window.removeEventListener('poultrymedix-source-filter', onSourceFilter)
+  }, [])
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return undefined
+    const map = L.map(mapContainerRef.current, { center: bangladeshCenter, zoom: 7 })
+    mapRef.current = map
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map)
+    outbreakDistricts.forEach((district) => {
+      const marker = L.circleMarker(district.coordinates, { color: district.color, fillColor: district.color, fillOpacity: .65, radius: district.severity === 'Critical' ? 13 : 10, weight: 2 }).addTo(map)
+      marker.bindPopup(`<strong>${district.name}</strong><br />${district.disease}<br />${district.risk}`)
+      marker.on('click', () => setSelectedDistrict(district.name))
+    })
+    return () => {
+      map.remove()
+      mapRef.current = null
+    }
+  }, [])
+
+  function selectDistrict(district) {
+    setSelectedDistrict(district.name)
+    mapRef.current?.flyTo(district.coordinates, 9, { animate: true, duration: .8 })
+  }
+
+  function centerOnLocation() {
+    if (!navigator.geolocation || !mapRef.current) return
+    navigator.geolocation.getCurrentPosition(({ coords }) => {
+      const coordinates = [coords.latitude, coords.longitude]
+      mapRef.current?.flyTo(coordinates, 10, { animate: true, duration: .8 })
+      L.circleMarker(coordinates, { color: '#2563eb', fillColor: '#60a5fa', fillOpacity: .9, radius: 8 }).addTo(mapRef.current).bindPopup('Your current location').openPopup()
+    })
+  }
+
+  return (
+    <main className="veterinary-page epidemiology-page">
+      <section className="veterinary-page-heading"><span className="veterinary-kicker">Veterinary tools</span><h1>Outbreak Map</h1><p>Monitor district-level epidemiology and antimicrobial resistance patterns.</p></section>
+      <section className="amr-map-card" aria-labelledby="live-epidemiology-title">
+        <div className="map-card-heading" style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
+          <div><h2 id="live-epidemiology-title">Live Epidemiology &amp; Hierarchical AMR Map</h2><p>Map centered on your current location; it is not submitted. OpenStreetMap receives the map-tile requests.</p></div>
+          <button className="map-locate-button" type="button" onClick={centerOnLocation}>My location</button>
         </div>
-        <p className="amr-role-note">{view === 'officer' ? t('amrOfficerViewNotice') : t('amrCommunityViewNotice')}</p>
-
-        <section className="amr-analytics-section" aria-labelledby="disease-ratio-title">
-          <h3 id="disease-ratio-title">{t('currentDiseaseRatio')}</h3>
-          <div className="disease-ratio-list">
-            {diseaseRatios.map(({ key, ratio }) => (
-              <div className="disease-ratio-row" key={key}>
-                <div className="disease-ratio-label"><span>{t(`disease_${key}`)}</span><strong>{formatPercent(ratio, language)}</strong></div>
-                <div className="disease-ratio-track" role="meter" aria-label={t(`disease_${key}`)} aria-valuemin="0" aria-valuemax="100" aria-valuenow={ratio}>
-                  <span style={{ width: `${ratio}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <AntibioticUsageAccordion language={language} t={t} />
-
-        <p className="veterinary-disclaimer">{t('amrDataDisclaimer')}</p>
+        <div ref={mapContainerRef} className="amr-leaflet-map min-h-[450px]" style={{ height: '450px', minHeight: '450px', width: '100%' }} />
       </section>
-    </div>
+      <section className="local-district-alerts" aria-labelledby="district-alerts-title">
+        <h2 id="district-alerts-title">District Outbreak Alerts</h2>
+        <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          {outbreakDistricts.map((district) => <button key={district.name} type="button" onClick={() => selectDistrict(district)} className="cursor-pointer transition-all duration-200 hover:-translate-y-1 active:scale-95" style={{ backdropFilter: 'blur(12px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 10px 28px rgba(15, 23, 42, .12)', cursor: 'pointer', padding: '1rem', textAlign: 'left' }}><strong style={{ display: 'block' }}>{district.name}</strong><span style={{ display: 'block', margin: '.35rem 0' }}>{district.disease}</span><span style={{ ...severityStyle(district.severity), borderRadius: 999, display: 'inline-block', fontSize: '.75rem', fontWeight: 800, padding: '.25rem .55rem' }}>{district.severity}</span><small style={{ display: 'block', marginTop: '.65rem' }}>{district.farms} affected farms</small></button>)}
+        </div>
+      </section>
+      <AntibioticHierarchy source={source} district={selectedDistrict} />
+    </main>
   )
 }

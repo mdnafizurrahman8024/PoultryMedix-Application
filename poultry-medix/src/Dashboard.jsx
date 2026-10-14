@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import AIChat from './AIChat.jsx'
 import DiagnosisHub from './DiagnosisHub.jsx'
 import { supabase } from './lib/supabase.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import DataHub from './veterinary/DataHub.jsx'
-import EpidemiologyMap from './veterinary/EpidemiologyMap.jsx'
 import TeamPage from './veterinary/TeamPage.jsx'
 import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
@@ -13,6 +12,8 @@ import ThemeToggle from './components/ThemeToggle.jsx'
 import { searchWikipedia } from './lib/wikipedia.js'
 import './Dashboard.css'
 import './VeterinaryFeatures.css'
+
+const EpidemiologyMap = React.lazy(() => import('./veterinary/EpidemiologyMap.jsx'))
 
 const guidelinesData = [
   {
@@ -500,7 +501,15 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <Icon name="arrow" size={18} />
         </button>
         <footer className="dashboard-footer"><BrandFooter /> <span>{t('dashboardFooter')}</span></footer>
-        </> : activeView === 'map' ? <EpidemiologyMap /> : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'telemedicine' ? <Telemedicine /> : <EpidemiologyMap />}
+        </> : activeView === 'map' ? (
+          <Suspense fallback={<div className="p-4 text-center">Loading Map...</div>}>
+            <EpidemiologyMap />
+          </Suspense>
+        ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'telemedicine' ? <Telemedicine /> : (
+          <Suspense fallback={<div className="p-4 text-center">Loading Map...</div>}>
+            <EpidemiologyMap />
+          </Suspense>
+        )}
       </div>
       {pointsToast && <div className="points-toast" role="status">+10 Point earned for your contribution!</div>}
 
