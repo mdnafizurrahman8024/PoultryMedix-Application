@@ -82,10 +82,10 @@ function ExpandIcon({ expanded }) {
 
 function GenerationRow({ generation, language, t }) {
   return (
-    <li className="usage-generation-row">
-      <div className="usage-item-copy">
-        <strong>{generation.name}</strong>
-        <small>{t('antibioticGeneration')}</small>
+    <li className="usage-generation-row dark:text-gray-900">
+      <div className="usage-item-copy dark:text-gray-900">
+        <strong className="dark:font-bold">{generation.name}</strong>
+        <small className="dark:text-gray-700">{t('antibioticGeneration')}</small>
       </div>
       <div className="usage-meter-group">
         <div className="usage-meter" aria-hidden="true">
@@ -94,7 +94,7 @@ function GenerationRow({ generation, language, t }) {
             style={{ width: `${generation.ratio}%` }}
           />
         </div>
-        <strong className={`usage-ratio ${getIntensityClass(generation.ratio)}`}>
+        <strong className={`usage-ratio dark:text-gray-900 dark:font-bold ${getIntensityClass(generation.ratio)}`}>
           {formatPercent(generation.ratio, language)}
         </strong>
       </div>
@@ -106,10 +106,10 @@ function AntibioticCard({ antibiotic, expanded, language, onToggle, t }) {
   const panelId = `usage-${antibiotic.name.toLowerCase().replaceAll(' ', '-')}`
 
   return (
-    <div className="usage-antibiotic-card">
+    <div className="usage-antibiotic-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700">
       <button
         type="button"
-        className="usage-antibiotic-trigger"
+        className="usage-antibiotic-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
         aria-controls={panelId}
         aria-expanded={expanded}
         onClick={onToggle}
@@ -129,8 +129,8 @@ function AntibioticCard({ antibiotic, expanded, language, onToggle, t }) {
       </button>
 
       {expanded && (
-        <div id={panelId} className="usage-generation-panel">
-          <div className="usage-nested-heading">
+        <div id={panelId} className="usage-generation-panel dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700">
+          <div className="usage-nested-heading dark:text-gray-200">
             <span>{t('antibioticToGenerationUsage')}</span>
             <span>{t('mapUsageRatio')}</span>
           </div>
@@ -164,17 +164,17 @@ function AntibioticClassCard({ group, expanded, language, onToggle, t }) {
   }
 
   return (
-    <article className={`usage-class-card ${expanded ? 'is-expanded' : ''}`}>
+    <article className={`usage-class-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700 ${expanded ? 'is-expanded' : ''}`}>
       <button
         type="button"
-        className="usage-class-trigger"
+        className="usage-class-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
         aria-controls={panelId}
         aria-expanded={expanded}
         onClick={onToggle}
       >
         <span className="usage-class-heading">
-          <strong>{group.name}</strong>
-          <small>Generic antibiotic class</small>
+          <strong>{t(`antibiotics.classes.${group.name}`)}</strong>
+          <small>{t('genericAntibioticClass')}</small>
         </span>
         <span className={`usage-ratio ${getIntensityClass(group.ratio)}`}>
           {formatPercent(group.ratio, language)}
@@ -183,7 +183,7 @@ function AntibioticClassCard({ group, expanded, language, onToggle, t }) {
       </button>
 
       {expanded && (
-        <div id={panelId} className="usage-class-panel">
+        <div id={panelId} className="usage-class-panel dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700">
           {group.antibiotics.map((antibiotic) => (
             <AntibioticCard
               key={antibiotic.name}
@@ -215,13 +215,13 @@ export default function AntibioticUsageAccordion({ language, t }) {
   }
 
   return (
-    <section className="amr-analytics-section antibiotic-usage-dashboard" aria-labelledby="class-usage-title">
+    <section className="amr-analytics-section antibiotic-usage-dashboard bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="class-usage-title">
       <div className="usage-section-heading">
         <div>
           <h3 id="class-usage-title">{t('classToAntibioticUsage')}</h3>
-          <p>Class → specific antibiotic → generation usage hierarchy</p>
+          <p>{t('hierarchyDescription')}</p>
         </div>
-        <span className="usage-section-badge">3 levels</span>
+        <span className="usage-section-badge">{t('levelsThree')}</span>
       </div>
       <div className="usage-accordion">
         {antibioticClasses.map((group) => (

@@ -6,6 +6,400 @@
     #f6f8f3;
 }
 
+/* Diagnosis workspace glass layout */
+.diagnosis-hub {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(167, 243, 208, 0.34), transparent 32%),
+    radial-gradient(circle at 92% 18%, rgba(196, 181, 253, 0.28), transparent 30%),
+    linear-gradient(135deg, rgba(236, 253, 245, 0.92), rgba(239, 246, 255, 0.88));
+  box-shadow: 0 24px 60px rgba(45, 66, 110, 0.12);
+}
+
+.diagnosis-tool-card {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 14px 34px rgba(59, 77, 124, 0.1);
+  backdrop-filter: blur(16px);
+}
+
+.diagnosis-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.diagnosis-section-heading h3 {
+  margin: 3px 0 4px;
+  color: #183b4d;
+  font: 800 16px/1.25 'Manrope', sans-serif;
+}
+
+.diagnosis-section-heading p {
+  margin: 0;
+  color: #5f7180;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.diagnosis-section-kicker {
+  color: #0f9f78;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.diagnosis-section-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 13px;
+  color: #168f77;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.8), rgba(224, 231, 255, 0.86));
+}
+
+.diagnosis-symptom-input {
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(12px);
+}
+
+.diagnosis-voice-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  color: #188c78;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.diagnosis-voice-tools > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diagnosis-voice-tools > div {
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.diagnosis-voice-tools button {
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  color: #567080;
+  background: transparent;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.diagnosis-voice-tools button.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, #10b981, #6366f1);
+}
+
+.diagnosis-media-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.diagnosis-attachment {
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.38);
+  box-shadow: 0 8px 20px rgba(59, 77, 124, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.diagnosis-prescription-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.diagnosis-glass-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  color: #24556a;
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 8px 18px rgba(59, 77, 124, 0.09);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.diagnosis-glass-button--primary,
+.diagnosis-glass-button:hover {
+  color: #fff;
+  background: linear-gradient(135deg, #10b981, #4f46e5);
+}
+
+.diagnosis-selected-file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 11px;
+  padding: 8px 10px;
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  border-radius: 12px;
+  color: #236b61;
+  background: rgba(236, 253, 245, 0.62);
+  font-size: 10px;
+}
+
+.diagnosis-selected-file > button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #397347;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.diagnosis-dose-card .prescription-result-tools {
+  margin: 0;
+}
+
+.diagnosis-dose-card .dose-calculator-accordion {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.diagnosis-dose-card .dose-calculator-trigger {
+  display: none;
+}
+
+.diagnosis-dose-card .dose-helper {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.diagnosis-voice-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 999px;
+  color: #188c78;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.diagnosis-voice-toggle.is-active {
+  color: #fff;
+  background: linear-gradient(135deg, #10b981, #6366f1);
+}
+
+.diagnosis-recording-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 4px 0 0 8px;
+  color: #b42318;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.diagnosis-recording-timer i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+  animation: diagnosis-recording-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes diagnosis-recording-pulse {
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+
+.diagnosis-prescription-card .drug-info-accordion-trigger {
+  display: none;
+}
+
+.diagnosis-prescription-card .drug-info-accordion-content {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.diagnosis-prescription-card .drug-info-result-card {
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.diagnosis-modal-drug {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.42);
+}
+
+.diagnosis-modal-drug h4 {
+  margin: 0;
+  color: #1f5265;
+  font-size: 13px;
+}
+
+.diagnosis-modal-drug > p {
+  margin: 5px 0 9px;
+  color: #6a7a84;
+  font-size: 9px;
+}
+
+.diagnosis-modal-drug .withdrawal-guidelines {
+  display: grid;
+  gap: 7px;
+}
+
+.diagnosis-save-log-button {
+  width: 100%;
+  margin-top: 15px;
+  padding: 11px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, #047857, #10b981);
+  box-shadow: 0 10px 22px rgba(4, 120, 87, 0.2);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.diagnosis-save-message {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 10001;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 999px;
+  color: #065f46;
+  background: rgba(236, 253, 245, 0.9);
+  box-shadow: 0 12px 30px rgba(15, 118, 110, 0.18);
+  backdrop-filter: blur(12px);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.diagnosis-withdrawal-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.36);
+  backdrop-filter: blur(8px);
+}
+
+.diagnosis-withdrawal-modal {
+  width: min(100%, 410px);
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: 0 28px 70px rgba(30, 41, 59, 0.28);
+  backdrop-filter: blur(20px);
+}
+
+.diagnosis-modal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.diagnosis-modal-heading h3 {
+  margin: 3px 0 0;
+  color: #183b4d;
+  font: 800 18px/1.25 'Manrope', sans-serif;
+}
+
+.diagnosis-modal-heading > button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  color: #466779;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.diagnosis-withdrawal-modal article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 9px;
+  padding: 12px 13px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  background: rgba(236, 253, 245, 0.6);
+}
+
+.diagnosis-withdrawal-modal article strong {
+  color: #275466;
+  font-size: 11px;
+}
+
+.diagnosis-withdrawal-modal article span {
+  color: #07876c;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.diagnosis-withdrawal-modal > p {
+  margin: 14px 0 0;
+  color: #71808b;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .diagnosis-media-grid,
+  .diagnosis-prescription-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 html {
   zoom: var(--app-scale, 1);
 }
@@ -67,14 +461,44 @@ html {
   gap: 12px;
 }
 
+.role-switcher {
+  display: grid;
+  gap: 2px;
+  color: #718071;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.role-switcher select {
+  min-height: 27px;
+  max-width: 145px;
+  padding: 0 5px;
+  border: 1px solid #dce6d7;
+  border-radius: 7px;
+  color: #365c3c;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .dashboard-header-actions .theme-toggle {
   flex: 0 0 auto;
 }
 
-.dashboard-language-button {
+.dashboard-language-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.dashboard-language-trigger {
+  display: inline-flex;
   min-height: 34px;
-  max-width: 100px;
-  padding: 0 7px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 9px;
   border: 1px solid #dce6d7;
   border-radius: 999px;
   color: #365c3c;
@@ -82,6 +506,46 @@ html {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.dashboard-language-trigger:hover,
+.dashboard-language-trigger:focus-visible {
+  border-color: #9aba9c;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(75, 128, 83, 0.12);
+}
+
+.dashboard-language-dropdown {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 9px);
+  right: 0;
+  display: grid;
+  min-width: 118px;
+  padding: 6px;
+  border: 1px solid #e1e9df;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(45, 69, 48, 0.16);
+}
+
+.dashboard-language-dropdown button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 6px;
+  color: #456149;
+  background: transparent;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dashboard-language-dropdown button:hover,
+.dashboard-language-dropdown button:focus-visible,
+.dashboard-language-dropdown button.active {
+  color: #245d35;
+  outline: none;
+  background: #edf6eb;
 }
 
 .points-pill {
@@ -584,8 +1048,9 @@ html {
   font-size: 11px;
 }
 
-.weather-error > span {
+.weather-error-message {
   flex: 1;
+  margin: 0;
 }
 
 .weather-error button {
@@ -2951,8 +3416,9 @@ html {
     gap: 4px;
   }
 
-  .dashboard-language-button {
-    padding: 0 6px;
+  .dashboard-language-trigger {
+    min-height: 32px;
+    padding: 0 7px;
     font-size: 10px;
   }
 
@@ -2967,5 +3433,70 @@ html {
   .heat-badge {
     padding: 4px 6px;
     font-size: 7px;
+  }
+}
+
+/* Final glass overrides for the diagnosis workspace */
+.dashboard-shell {
+  background:
+    radial-gradient(circle at 4% 6%, rgba(167, 243, 208, 0.24), transparent 28%),
+    radial-gradient(circle at 96% 12%, rgba(196, 181, 253, 0.2), transparent 28%),
+    linear-gradient(135deg, #f0fdf4, #eff6ff 52%, #faf5ff);
+}
+
+.diagnosis-hub {
+  border-color: rgba(255, 255, 255, 0.72);
+  background:
+    radial-gradient(circle at 8% 8%, rgba(167, 243, 208, 0.34), transparent 32%),
+    radial-gradient(circle at 92% 18%, rgba(196, 181, 253, 0.28), transparent 30%),
+    linear-gradient(135deg, rgba(236, 253, 245, 0.92), rgba(239, 246, 255, 0.88));
+  box-shadow: 0 24px 60px rgba(45, 66, 110, 0.12);
+}
+
+.diagnosis-tool-card {
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.42);
+  box-shadow: 0 14px 34px rgba(59, 77, 124, 0.1);
+  backdrop-filter: blur(16px);
+}
+
+.diagnosis-symptom-input,
+.diagnosis-attachment {
+  border-color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(12px);
+}
+
+.diagnosis-media-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.diagnosis-dose-card .prescription-result-tools {
+  margin: 0;
+}
+
+.diagnosis-dose-card .dose-calculator-accordion {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.diagnosis-dose-card .dose-calculator-trigger {
+  display: none;
+}
+
+.diagnosis-dose-card .dose-helper {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+@media (max-width: 640px) {
+  .diagnosis-media-grid,
+  .diagnosis-prescription-actions {
+    grid-template-columns: 1fr;
   }
 }

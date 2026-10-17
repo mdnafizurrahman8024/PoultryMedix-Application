@@ -1,4 +1,5 @@
-import React, { Suspense, useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useRef, useState } from 'react'
+import { Globe } from 'lucide-react'
 import AIChat from './AIChat.jsx'
 import DiagnosisHub from './DiagnosisHub.jsx'
 import { supabase } from './lib/supabase.js'
@@ -9,6 +10,7 @@ import TeamPage from './veterinary/TeamPage.jsx'
 import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
+import { USER_ROLES, useUser } from './context/UserContext.jsx'
 import { searchWikipedia } from './lib/wikipedia.js'
 import './Dashboard.css'
 import './VeterinaryFeatures.css'
@@ -74,16 +76,16 @@ function resolveWeatherTheme(weather) {
 
 function Dashboard({ onLogout, initialName, initialLocation }) {
   const { t, language, setLanguage } = useLanguage()
+  const { role, setRole } = useUser()
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
+  const languageMenuRef = useRef(null)
   const [weather, setWeather] = useState(null)
   const [weatherError, setWeatherError] = useState('')
   const [weatherLoadingState, setWeatherLoading] = useState(true)
   const [weatherRefresh, setWeatherRefresh] = useState(0)
-  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY
   const hasGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
-  const weatherLoading = Boolean(apiKey && hasGeolocation && weatherLoadingState)
-  const weatherErrorMessage = !apiKey
-    ? t('weatherKeyMissing')
-    : !hasGeolocation
+  const weatherLoading = Boolean(hasGeolocation && weatherLoadingState)
+  const weatherErrorMessage = !hasGeolocation
       ? t('geoUnavailable')
       : weatherError
         ? t(weatherError)
@@ -125,6 +127,25 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   useEffect(() => {
     document.documentElement.dataset.fontFamily = fontFamily
   }, [fontFamily])
+
+  useEffect(() => {
+    function closeLanguageMenu(event) {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+        setLanguageMenuOpen(false)
+      }
+    }
+
+    function closeLanguageMenuOnEscape(event) {
+      if (event.key === 'Escape') setLanguageMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeLanguageMenu)
+    document.addEventListener('keydown', closeLanguageMenuOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeLanguageMenu)
+      document.removeEventListener('keydown', closeLanguageMenuOnEscape)
+    }
+  }, [])
 
   useEffect(() => {
     const query = noticeSearch.trim().toLocaleLowerCase()
@@ -193,24 +214,28 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
   useEffect(() => {
     let active = true
-    if (!apiKey || !navigator.geolocation) return () => { active = false }
+    if (!navigator.geolocation) {
+      setWeatherLoading(false)
+      return () => { active = false }
+    }
 
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       try {
-        const query = `lat=${coords.latitude}&lon=${coords.longitude}&appid=${apiKey}`
-        const [weatherResponse, uvResponse, placeResponse] = await Promise.all([
-          fetch(`https://api.openweathermap.org/data/2.5/weather?${query}&units=metric&lang=${language}`),
-          fetch(`https://api.openweathermap.org/data/2.5/uvi?${query}`),
-          fetch(`https://api.openweathermap.org/geo/1.0/reverse?${query}&limit=1&lang=${language}`),
-        ])
-        if (!weatherResponse.ok) throw new Error(`Weather request failed (${weatherResponse.status})`)
-        const current = await weatherResponse.json()
-        const uv = uvResponse.ok ? await uvResponse.json() : null
-        const places = placeResponse.ok ? await placeResponse.json() : []
+        const query = new URLSearchParams({
+          lat: String(coords.latitude),
+          lon: String(coords.longitude),
+          lang: language,
+        })
+        const response = await fetch(`/api/weather?${query.toString()}`)
+        const result = await response.json().catch(() => null)
+        if (!response.ok) {
+          throw new Error(result?.code || 'weatherFetchError')
+        }
+        const { current, uv, place } = result
         if (active) {
           setWeather({
-            city: places[0]?.local_names?.[language] || places[0]?.name || current.name || t('yourLocation'),
-            country: places[0]?.country || '',
+            city: place?.local_names?.[language] || place?.name || current.name || t('yourLocation'),
+            country: place?.country || '',
             temperature: Math.round(current.main.temp),
             feelsLike: Math.round(current.main.feels_like),
             condition: current.weather?.[0]?.description || t('weatherUnavailable'),
@@ -235,7 +260,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 })
 
     return () => { active = false }
-  }, [apiKey, language, t, weatherRefresh])
+  }, [language, t, weatherRefresh])
 
   useEffect(() => {
     if (!settingsOpen && !sosOpen) return undefined
@@ -373,25 +398,68 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   }
 
   return (
-    <main className="dashboard-shell">
-      <header className="dashboard-header">
+    <main className="dashboard-shell bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <header className="dashboard-header bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:border-gray-700">
         <a className="dashboard-brand" href="#dashboard" aria-label={t('brand')} onClick={() => setActiveView('home')}>
           <img className="dashboard-brand-mark" src="/images/logo.png" alt="" />
           <span>Poultry<span>Medix</span></span>
         </a>
-        <div className="dashboard-header-actions">
+        <div className="dashboard-header-actions flex items-center gap-4">
           <div className="points-pill" aria-label={`${t('points')}: ${points}`}><Icon name="star" size={14} /><strong>{points}</strong> <span>{t('points')}</span></div>
           <ThemeToggle />
-          <select className="dashboard-language-button" aria-label={t('language')} title={t('language')} value={language} onChange={(event) => setLanguage(event.target.value)}>
-            {['en', 'bn', 'hi', 'ur'].map((code) => <option key={code} value={code}>{t(`language${{ en: 'English', bn: 'Bangla', hi: 'Hindi', ur: 'Urdu' }[code]}`)}</option>)}
-          </select>
+          <div className="dashboard-language-menu" ref={languageMenuRef}>
+            <button
+              className="dashboard-language-trigger"
+              type="button"
+              aria-expanded={languageMenuOpen}
+              aria-haspopup="menu"
+              aria-label={t('language')}
+              title={t('language')}
+              onClick={() => setLanguageMenuOpen((current) => !current)}
+            >
+              <Globe size={17} strokeWidth={1.8} aria-hidden="true" />
+              <span>{language.toUpperCase()}</span>
+            </button>
+            {languageMenuOpen && (
+              <div className="dashboard-language-dropdown absolute z-50 rounded shadow-lg dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="menu" aria-label={t('language')}>
+                {[
+                  ['en', 'EN'],
+                  ['bn', 'বাংলা'],
+                  ['hi', 'हिंदी'],
+                  ['ur', 'اردو'],
+                ].map(([code, label]) => (
+                  <button
+                    className={`${language === code ? 'active' : ''} dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700`}
+                    type="button"
+                    role="menuitem"
+                    key={code}
+                    onClick={() => {
+                      setLanguage(code)
+                      setLanguageMenuOpen(false)
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {import.meta.env.DEV && (
+            // TODO: REMOVE BEFORE PRODUCTION
+            <label className="role-switcher">
+              <span>{t('devRole')}</span>
+              <select value={role} onChange={(event) => setRole(event.target.value)} aria-label={t('switchDevelopmentRole')}>
+                {USER_ROLES.map((userRole) => <option key={userRole} value={userRole}>{t(`roleOptions.${userRole}`)}</option>)}
+              </select>
+            </label>
+          )}
           <button className="profile-button" type="button" onClick={() => { setSettingsOpen(true); setSettingsMessage('') }} aria-label={t('profileSettings')}>
             {avatar ? <img src={avatar} alt="" /> : <Icon name="user" size={19} />}
           </button>
         </div>
       </header>
 
-      <div className="dashboard-content">
+      <div className="dashboard-content bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
         {activeView === 'home' ? <>
         <section className="dashboard-greeting">
           <div>
@@ -401,7 +469,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           </div>
         </section>
 
-        <section className={`weather-card weather-card--${weatherTheme}${heatStress ? ' weather-card--alert' : ''}`} aria-labelledby="weather-heading">
+        <section className={`weather-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700 weather-card--${weatherTheme}${heatStress ? ' weather-card--alert' : ''}`} aria-labelledby="weather-heading">
           <div className="weather-card-top">
             <div className="weather-location">
               <span className="weather-location-icon"><Icon name="pin" size={15} /></span>
@@ -432,15 +500,19 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
               </div>
             </>
           ) : (
-            <div className="weather-error" role="status"><Icon name="cloud" size={21} /><span>{weatherErrorMessage}</span><button type="button" onClick={retryWeather}>{t('retry')}</button></div>
+            <div className="weather-error" role="status">
+              <Icon name="cloud" size={21} />
+              <p className="weather-error-message">{weatherErrorMessage}</p>
+              <button type="button" onClick={retryWeather}>{t('retry')}</button>
+            </div>
           )}
         </section>
 
         <DiagnosisHub />
 
-        <section className="guidelines-section" aria-labelledby="guidelines-heading">
+        <section className="guidelines-section bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="guidelines-heading">
           <button
-            className="guidelines-accordion-trigger"
+            className="guidelines-accordion-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
             type="button"
             aria-expanded={guidelinesExpanded}
             aria-controls="guidelines-accordion-content"
@@ -453,9 +525,9 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             </span>
             <Icon className={`guidelines-accordion-chevron${guidelinesExpanded ? ' is-open' : ''}`} name="chevron" size={17} />
           </button>
-          {guidelinesExpanded && <div className="guideline-grid" id="guidelines-accordion-content">
+          {guidelinesExpanded && <div className="guideline-grid dark:text-gray-100" id="guidelines-accordion-content">
             {guidelinesData.map((guideline) => (
-              <article className="guideline-card" key={guideline.id}>
+              <article className="guideline-card dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" key={guideline.id}>
                 <div className="guideline-card-content">
                   <h3>{guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}</h3>
                   <p>{guideline[`description${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}</p>
@@ -502,11 +574,11 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         </button>
         <footer className="dashboard-footer"><BrandFooter /> <span>{t('dashboardFooter')}</span></footer>
         </> : activeView === 'map' ? (
-          <Suspense fallback={<div className="p-4 text-center">Loading Map...</div>}>
+          <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
         ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'telemedicine' ? <Telemedicine /> : (
-          <Suspense fallback={<div className="p-4 text-center">Loading Map...</div>}>
+          <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
         )}
@@ -530,13 +602,13 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
       {settingsOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false) }}>
-          <section className="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <section className="settings-modal bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="settings-header">
               <div><p>{t('settingsEyebrow')}</p><h2 id="settings-title">{t('settings')}</h2></div>
               <button className="icon-button modal-close" type="button" aria-label={t('close')} onClick={() => setSettingsOpen(false)}><Icon name="close" size={20} /></button>
             </div>
             <div className="settings-body">
-              <section className="settings-block">
+              <section className="settings-block dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
                 <div className="settings-block-heading"><span className="settings-icon settings-logo-icon"><img src="/images/logo.png" alt="" /></span><div><h3>{t('profileSettings')}</h3><p>{t('profileDescription')}</p></div></div>
                 <div className="profile-photo-row">
                   {avatar ? <img className="profile-avatar-large" src={avatar} alt={t('profilePhoto')} /> : <span className="profile-avatar-large profile-avatar-placeholder"><Icon name="user" size={22} /></span>}
@@ -606,7 +678,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
       {sosOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSosOpen(false) }}>
-          <section className="sos-modal" role="dialog" aria-modal="true" aria-labelledby="sos-title">
+          <section className="sos-modal bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="sos-title">
             <button className="icon-button modal-close" type="button" aria-label={t('close')} onClick={() => setSosOpen(false)}><Icon name="close" size={20} /></button>
             <span className="sos-modal-icon"><Icon name="alert" size={25} /></span>
             <h2 id="sos-title">{t('emergencySos')}</h2>

@@ -22,7 +22,67 @@ html[data-theme="dark"] .login-card {
   color: #e2e9e1;
 }
 
+html[data-theme="dark"] .login-card .welcome-kicker,
+html[data-theme="dark"] .login-card .card-heading p,
+html[data-theme="dark"] .login-card .field-label,
+html[data-theme="dark"] .login-card .check-row,
+html[data-theme="dark"] .login-card .consent-copy,
+html[data-theme="dark"] .login-card .or-divider,
+html[data-theme="dark"] .login-card .legal-note {
+  color: #c7d4c8;
+}
+
+html[data-theme="dark"] .login-card .input-wrap input,
+html[data-theme="dark"] .login-card .input-wrap select:valid {
+  color: #f1f7f1;
+}
+
+html[data-theme="dark"] .login-card .input-wrap input::placeholder {
+  color: #9cad9f;
+}
+
+html[data-theme="dark"] .login-card .language-dropdown-trigger,
+html[data-theme="dark"] .login-card .language-dropdown-menu {
+  color: #d5e2d6;
+  background-color: #1c2920;
+}
+
+html[data-theme="dark"] .login-card .language-dropdown-trigger,
+html[data-theme="dark"] .login-card .language-dropdown-menu {
+  border-color: #3a4c3e;
+}
+
+html[data-theme="dark"] .login-card .language-dropdown-menu button {
+  color: #c8d9ca;
+}
+
+html[data-theme="dark"] .login-card .language-dropdown-menu button:hover,
+html[data-theme="dark"] .login-card .language-dropdown-menu button:focus-visible,
+html[data-theme="dark"] .login-card .language-dropdown-menu button.active {
+  color: #e1f0e2;
+  background: #1c2920;
+}
+
+html[data-theme="dark"] .login-card .text-button,
+html[data-theme="dark"] .login-card .status-info {
+  color: #9fd0a3;
+}
+
+html[data-theme="dark"] .login-card .status-error {
+  color: #ff9d91;
+}
+
+html[data-theme="dark"] .login-card .status-success {
+  color: #9fdda7;
+}
+
+html[data-theme="dark"] .login-card .custom-checkbox {
+  border-color: #536957;
+  background: #263629;
+}
+
 html[data-theme="dark"] .mobile-brand-row .brand,
+html[data-theme="dark"] .login-card-brand,
 html[data-theme="dark"] .card-heading h2,
 html[data-theme="dark"] .field-label,
 html[data-theme="dark"] .input-wrap input,
@@ -55,14 +115,13 @@ html[data-theme="dark"] .consent-card {
   background: #1b2b20;
 }
 
-html[data-theme="dark"] .language-switch--mobile,
 html[data-theme="dark"] .theme-toggle {
   border-color: #3a4c3e;
   color: #c0cdc0;
   background: #1c2920;
 }
 
-html[data-theme="dark"] .language-switch--mobile button.active,
+html[data-theme="dark"] .login-card-header .language-switch button.active,
 html[data-theme="dark"] .theme-toggle-option[aria-pressed="true"] {
   color: #d9ead7;
 }
@@ -117,8 +176,9 @@ html[data-theme="dark"] .clinical-record-card p {
   color: #a3b1a3;
 }
 
-html[data-theme="dark"] .dashboard-language-button,
+html[data-theme="dark"] .dashboard-language-trigger,
 html[data-theme="dark"] .icon-button,
+html[data-theme="dark"] .dashboard-language-dropdown,
 html[data-theme="dark"] .profile-button,
 html[data-theme="dark"] .weather-card:not(.weather-card--night),
 html[data-theme="dark"] .guideline-card,
@@ -384,9 +444,31 @@ html[data-theme="dark"] .chat-composer-error {
   color: #e4c58e;
 }
 
-html[data-theme="dark"] .dashboard-language-button,
+html[data-theme="dark"] .dashboard-language-trigger,
 html[data-theme="dark"] .theme-toggle-option[aria-pressed="true"] {
   color: #d5e5d2;
+}
+
+html[data-theme="dark"] .dashboard-language-trigger {
+  border-color: #3a4c3e;
+  background: #1c2920;
+}
+
+html[data-theme="dark"] .dashboard-language-dropdown {
+  border-color: #3a4c3e;
+  background: #1c2920;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+}
+
+html[data-theme="dark"] .dashboard-language-dropdown button {
+  color: #c8d9ca;
+}
+
+html[data-theme="dark"] .dashboard-language-dropdown button:hover,
+html[data-theme="dark"] .dashboard-language-dropdown button:focus-visible,
+html[data-theme="dark"] .dashboard-language-dropdown button.active {
+  color: #e1f0e2;
+  background: #2a4530;
 }
 
 html[data-theme="dark"] .points-pill {

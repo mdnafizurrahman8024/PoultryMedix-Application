@@ -15,45 +15,33 @@ const supportedMimeTypes = new Set([
 ])
 const maxFileSize = 8 * 1024 * 1024
 
-function PoultryMedixChatLogo({ size = 56 }) {
+function VetDoctorChatImage({ className, alt = 'PoultryMedix AI Diagnostic', size, style }) {
+  const [imageFailed, setImageFailed] = useState(false)
+  const fallbackSize = typeof size === 'number' ? `${size}px` : size || '100%'
+  const fallbackIconSize = Math.max(16, Number.parseInt(size || '24', 10) * 0.42)
+
+  if (imageFailed) {
+    return (
+      <span
+        className={className}
+        role="img"
+        aria-label={`${alt} fallback`}
+        style={{ width: fallbackSize, height: fallbackSize, display: 'grid', placeItems: 'center', position: 'relative', borderRadius: '50%', background: 'linear-gradient(135deg, #064e3b, #047857)', color: '#d9f99d' }}
+      >
+        <Icon name="stethoscope" size={fallbackIconSize} />
+        <span aria-hidden="true" style={{ position: 'absolute', fontSize: '0.7em', fontWeight: 800 }}>+</span>
+      </span>
+    )
+  }
+
   return (
-    <svg
-      aria-label="PoultryMedix AI Diagnostic"
-      role="img"
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <linearGradient id="chat-logo-ring" x1="14" y1="10" x2="88" y2="92" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#A3E635" />
-          <stop offset=".5" stopColor="#34D399" />
-          <stop offset="1" stopColor="#059669" />
-        </linearGradient>
-        <linearGradient id="chat-logo-cross" x1="40" y1="33" x2="61" y2="67" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#D9F99D" />
-          <stop offset="1" stopColor="#10B981" />
-        </linearGradient>
-        <filter id="chat-logo-glow" x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="2.2" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
-      <circle cx="50" cy="50" r="48" fill="#050A07" />
-      <circle cx="50" cy="50" r="42" stroke="#163B2A" strokeWidth="2" />
-      <path d="M20 66C10 43 20 18 43 11C64 4 87 15 92 37" stroke="url(#chat-logo-ring)" strokeWidth="5" strokeLinecap="round" filter="url(#chat-logo-glow)" />
-      <path d="M79 28C91 47 84 76 63 87C43 98 19 87 13 67" stroke="url(#chat-logo-ring)" strokeWidth="3" strokeLinecap="round" opacity=".8" />
-      <path d="M50 31V69M31 50H69" stroke="url(#chat-logo-cross)" strokeWidth="9" strokeLinecap="round" />
-      <path d="M68 36C79 39 84 49 80 59C77 67 69 69 65 76C62 81 66 87 72 88" stroke="#A3E635" strokeWidth="3.5" strokeLinecap="round" />
-      <circle cx="74" cy="87" r="6" fill="#059669" stroke="#D9F99D" strokeWidth="2" />
-      <path d="M29 74C31 68 39 66 46 70C52 73 55 80 51 84C46 89 35 87 29 82C26 80 26 77 29 74Z" fill="#F8FAFC" />
-      <path d="M34 70C31 65 35 61 40 64C44 66 44 70 41 73" fill="#F8FAFC" />
-      <circle cx="38" cy="67" r="1.5" fill="#050A07" />
-      <path d="M43 70L50 68L46 75" fill="#A3E635" />
-      <path d="M29 82C24 83 21 81 20 78M48 84C53 86 57 84 59 81" stroke="#34D399" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
+    <img
+      className={className}
+      src="/images/chat-icon.png"
+      alt={alt}
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', ...style }}
+      onError={() => setImageFailed(true)}
+    />
   )
 }
 
@@ -61,7 +49,10 @@ export default function AIChat() {
   const { t, language } = useLanguage()
   const [userRole, setUserRole] = useState('farmer')
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState(null)
+  const [position, setPosition] = useState(() => ({
+    x: typeof window === 'undefined' ? 0 : Math.max(8, window.innerWidth - 88),
+    y: typeof window === 'undefined' ? 0 : Math.max(8, window.innerHeight - 180),
+  }))
   const [files, setFiles] = useState([])
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
@@ -80,6 +71,7 @@ export default function AIChat() {
   const fabRef = useRef(null)
   const dragRef = useRef(null)
   const draggedRef = useRef(false)
+  const suppressClickRef = useRef(false)
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
   const recordingTimerRef = useRef(null)
@@ -141,17 +133,15 @@ export default function AIChat() {
 
   useEffect(() => {
     function constrainPosition() {
+      const fab = fabRef.current
+      if (!fab) return
       window.requestAnimationFrame(() => {
-        const fab = fabRef.current
-        if (!fab) return
-        const width = fab.offsetWidth
-        const height = fab.offsetHeight
-        setPosition((current) => {
-          if (!current) return current
-          const left = Math.max(8, Math.min(window.innerWidth - width - 8, current.left))
-          const top = Math.max(8, Math.min(window.innerHeight - height - 8, current.top))
-          return left === current.left && top === current.top ? current : { left, top }
-        })
+        const width = fab.offsetWidth || 70
+        const height = fab.offsetHeight || 90
+        setPosition((current) => ({
+          x: Math.max(8, Math.min(window.innerWidth - width - 8, current.x)),
+          y: Math.max(8, Math.min(window.innerHeight - height - 8, current.y)),
+        }))
       })
     }
 
@@ -181,43 +171,97 @@ export default function AIChat() {
     recorderRef.current?.stop()
     streamRef.current?.getTracks().forEach((track) => track.stop())
     window.clearInterval(recordingTimerRef.current)
+    const drag = dragRef.current
+    if (drag) {
+      if (drag.rafId) window.cancelAnimationFrame(drag.rafId)
+      window.removeEventListener('mousemove', drag.moveMouse)
+      window.removeEventListener('mouseup', drag.endMouse)
+      window.removeEventListener('touchmove', drag.moveTouch)
+      window.removeEventListener('touchend', drag.endTouch)
+      window.removeEventListener('touchcancel', drag.endTouch)
+    }
   }, [])
 
-  function pointerDown(event) {
-    if (event.button !== 0) return
-    const bounds = event.currentTarget.getBoundingClientRect()
-    dragRef.current = { startX: event.clientX, startY: event.clientY, left: bounds.left, top: bounds.top }
-    draggedRef.current = false
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-
-  function pointerMove(event) {
+  function finishDrag() {
     const drag = dragRef.current
-    if (!drag || !event.currentTarget.hasPointerCapture(event.pointerId)) return
-    const deltaX = event.clientX - drag.startX
-    const deltaY = event.clientY - drag.startY
-    if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) draggedRef.current = true
-    if (!draggedRef.current) return
-    const width = event.currentTarget.offsetWidth
-    const height = event.currentTarget.offsetHeight
-    setPosition({
-      left: Math.max(8, Math.min(window.innerWidth - width - 8, drag.left + deltaX)),
-      top: Math.max(8, Math.min(window.innerHeight - height - 8, drag.top + deltaY)),
-    })
+    if (!drag) return
+    if (drag.rafId) window.cancelAnimationFrame(drag.rafId)
+    window.removeEventListener('mousemove', drag.moveMouse)
+    window.removeEventListener('mouseup', drag.endMouse)
+    window.removeEventListener('touchmove', drag.moveTouch)
+    window.removeEventListener('touchend', drag.endTouch)
+    window.removeEventListener('touchcancel', drag.endTouch)
+    dragRef.current = null
+    suppressClickRef.current = true
+    if (drag.moved) {
+      draggedRef.current = true
+    } else {
+      setOpen((value) => !value)
+    }
   }
 
-  function pointerUp(event) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
-    dragRef.current = null
-  }
-
-  function pointerCancel(event) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
-    dragRef.current = null
+  function startDrag(event, inputType) {
+    if (inputType === 'mouse' && event.button !== 0) return
+    const point = inputType === 'touch' ? event.touches[0] : event
+    if (!point) return
+    event.preventDefault()
+    const fab = fabRef.current
+    const bounds = fab?.getBoundingClientRect()
+    const drag = {
+      startX: point.clientX,
+      startY: point.clientY,
+      originX: bounds?.left ?? position.x,
+      originY: bounds?.top ?? position.y,
+      moved: false,
+      rafId: 0,
+      moveMouse: null,
+      endMouse: null,
+      moveTouch: null,
+      endTouch: null,
+    }
+    drag.move = (moveEvent) => {
+      const movePoint = inputType === 'touch' ? moveEvent.touches[0] : moveEvent
+      if (!movePoint) return
+      const deltaX = movePoint.clientX - drag.startX
+      const deltaY = movePoint.clientY - drag.startY
+      if (Math.hypot(deltaX, deltaY) > 5) drag.moved = true
+      if (!drag.moved || drag.rafId) return
+      drag.rafId = window.requestAnimationFrame(() => {
+        drag.rafId = 0
+        const width = fabRef.current?.offsetWidth || 70
+        const height = fabRef.current?.offsetHeight || 90
+        setPosition({
+          x: Math.max(8, Math.min(window.innerWidth - width - 8, drag.originX + deltaX)),
+          y: Math.max(8, Math.min(window.innerHeight - height - 8, drag.originY + deltaY)),
+        })
+      })
+    }
+    drag.end = () => finishDrag()
+    drag.moveMouse = (moveEvent) => drag.move(moveEvent)
+    drag.endMouse = () => drag.end()
+    drag.moveTouch = (moveEvent) => {
+      moveEvent.preventDefault()
+      drag.move(moveEvent)
+    }
+    drag.endTouch = () => drag.end()
+    dragRef.current = drag
     draggedRef.current = false
+    if (inputType === 'touch') {
+      window.addEventListener('touchmove', drag.moveTouch, { passive: false })
+      window.addEventListener('touchend', drag.endTouch)
+      window.addEventListener('touchcancel', drag.endTouch)
+    } else {
+      window.addEventListener('mousemove', drag.moveMouse)
+      window.addEventListener('mouseup', drag.endMouse)
+    }
   }
 
   function activateFab() {
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false
+      draggedRef.current = false
+      return
+    }
     if (draggedRef.current) {
       draggedRef.current = false
       return
@@ -308,6 +352,45 @@ export default function AIChat() {
     setLoading(true)
     setLoadingStatusKey(question ? 'searchingOnlineSources' : 'analyzing')
     try {
+      if (question && queuedFiles.length === 0) {
+        let { data, error } = await supabase.auth.getSession()
+        if (error) throw error
+        if (!data.session?.access_token) {
+          const refreshed = await supabase.auth.refreshSession()
+          data = refreshed.data
+          error = refreshed.error
+          if (error) throw error
+        }
+        if (!data.session?.access_token) throw new Error(t('aiSignInRequired'))
+
+        const chatResponse = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${data.session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            text: question,
+            userRole,
+            appLanguage: language,
+          }),
+        })
+        const chatResult = await chatResponse.json().catch(() => ({}))
+        if (!chatResponse.ok) throw new Error(chatResult.error || t('aiRequestFailed'))
+
+        const assistantMessage = {
+          role: 'assistant',
+          text: chatResult.answer,
+          sources: chatResult.sources || [],
+        }
+        saveChatResponse(question, queuedFiles, assistantMessage)
+        setMessages((previous) => [...previous, {
+          id: `${Date.now()}-assistant`,
+          ...assistantMessage,
+        }])
+        return
+      }
+
       const localKnowledge = question ? findLocalPoultryKnowledge(question, language) : null
       if (localKnowledge && queuedFiles.length === 0) {
         const assistantMessage = {
@@ -347,8 +430,14 @@ export default function AIChat() {
       }
 
       setLoadingStatusKey('analyzing')
-      const { data, error } = await supabase.auth.getSession()
+      let { data, error } = await supabase.auth.getSession()
       if (error) throw error
+      if (!data.session?.access_token) {
+        const refreshed = await supabase.auth.refreshSession()
+        data = refreshed.data
+        error = refreshed.error
+        if (error) throw error
+      }
       if (!data.session?.access_token) {
         if (externalReference && queuedFiles.length === 0) {
           const assistantMessage = {
@@ -415,27 +504,40 @@ export default function AIChat() {
   }
 
   return (
-    <div className="ai-chat-widget">
+    <div className="ai-chat-widget bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       {open && <section
-        className={`ai-chat-panel${expanded ? ' ai-chat-panel--expanded' : ''}`}
+        className={`ai-chat-panel dark:text-gray-100${open && expanded ? ' ai-chat-panel--expanded' : ''}`}
         aria-label={t('aiChatTitle')}
-        style={expanded ? {
+        style={open && expanded ? {
           position: 'fixed',
           inset: 0,
           width: '100%',
           height: '100%',
-          zIndex: 9999,
+          zIndex: 999999,
           borderRadius: 0,
           right: 'auto',
           bottom: 'auto',
-        } : undefined}
+        } : {
+          position: 'fixed',
+          bottom: '185px',
+          right: '24px',
+          zIndex: 999999,
+          width: '380px',
+          height: '560px',
+          maxHeight: 'calc(100vh - 200px)',
+          borderRadius: '16px',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
       >
         <AiSafetyBanner />
         <header
-          className="ai-chat-header"
+          className="ai-chat-header dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
           role="button"
           tabIndex="0"
-          aria-label="Toggle PoultryMedix AI chat"
+          aria-label={t('aiToggleLabel')}
           onClick={() => setOpen((value) => !value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' || event.key === ' ') {
@@ -444,14 +546,14 @@ export default function AIChat() {
             }
           }}
         >
-          <span className="chat-avatar"><PoultryMedixChatLogo size={36} /></span>
-          <span className="chat-title"><strong>PoultryMedix AI</strong><small><span className="chat-online-dot" />AI Diagnostic • Online</small></span>
+          <span className="chat-avatar"><VetDoctorChatImage className="w-10 h-10 rounded-full object-cover border border-emerald-400/50" size={40} /></span>
+          <span className="chat-title"><strong>PoultryMedix AI</strong><small><span className="chat-online-dot" />{t('aiDiagnosticOnline')}</small></span>
           <span className="chat-header-actions">
             <button
               className="chat-header-action"
               type="button"
-              aria-label={expanded ? 'Exit fullscreen chat' : 'Expand chat'}
-              title={expanded ? 'Exit fullscreen chat' : 'Expand chat'}
+              aria-label={expanded ? t('aiExitFullscreen') : t('aiExpand')}
+              title={expanded ? t('aiExitFullscreen') : t('aiExpand')}
               onClick={(event) => {
                 event.stopPropagation()
                 setExpanded((value) => !value)
@@ -462,8 +564,8 @@ export default function AIChat() {
             <button
               className="chat-header-action"
               type="button"
-              aria-label="Close PoultryMedix AI chat"
-              title="Close chat"
+              aria-label={t('aiClose')}
+              title={t('aiCloseTitle')}
               onClick={(event) => {
                 event.stopPropagation()
                 setOpen(false)
@@ -474,8 +576,8 @@ export default function AIChat() {
             </button>
           </span>
         </header>
-        <div className="ai-chat-messages" ref={listRef} aria-live="polite">
-          {!messages.length && <div className="chat-welcome"><span className="chat-welcome-icon"><Icon name="bird" size={23} /></span><strong>{t('chatWelcomeTitle')}</strong><p>{t('chatWelcomeDescription')}</p><span className="chat-source-note"><Icon name="book" size={12} />{t('aiInformationalNotice')}</span></div>}
+        <div className="ai-chat-messages dark:bg-gray-900 dark:text-gray-100" ref={listRef} aria-live="polite">
+          {!messages.length && <div className="chat-welcome dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"><span className="chat-welcome-icon"><Icon name="bird" size={23} /></span><strong>{t('chatWelcomeTitle')}</strong><p>{t('chatWelcomeDescription')}</p><span className="chat-source-note dark:text-gray-300"><Icon name="book" size={12} />{t('aiInformationalNotice')}</span></div>}
           {messages.map((item) => <article className={`chat-message chat-message--${item.role}`} key={item.id}>
             <p>{item.text}</p>
             {item.files?.length > 0 && <div className="chat-message-files">{item.files.map((name) => <span key={name}><Icon name="file" size={12} />{name}</span>)}</div>}
@@ -486,7 +588,7 @@ export default function AIChat() {
                 {item.sources.map((source) => <span key={source}>{source}</span>)}
                 {item.externalReference && <a href={item.externalReference.url} target="_blank" rel="noreferrer">{t('wikipediaSource')}: {item.externalReference.title}</a>}
               </div>
-              <aside className="chat-message-safety" role="note">
+              <aside className="chat-message-safety dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="note">
                 <strong>{t('veterinaryConsultingAlertTitle')}</strong>
                 <p>{t('veterinaryConsultingAlert')}</p>
               </aside>
@@ -499,11 +601,11 @@ export default function AIChat() {
         <div className="chat-composer-wrap">
           {files.length > 0 && <div className="chat-queued-files">{files.map((file, index) => <span className="queued-file" key={`${file.name}-${index}`}><Icon name={file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'mic'} size={13} /><span>{file.name}</span><button type="button" aria-label={t('removeFile', { name: file.name })} onClick={() => setFiles((previous) => previous.filter((_, fileIndex) => fileIndex !== index))}><Icon name="close" size={12} /></button></span>)}</div>}
           {dragError && <p className="chat-composer-error" role="alert">{dragError}</p>}
-          {recording ? <div className="chat-recording-panel">
-            <div className="chat-recording-status"><span className="chat-recording-mic"><Icon name="mic" size={22} /></span><span><strong>Listening...</strong><small>Speak now</small></span><time>0:{String(recordingSeconds).padStart(2, '0')}s</time></div>
+          {recording ? <div className="chat-recording-panel dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
+            <div className="chat-recording-status"><span className="chat-recording-mic"><Icon name="mic" size={22} /></span><span><strong>{t('aiListening')}</strong><small>{t('aiSpeakNow')}</small></span><time>0:{String(recordingSeconds).padStart(2, '0')}s</time></div>
             <div className="chat-waveform" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 45}ms` }} />)}</div>
-            <button className="chat-stop-recording" type="button" onClick={stopRecording}><Icon name="stop" size={15} />Stop Recording</button>
-          </div> : <form className="chat-composer" onSubmit={sendMessage}>
+            <button className="chat-stop-recording" type="button" onClick={stopRecording}><Icon name="stop" size={15} />{t('aiStopRecording')}</button>
+          </div> : <form className="chat-composer dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" onSubmit={sendMessage}>
             <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder={t('chatPlaceholder')} rows="2" aria-label={t('chatPlaceholder')} onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
@@ -512,20 +614,20 @@ export default function AIChat() {
             }} />
             <div className="chat-composer-actions">
               <input ref={inputRef} className="visually-hidden-input" type="file" accept="image/*,audio/*,application/pdf" multiple onChange={(event) => { if (event.target.files) queueFiles(event.target.files); event.target.value = ''; setAttachmentMenuOpen(false) }} aria-label={t('attachFiles')} />
-              <input ref={cameraInputRef} className="visually-hidden-input" type="file" accept="image/*" capture="environment" onChange={(event) => { if (event.target.files) queueFiles(event.target.files); event.target.value = ''; setAttachmentMenuOpen(false) }} aria-label="Take Photo / Camera" />
+              <input ref={cameraInputRef} className="visually-hidden-input" type="file" accept="image/*" capture="environment" onChange={(event) => { if (event.target.files) queueFiles(event.target.files); event.target.value = ''; setAttachmentMenuOpen(false) }} aria-label={t('aiTakePhoto')} />
               <div className="chat-attachment-menu-wrap" style={{ position: 'relative' }}>
                 <button className="chat-tool-button" type="button" aria-label={t('attachFiles')} aria-expanded={attachmentMenuOpen} onClick={() => setAttachmentMenuOpen((value) => !value)} disabled={loading}><Icon name="plus" size={17} /></button>
                 {attachmentMenuOpen && <div
-                  className="chat-attachment-menu"
+                  className="chat-attachment-menu dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
                   role="menu"
                   onClick={(event) => event.stopPropagation()}
                   style={{ position: 'absolute', bottom: '68px', left: '16px', width: '240px', backgroundColor: '#ffffff', border: '1px solid #d1fae5', borderRadius: '16px', padding: '8px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.18)', zIndex: 9999 }}
                 >
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="upload" size={15} />Upload Files</button>
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setDragError('Google Drive integration is not configured yet.') }}><Icon name="cloud" size={15} />Google Drive</button>
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); cameraInputRef.current?.click() }}><Icon name="camera" size={15} />Take Photo / Camera</button>
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="pdf" size={15} />Prescription PDF</button>
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); startRecording() }}><Icon name="mic" size={15} />Voice / Audio Note</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="upload" size={15} />{t('aiUploadFiles')}</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setDragError(t('aiDriveUnavailable')) }}><Icon name="cloud" size={15} />{t('aiGoogleDrive')}</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); cameraInputRef.current?.click() }}><Icon name="camera" size={15} />{t('aiTakePhoto')}</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="pdf" size={15} />{t('antibiotics.aiPrescriptionPdf')}</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); startRecording() }}><Icon name="mic" size={15} />{t('antibiotics.aiVoiceNote')}</button>
                 </div>}
               </div>
               <button className="chat-send-button" type="submit" disabled={loading || (!message.trim() && !files.length)} aria-label={t('sendMessage')}><Icon name="send" size={16} /></button>
@@ -535,40 +637,33 @@ export default function AIChat() {
         </div>
       </section>}
 
-      {!open && <button
-        className={`ai-chat-fab group${open ? ' ai-chat-fab--open' : ''}`}
+      {!open && <div
         ref={fabRef}
-        type="button"
-        aria-label={open ? t('close') : t('openAiChat')}
-        aria-expanded={open}
-        title={t('dragChat')}
-        style={{
-          ...(position
-            ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' }
-            : { right: '1.5rem', bottom: '5rem' }),
-          width: 'auto',
-          height: 'auto',
-          minWidth: 0,
-          minHeight: 0,
-          padding: 0,
-          border: 0,
-          background: 'transparent',
-          boxShadow: 'none',
-          zIndex: 9998,
-        }}
-        onPointerDown={pointerDown}
-        onPointerMove={pointerMove}
-        onPointerUp={pointerUp}
-        onPointerCancel={pointerCancel}
+        onMouseDown={(event) => startDrag(event, 'mouse')}
+        onTouchStart={(event) => startDrag(event, 'touch')}
         onClick={activateFab}
+        style={{
+          position: 'fixed',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          zIndex: 999999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          cursor: 'grab',
+          userSelect: 'none',
+          touchAction: 'none',
+        }}
       >
-        <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-          <span className="w-16 h-16 rounded-full shadow-2xl border-2 border-emerald-400/70 transition-transform duration-200 group-hover:scale-105 group-active:scale-95" style={{ display: 'grid', placeItems: 'center', overflow: 'hidden', background: '#050a07' }}>
-            <PoultryMedixChatLogo size={64} />
-          </span>
-          <span style={{ backgroundColor: '#064e3b', borderRadius: '999px', color: '#ffffff', fontSize: '12px', fontWeight: '700', lineHeight: 1, padding: '6px 10px', whiteSpace: 'nowrap' }}>AI Diagnostic</span>
+        <img
+          src="/images/chat-icon.png"
+          alt="Doctor Avatar"
+          style={{ width: '76px', height: 'auto', display: 'block', pointerEvents: 'none' }}
+        />
+        <span style={{ marginTop: '6px', backgroundColor: '#064e3b', color: '#ffffff', fontSize: '11px', fontWeight: 'bold', padding: '4px 12px', borderRadius: '9999px', border: '1.5px solid #10b981', whiteSpace: 'nowrap', pointerEvents: 'none', boxShadow: '0 4px 8px rgba(0,0,0,0.15)' }}>
+          {t('aiDiagnostic')}
         </span>
-      </button>}
+      </div>}
     </div>
   )
 }

@@ -1,0 +1,275 @@
+.onboarding-screen {
+  position: relative;
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  place-items: center;
+  padding: 30px 20px;
+  box-sizing: border-box;
+  color: #304735;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(167, 243, 208, 0.58), transparent 30%),
+    radial-gradient(circle at 88% 90%, rgba(196, 181, 253, 0.38), transparent 32%),
+    linear-gradient(135deg, #edf8f1 0%, #f5f7fb 52%, #fff8ef 100%);
+}
+
+.onboarding-panel {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 920px);
+  box-sizing: border-box;
+  padding: clamp(24px, 5vw, 54px);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.48);
+  box-shadow: 0 30px 90px rgba(42, 72, 66, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px);
+}
+
+.onboarding-header,
+.onboarding-brand,
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+}
+
+.onboarding-header {
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.onboarding-brand {
+  gap: 10px;
+  color: #274c35;
+  font: 800 19px/1 'Manrope', sans-serif;
+  letter-spacing: -0.7px;
+  text-decoration: none;
+}
+
+.onboarding-brand img {
+  width: 39px;
+  height: 39px;
+  object-fit: contain;
+}
+
+.onboarding-brand > span > span {
+  color: #c38155;
+}
+
+.onboarding-step,
+.onboarding-kicker {
+  color: #6f8b7b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.onboarding-intro {
+  max-width: 650px;
+  margin: clamp(52px, 9vw, 90px) auto 35px;
+  text-align: center;
+}
+
+.onboarding-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #168f77;
+}
+
+.onboarding-intro h1 {
+  margin: 13px 0 13px;
+  color: #254936;
+  font: 800 clamp(29px, 4.8vw, 52px)/1.08 'Manrope', sans-serif;
+  letter-spacing: -1.8px;
+}
+
+.onboarding-intro p {
+  margin: 0 auto;
+  max-width: 530px;
+  color: #668073;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.onboarding-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.onboarding-role-card {
+  position: relative;
+  display: grid;
+  min-height: 220px;
+  align-content: start;
+  gap: 18px;
+  padding: 22px 19px 19px;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  color: #355441;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.52);
+  box-shadow: 0 10px 25px rgba(56, 95, 73, 0.07);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.onboarding-role-card:hover,
+.onboarding-role-card:focus-visible {
+  border-color: rgba(64, 153, 128, 0.58);
+  outline: none;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 35px rgba(56, 95, 73, 0.14);
+  transform: translateY(-5px);
+}
+
+.onboarding-role-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 16px;
+  color: #168f77;
+  background: linear-gradient(135deg, rgba(167, 243, 208, 0.84), rgba(224, 231, 255, 0.9));
+}
+
+.onboarding-role-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.onboarding-role-copy strong {
+  color: #2d4c37;
+  font-size: 14px;
+}
+
+.onboarding-role-copy span {
+  color: #70847a;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.onboarding-role-arrow {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  margin-top: auto;
+  margin-left: auto;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: #438777;
+}
+
+.onboarding-footer {
+  justify-content: center;
+  gap: 7px;
+  margin: 30px 0 0;
+  color: #789083;
+  font-size: 10px;
+}
+
+.onboarding-vision {
+  max-width: 620px;
+  margin: 28px auto 0;
+  color: #718579;
+  font-size: 12px;
+  line-height: 1.65;
+  text-align: center;
+}
+
+.onboarding-vision strong {
+  color: #466554;
+  font-weight: 800;
+}
+
+.onboarding-orb {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.onboarding-orb--top {
+  top: -150px;
+  right: 8%;
+}
+
+.onboarding-orb--bottom {
+  bottom: -180px;
+  left: 5%;
+}
+
+@media (max-width: 720px) {
+  .onboarding-screen {
+    display: block;
+    padding: 16px 12px;
+  }
+
+  .onboarding-panel {
+    border-radius: 24px;
+    margin: 0 auto;
+    padding: 24px 18px 28px;
+  }
+
+  .onboarding-header {
+    gap: 12px;
+  }
+
+  .onboarding-role-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .onboarding-role-card {
+    min-height: 0;
+    min-height: 92px;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 16px;
+  }
+
+  .onboarding-role-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .onboarding-role-arrow {
+    width: 36px;
+    height: 36px;
+  }
+
+  .onboarding-vision {
+    margin-top: 26px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 420px) {
+  .onboarding-screen {
+    padding: 10px 8px;
+  }
+
+  .onboarding-step {
+    font-size: 8px;
+  }
+
+  .onboarding-intro {
+    margin-top: 42px;
+  }
+
+  .onboarding-intro p {
+    font-size: 12px;
+  }
+
+  .onboarding-role-card {
+    padding: 16px 14px;
+  }
+}

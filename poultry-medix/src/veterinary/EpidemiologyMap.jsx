@@ -5,6 +5,7 @@ import {
   getPrescriptionAnalytics,
   prescriptionDataChangedEvent,
 } from './prescriptionAnalytics.js'
+import { useLanguage } from '../context/useLanguage.js'
 
 const bangladeshCenter = [23.685, 90.3563]
 const themeStyles = {
@@ -37,6 +38,7 @@ function ProgressBar({ percentage, color }) {
 }
 
 function AntibioticHierarchy({ source, district }) {
+  const { t } = useLanguage()
   const [analytics, setAnalytics] = useState(() => getPrescriptionAnalytics(source, district))
   const [expandedClasses, setExpandedClasses] = useState(() => new Set(['Tetracyclines']))
   const [expandedGenerics, setExpandedGenerics] = useState(() => new Set())
@@ -63,20 +65,20 @@ function AntibioticHierarchy({ source, district }) {
   }
 
   return (
-    <section className="amr-analytics-card" aria-labelledby="antibiotic-hierarchy-title">
+    <section className="amr-analytics-card dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="antibiotic-hierarchy-title">
       <div className="amr-analytics-heading">
         <div>
-          <span className="veterinary-kicker">4 levels</span>
-          <h2 id="antibiotic-hierarchy-title">Antibiotic Usage Hierarchy</h2>
-          <p>Generic Antibiotic Class → Specific Generic → Trade Name (Company) → Generation Usage Ratio (%)</p>
+          <span className="veterinary-kicker">{t('levelsThree')}</span>
+          <h2 id="antibiotic-hierarchy-title">{t('antibioticHierarchy')}</h2>
+          <p>{t('antibioticHierarchyDescription')}</p>
         </div>
       </div>
       <div style={{ alignItems: 'center', backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 8px 20px rgba(15, 23, 42, .1)', display: 'flex', flexWrap: 'wrap', gap: '.6rem', marginBottom: '1rem', padding: '.75rem' }}>
-        <strong>Total Analyzed: {analytics.total} Prescriptions</strong>
+        <strong>{t('totalAnalyzed', { count: analytics.total })}</strong>
         {[
-          ['all', 'All Combined (100%)'],
-          ['home', 'Home Page Data'],
-          ['consult', 'Consult Vet Data'],
+          ['all', t('allCombined')],
+          ['home', t('homePageData')],
+          ['consult', t('consultVetData')],
         ].map(([value, label]) => (
           <button key={value} type="button" onClick={() => window.dispatchEvent(new CustomEvent('poultrymedix-source-filter', { detail: value }))} className="cursor-pointer transition-all active:scale-95" style={{ background: source === value ? '#0f766e' : 'rgba(255, 255, 255, .7)', border: 0, borderRadius: 999, color: source === value ? 'white' : '#334155', cursor: 'pointer', padding: '.45rem .7rem' }}>
             {label}
@@ -88,9 +90,9 @@ function AntibioticHierarchy({ source, district }) {
           const theme = themeStyles[['emerald', 'indigo', 'rose', 'amber'][index % 4]]
           const classOpen = expandedClasses.has(classEntry.name)
           return (
-            <article key={classEntry.name} style={{ backdropFilter: 'blur(18px)', background: theme.background, border: `1px solid ${theme.border}`, borderRadius: '1rem', boxShadow: '0 8px 24px rgba(15, 23, 42, .1)', padding: '1rem' }}>
-              <button type="button" onClick={() => toggle(setExpandedClasses, classEntry.name)} aria-expanded={classOpen} className="cursor-pointer transition-all hover:-translate-y-0.5 active:scale-95" style={{ alignItems: 'center', background: 'transparent', border: 0, color: theme.accent, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: 0, width: '100%' }}>
-                <span><strong>{classEntry.name}</strong> · {classEntry.percentage}% · {classEntry.count} prescriptions</span>
+            <article key={classEntry.name} className="dark:text-gray-900" style={{ backdropFilter: 'blur(18px)', background: theme.background, border: `1px solid ${theme.border}`, borderRadius: '1rem', boxShadow: '0 8px 24px rgba(15, 23, 42, .1)', padding: '1rem' }}>
+              <button type="button" onClick={() => toggle(setExpandedClasses, classEntry.name)} aria-expanded={classOpen} className="cursor-pointer transition-all hover:-translate-y-0.5 active:scale-95 dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" style={{ alignItems: 'center', background: 'transparent', border: 0, color: theme.accent, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: 0, width: '100%' }}>
+                <span><strong>{t(`antibiotics.classes.${classEntry.name}`)}</strong> · {classEntry.percentage}% · {classEntry.count} {t('prescriptions')}</span>
                 <b aria-hidden="true">{classOpen ? '−' : '+'}</b>
               </button>
               <ProgressBar percentage={classEntry.percentage} color={theme.accent} />
@@ -99,9 +101,9 @@ function AntibioticHierarchy({ source, district }) {
                   const genericKey = `${classEntry.name}-${generic.name}`
                   const genericOpen = expandedGenerics.has(genericKey)
                   return (
-                    <div key={genericKey} style={{ background: 'rgba(255, 255, 255, .45)', borderRadius: '.8rem', padding: '.7rem' }}>
-                      <button type="button" onClick={() => toggle(setExpandedGenerics, genericKey)} aria-expanded={genericOpen} className="cursor-pointer transition-all active:scale-95" style={{ alignItems: 'center', background: 'transparent', border: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: 0, width: '100%' }}>
-                        <span><strong>{generic.name}</strong> · {generic.percentage}%</span><b>{genericOpen ? '−' : '+'}</b>
+                    <div key={genericKey} className="dark:text-gray-900 dark:font-semibold" style={{ background: 'rgba(255, 255, 255, .45)', borderRadius: '.8rem', padding: '.7rem' }}>
+                      <button type="button" onClick={() => toggle(setExpandedGenerics, genericKey)} aria-expanded={genericOpen} className="cursor-pointer transition-all active:scale-95 dark:text-gray-900 dark:hover:bg-gray-200 dark:focus:bg-gray-200" style={{ alignItems: 'center', background: 'transparent', border: 0, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: 0, width: '100%' }}>
+                        <span><strong>{t(`antibiotics.generics.${generic.name}`)}</strong> · {generic.percentage}%</span><b>{genericOpen ? '−' : '+'}</b>
                       </button>
                       <ProgressBar percentage={generic.percentage} color={theme.accent} />
                       {genericOpen && <div style={{ display: 'grid', gap: '.7rem', marginTop: '.7rem' }}>
@@ -115,10 +117,10 @@ function AntibioticHierarchy({ source, district }) {
                                 const open = selectedGeneration === generationKey
                                 return (
                                   <div key={generationKey}>
-                                    <button type="button" onClick={() => setSelectedGeneration(open ? null : generationKey)} className="cursor-pointer transition-all hover:-translate-y-0.5 active:scale-95" style={{ background: 'rgba(255, 255, 255, .7)', border: '1px solid rgba(255, 255, 255, .8)', borderRadius: '.65rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: '.45rem .6rem', textAlign: 'left', width: '100%' }}>
+                                    <button type="button" onClick={() => setSelectedGeneration(open ? null : generationKey)} className="cursor-pointer transition-all hover:-translate-y-0.5 active:scale-95 dark:text-gray-900 dark:hover:bg-gray-200 dark:focus:bg-gray-200" style={{ background: 'rgba(255, 255, 255, .7)', border: '1px solid rgba(255, 255, 255, .8)', borderRadius: '.65rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', padding: '.45rem .6rem', textAlign: 'left', width: '100%' }}>
                                       <span>{generation.name}</span><strong>{generation.percentage}%</strong>
                                     </button>
-                                    {open && <div style={{ backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .82)', border: '1px solid rgba(255, 255, 255, .7)', borderRadius: '.7rem', fontSize: '.82rem', marginTop: '.3rem', padding: '.55rem' }}>
+                                    {open && <div className="dark:text-gray-900 dark:border-gray-300 dark:font-semibold" style={{ backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .82)', border: '1px solid rgba(255, 255, 255, .7)', borderRadius: '.7rem', fontSize: '.82rem', marginTop: '.3rem', padding: '.55rem' }}>
                                       WHO AWaRe: <strong>{generation.aware}</strong> · AMR Resistance Risk: <strong>{generation.risk}</strong> · Meat: <strong>{generation.meatDays}</strong> · Egg: <strong>{generation.eggDays}</strong>
                                     </div>}
                                   </div>
@@ -141,6 +143,7 @@ function AntibioticHierarchy({ source, district }) {
 }
 
 export default function EpidemiologyMap() {
+  const { t } = useLanguage()
   const mapContainerRef = useRef(null)
   const mapRef = useRef(null)
   const [selectedDistrict, setSelectedDistrict] = useState('')
@@ -159,14 +162,14 @@ export default function EpidemiologyMap() {
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map)
     outbreakDistricts.forEach((district) => {
       const marker = L.circleMarker(district.coordinates, { color: district.color, fillColor: district.color, fillOpacity: .65, radius: district.severity === 'Critical' ? 13 : 10, weight: 2 }).addTo(map)
-      marker.bindPopup(`<strong>${district.name}</strong><br />${district.disease}<br />${district.risk}`)
+      marker.bindPopup(`<strong>${t(`districts.${district.name}`)}</strong><br />${t(`diseases.${district.disease}`)}<br />${t(`risks.${district.risk}`)}`)
       marker.on('click', () => setSelectedDistrict(district.name))
     })
     return () => {
       map.remove()
       mapRef.current = null
     }
-  }, [])
+  }, [t])
 
   function selectDistrict(district) {
     setSelectedDistrict(district.name)
@@ -178,24 +181,24 @@ export default function EpidemiologyMap() {
     navigator.geolocation.getCurrentPosition(({ coords }) => {
       const coordinates = [coords.latitude, coords.longitude]
       mapRef.current?.flyTo(coordinates, 10, { animate: true, duration: .8 })
-      L.circleMarker(coordinates, { color: '#2563eb', fillColor: '#60a5fa', fillOpacity: .9, radius: 8 }).addTo(mapRef.current).bindPopup('Your current location').openPopup()
+      L.circleMarker(coordinates, { color: '#2563eb', fillColor: '#60a5fa', fillOpacity: .9, radius: 8 }).addTo(mapRef.current).bindPopup(t('currentLocation')).openPopup()
     })
   }
 
   return (
-    <main className="veterinary-page epidemiology-page">
-      <section className="veterinary-page-heading"><span className="veterinary-kicker">Veterinary tools</span><h1>Outbreak Map</h1><p>Monitor district-level epidemiology and antimicrobial resistance patterns.</p></section>
-      <section className="amr-map-card" aria-labelledby="live-epidemiology-title">
+    <main className="veterinary-page epidemiology-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <section className="veterinary-page-heading"><span className="veterinary-kicker">{t('veterinaryTools')}</span><h1>{t('outbreakMap')}</h1><p>{t('outbreakMapDescription')}</p></section>
+      <section className="amr-map-card dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="live-epidemiology-title">
         <div className="map-card-heading" style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
-          <div><h2 id="live-epidemiology-title">Live Epidemiology &amp; Hierarchical AMR Map</h2><p>Map centered on your current location; it is not submitted. OpenStreetMap receives the map-tile requests.</p></div>
-          <button className="map-locate-button" type="button" onClick={centerOnLocation}>My location</button>
+          <div><h2 id="live-epidemiology-title">{t('liveEpidemiologyMap')}</h2><p>{t('mapPrivacyNotice')}</p></div>
+          <button className="map-locate-button" type="button" onClick={centerOnLocation}>{t('myLocation')}</button>
         </div>
         <div ref={mapContainerRef} className="amr-leaflet-map min-h-[450px]" style={{ height: '450px', minHeight: '450px', width: '100%' }} />
       </section>
-      <section className="local-district-alerts" aria-labelledby="district-alerts-title">
-        <h2 id="district-alerts-title">District Outbreak Alerts</h2>
+      <section className="local-district-alerts dark:text-gray-100" aria-labelledby="district-alerts-title">
+        <h2 id="district-alerts-title">{t('districtAlerts')}</h2>
         <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
-          {outbreakDistricts.map((district) => <button key={district.name} type="button" onClick={() => selectDistrict(district)} className="cursor-pointer transition-all duration-200 hover:-translate-y-1 active:scale-95" style={{ backdropFilter: 'blur(12px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 10px 28px rgba(15, 23, 42, .12)', cursor: 'pointer', padding: '1rem', textAlign: 'left' }}><strong style={{ display: 'block' }}>{district.name}</strong><span style={{ display: 'block', margin: '.35rem 0' }}>{district.disease}</span><span style={{ ...severityStyle(district.severity), borderRadius: 999, display: 'inline-block', fontSize: '.75rem', fontWeight: 800, padding: '.25rem .55rem' }}>{district.severity}</span><small style={{ display: 'block', marginTop: '.65rem' }}>{district.farms} affected farms</small></button>)}
+          {outbreakDistricts.map((district) => <button key={district.name} type="button" onClick={() => selectDistrict(district)} className="cursor-pointer transition-all duration-200 hover:-translate-y-1 active:scale-95 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" style={{ backdropFilter: 'blur(12px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 10px 28px rgba(15, 23, 42, .12)', cursor: 'pointer', padding: '1rem', textAlign: 'left' }}><strong style={{ display: 'block' }}>{t(`districts.${district.name}`)}</strong><span style={{ display: 'block', margin: '.35rem 0' }}>{t(`diseases.${district.disease}`)}</span><span style={{ ...severityStyle(district.severity), borderRadius: 999, display: 'inline-block', fontSize: '.75rem', fontWeight: 800, padding: '.25rem .55rem' }}>{t(`severity.${district.severity}`)}</span><small style={{ display: 'block', marginTop: '.65rem' }}>{district.farms} {t('affectedFarms')}</small></button>)}
         </div>
       </section>
       <AntibioticHierarchy source={source} district={selectedDistrict} />

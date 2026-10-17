@@ -24,7 +24,7 @@ const detectedDrugs = [
   },
 ]
 
-export default function PrescriptionLookup() {
+export default function PrescriptionLookup({ hideDrugInfo = false, hideDose = false, alwaysShowDrugInfo = false, alwaysShowDose = false }) {
   const { t } = useLanguage()
   const [drugInfoExpanded, setDrugInfoExpanded] = useState(false)
   const [doseExpanded, setDoseExpanded] = useState(false)
@@ -37,11 +37,15 @@ export default function PrescriptionLookup() {
     setDoseMg(calculatePrescriberDose(Number(bodyWeight), Number(prescribedMgPerKg)))
   }
 
+  const formattedDose = doseMg === null
+    ? ''
+    : doseMg.toLocaleString(undefined, { maximumFractionDigits: 2 })
+
   return (
-    <div className="prescription-result-tools">
-      <section className={`drug-info-accordion${drugInfoExpanded ? ' is-expanded' : ''}`}>
+    <div className="prescription-result-tools bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      {!hideDrugInfo && <section className={`drug-info-accordion${drugInfoExpanded || alwaysShowDrugInfo ? ' is-expanded' : ''}`}>
         <button
-          className="drug-info-accordion-trigger"
+          className="drug-info-accordion-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
           type="button"
           aria-expanded={drugInfoExpanded}
           aria-controls="drug-withdrawal-details"
@@ -51,14 +55,14 @@ export default function PrescriptionLookup() {
           <span className="drug-info-accordion-title">{t('drugWithdrawalCardTitle')}</span>
           <Icon className="drug-info-accordion-chevron" name="chevron" size={17} />
         </button>
-        {drugInfoExpanded && (
-          <div className="drug-info-accordion-content" id="drug-withdrawal-details">
+        {(drugInfoExpanded || alwaysShowDrugInfo) && (
+          <div className="drug-info-accordion-content dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" id="drug-withdrawal-details">
             <p className="drug-info-source">
               Illustrative mock analysis results; the attached file has not been read and the listed medicines are not verified.
             </p>
             {detectedDrugs.map((drug, index) => (
-              <article className="drug-info-accordion drug-info-result-card is-expanded" aria-labelledby={`drug-withdrawal-title-${index}`} key={drug.name}>
-                <div className="drug-info-accordion-content">
+              <article className="drug-info-accordion drug-info-result-card is-expanded dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" aria-labelledby={`drug-withdrawal-title-${index}`} key={drug.name}>
+                <div className="drug-info-accordion-content dark:bg-gray-800 dark:text-gray-200">
                   <div className="drug-info-heading">
                     <div className="drug-info-title-row">
                       <h4 id={`drug-withdrawal-title-${index}`}>{drug.name}</h4>
@@ -68,25 +72,26 @@ export default function PrescriptionLookup() {
                   </div>
                   <div className="withdrawal-guidelines">
                     <article className="withdrawal-local">
-                      <strong>LOCAL GUIDELINES (BD DLS)</strong>
+                      <strong>{t('localGuidelines')}</strong>
                       <p>Meat: {drug.localMeat}, Eggs: {drug.localEggs}</p>
                     </article>
                     <article className="withdrawal-international">
-                      <strong>INTERNATIONAL GUIDELINES (WHO/WOAH)</strong>
+                      <strong>{t('internationalGuidelines')}</strong>
                       <p>Meat: {drug.intlMeat}, Eggs: {drug.intlEggs}</p>
                     </article>
                   </div>
-                  <p className="drug-info-source">Verify current product labels and applicable official guidance before use.</p>
+                  <p className="drug-info-source">{t('verifyProductGuidance')}</p>
                 </div>
               </article>
             ))}
           </div>
         )}
       </section>
+      }
 
-      <section className={`dose-calculator-accordion${doseExpanded ? ' is-expanded' : ''}`}>
+      {!hideDose && <section className={`dose-calculator-accordion${doseExpanded || alwaysShowDose ? ' is-expanded' : ''}`}>
         <button
-          className="dose-calculator-trigger"
+          className="dose-calculator-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
           type="button"
           aria-expanded={doseExpanded}
           aria-controls="dose-calculator-details"
@@ -96,22 +101,27 @@ export default function PrescriptionLookup() {
           <span>{t('doseCalculatorTitle')}</span>
           <Icon className="drug-info-accordion-chevron" name="chevron" size={17} />
         </button>
-        {doseExpanded && (
-          <section className="dose-helper" id="dose-calculator-details" aria-labelledby="dose-helper-title">
+        {(doseExpanded || alwaysShowDose) && (
+          <section className="dose-helper dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" id="dose-calculator-details" aria-labelledby="dose-helper-title">
             <h4 id="dose-helper-title">{t('doseCalculatorTitle')}</h4>
-            <p>Enter a veterinarian-prescribed dose to calculate the total amount.</p>
-            <form className="dose-calculator" onSubmit={calculateDose}>
+            <p>{t('doseHelperDescription')}</p>
+            <form className="dose-calculator dark:text-gray-200" onSubmit={calculateDose}>
               <div className="dose-inputs">
-                <label>Bird weight (kg)<input type="number" min="0.001" step="0.001" required value={bodyWeight} onChange={(event) => { setBodyWeight(event.target.value); setDoseMg(null) }} inputMode="decimal" /></label>
-                <label>Vet-prescribed dose (mg/kg)<input type="number" min="0.001" step="0.001" required value={prescribedMgPerKg} onChange={(event) => { setPrescribedMgPerKg(event.target.value); setDoseMg(null) }} inputMode="decimal" /></label>
+                <label>{t('birdWeightKg')}<input type="number" min="0.001" step="0.001" required value={bodyWeight} onChange={(event) => { setBodyWeight(event.target.value); setDoseMg(null) }} inputMode="decimal" /></label>
+                <label>{t('prescribedMgKg')}<input type="number" min="0.001" step="0.001" required value={prescribedMgPerKg} onChange={(event) => { setPrescribedMgPerKg(event.target.value); setDoseMg(null) }} inputMode="decimal" /></label>
               </div>
-              <button className="dose-calculate-button" type="submit">Calculate Dose</button>
+              <button className="dose-calculate-button dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="submit">{t('doseCalculate')}</button>
             </form>
-            {doseMg !== null && <output className="dose-calculation" aria-live="polite">Calculated dose: {doseMg.toLocaleString(undefined, { maximumFractionDigits: 2 })} mg</output>}
-            <p className="dose-safety-warning">Use only a dose prescribed by a veterinarian. Verify withdrawal periods against the product label and local guidance.</p>
+            {doseMg !== null && (
+              <output className="dose-calculation" aria-live="polite">
+                {t('doseCalculated', { amount: formattedDose })}
+              </output>
+            )}
+            <p className="dose-safety-warning">{t('doseSafety')}</p>
           </section>
         )}
       </section>
+      }
     </div>
   )
 }

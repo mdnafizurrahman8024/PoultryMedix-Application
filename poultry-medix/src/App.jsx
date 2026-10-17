@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Globe } from 'lucide-react'
 import Dashboard from './Dashboard.jsx'
 import Icon from './components/Icon.jsx'
 import { useLanguage } from './context/useLanguage.js'
@@ -6,12 +7,14 @@ import { supabase } from './lib/supabase.js'
 import { getCountries } from './data/countries.js'
 import './App.css'
 import ThemeToggle from './components/ThemeToggle.jsx'
+import OnboardingScreen from './OnboardingScreen.jsx'
+import { useUser } from './context/UserContext.jsx'
 
 const languages = [
-  ['en', 'EN'],
-  ['bn', 'বাংলা'],
-  ['hi', 'हिंदी'],
-  ['ur', 'اردو'],
+  ['en', 'English', 'EN'],
+  ['bn', 'বাংলা', 'BN'],
+  ['hi', 'हिंदी', 'HI'],
+  ['ur', 'اردو', 'UR'],
 ]
 
 function BrandMark({ compact = false }) {
@@ -22,6 +25,8 @@ function BrandMark({ compact = false }) {
 
 function App() {
   const { language, setLanguage, t } = useLanguage()
+  const { isLoggedIn, role, setRole, setLoggedIn } = useUser()
+  const [roleSelectionComplete, setRoleSelectionComplete] = useState(false)
   const [identity, setIdentity] = useState('')
   const [password, setPassword] = useState('')
   const [location, setLocation] = useState('')
@@ -33,9 +38,10 @@ function App() {
   const [otpSent, setOtpSent] = useState(false)
   const [status, setStatus] = useState({ type: '', key: '' })
   const [loading, setLoading] = useState(false)
-  const [dashboard, setDashboard] = useState(false)
   const [authInitializing, setAuthInitializing] = useState(true)
   const [userName, setUserName] = useState('')
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
+  const languageMenuRef = useRef(null)
 
   useEffect(() => {
     let mounted = true
@@ -46,9 +52,11 @@ function App() {
         return
       }
       if (mounted && data.session) {
-        setDashboard(true)
+        setLoggedIn(true)
+        if (!role) setRole('FARMER')
         setUserName(data.session.user.user_metadata?.full_name || '')
       }
+      if (mounted && !data.session) setLoggedIn(false)
       if (mounted) setAuthInitializing(false)
     }).catch((error) => {
       console.error('Unable to restore the Supabase session.', error)
@@ -56,13 +64,35 @@ function App() {
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted) return
-      setDashboard(Boolean(session))
+      setLoggedIn(Boolean(session))
       setAuthInitializing(false)
-      if (session) setUserName(session.user.user_metadata?.full_name || '')
+      if (session) {
+        if (!role) setRole('FARMER')
+        setUserName(session.user.user_metadata?.full_name || '')
+      }
     })
     return () => {
       mounted = false
       subscription.unsubscribe()
+    }
+  }, [role, setLoggedIn, setRole])
+
+  useEffect(() => {
+    function closeLanguageMenu(event) {
+      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+        setLanguageMenuOpen(false)
+      }
+    }
+
+    function closeLanguageMenuOnEscape(event) {
+      if (event.key === 'Escape') setLanguageMenuOpen(false)
+    }
+
+    document.addEventListener('mousedown', closeLanguageMenu)
+    document.addEventListener('keydown', closeLanguageMenuOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeLanguageMenu)
+      document.removeEventListener('keydown', closeLanguageMenuOnEscape)
     }
   }, [])
 
@@ -104,7 +134,7 @@ function App() {
         })
         if (error) throw error
         setStatus({ type: 'success', key: 'signedIn' })
-        setDashboard(true)
+        setLoggedIn(true)
       } else if (isPhone) {
         const { error } = await supabase.auth.signInWithOtp({
           phone: identity.trim(),
@@ -114,12 +144,16 @@ function App() {
         setOtpSent(true)
         setStatus({ type: 'success', key: 'otpSent' })
       } else if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: identity.trim(),
           password,
           options: { emailRedirectTo: window.location.origin },
         })
         if (error) throw error
+        if (data.session) {
+          setUserName(data.session.user.user_metadata?.full_name || '')
+          setLoggedIn(true)
+        }
         setStatus({ type: 'success', key: 'accountCreated' })
       } else {
         const identityValue = identity.trim()
@@ -133,7 +167,7 @@ function App() {
         if (error) throw error
         setStatus({ type: 'success', key: 'signedIn' })
         setUserName(data.user.user_metadata?.full_name || '')
-        setDashboard(true)
+        setLoggedIn(true)
       }
     } catch (error) {
       setStatus({ type: 'error', key: mapAuthError(error) })
@@ -168,43 +202,45 @@ function App() {
 
   function continueAsGuest() {
     setUserName('Guest')
-    setDashboard(true)
+    setLoggedIn(true)
   }
 
-  if (dashboard) {
+  if (authInitializing) {
+    return <main className="auth-initializing bg-white dark:bg-gray-900 text-gray-900 dark:text-white" role="status"><span className="auth-spinner auth-spinner--dark" />{t('pleaseWait')}</main>
+  }
+
+  if (isLoggedIn) {
     return <Dashboard
-      onLogout={() => setDashboard(false)}
+      onLogout={() => {
+        setLoggedIn(false)
+      }}
       initialName={userName || (identity.includes('@') ? identity.split('@')[0] : '')}
       initialLocation={location ? new Intl.DisplayNames([language], { type: 'region' }).of(location) : ''}
     />
   }
 
-  if (authInitializing) {
-    return <main className="auth-initializing" role="status"><span className="auth-spinner auth-spinner--dark" />{t('pleaseWait')}</main>
+  if (!role) {
+    return <OnboardingScreen onRoleSelected={() => setRoleSelectionComplete(true)} />
+  }
+
+  if (!isLoggedIn && !roleSelectionComplete) {
+    return <OnboardingScreen onRoleSelected={() => setRoleSelectionComplete(true)} />
   }
 
   return (
-    <main className="app-shell">
-      <section className="story-panel" aria-label={t('brand')}>
+    <main className="app-shell bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+      <section className="story-panel bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" aria-label={t('brand')}>
         <div className="story-topline">
           <a className="brand" href="#home" aria-label={t('brand')}>
             <BrandMark />
             <span>Poultry<span className="brand-accent">Medix</span></span>
           </a>
-          <ThemeToggle />
-          <div className="language-switch" aria-label={t('language')}>
-            <Icon name="globe" size={16} />
-            {languages.map(([code, label], index) => [
-              index > 0 && <span className="language-divider" key={`${code}-divider`} />,
-              <button key={code} type="button" className={language === code ? 'active' : ''} aria-pressed={language === code} onClick={() => setLanguage(code)}>{label}</button>,
-            ])}
-          </div>
         </div>
 
         <div className="story-content">
-          <div className="eyebrow"><Icon name="spark" size={15} /> {t('eyebrow')}</div>
-          <h1>{t('heroTitle')}</h1>
-          <p className="story-description">{t('heroDescription')}</p>
+          <div className="eyebrow"><Icon name="userCheck" size={15} /> {t('visionKicker')}</div>
+          <h1>{t('visionTitle')}</h1>
+          <p className="story-description">{t('visionDescription')}</p>
 
           <div className="flock-art" aria-hidden="true">
             <div className="sun-disc" />
@@ -215,8 +251,8 @@ function App() {
               <div className="coop-body"><span /><span /><span /></div>
               <div className="coop-door" />
             </div>
-            <div className="chicken chicken-one"><Icon name="bird" size={61} /></div>
-            <div className="chicken chicken-two"><Icon name="bird" size={43} /></div>
+            <div className="chicken chicken-one"><Icon name="userCheck" size={61} /></div>
+            <div className="chicken chicken-two"><Icon name="leaf" size={43} /></div>
             <div className="art-stamp"><Icon name="leaf" size={20} /><span>{t('artStamp')}</span></div>
             <div className="sun-line sun-line-one" />
             <div className="sun-line sun-line-two" />
@@ -227,25 +263,52 @@ function App() {
             <span><strong>{t('trustTitle')}</strong><br />{t('trustDescription')}</span>
           </div>
         </div>
-        <div className="story-footer"><span>{t('footerLine')}</span><span>Copyright 2025 PoultryMedix</span></div>
+        <p className="story-vision"><strong>{t('ultimateVisionLabel')}</strong> {t('ultimateVision')}</p>
+        <div className="story-footer"><span>{t('footerLine')}</span><span>{t('copyright')}</span></div>
       </section>
 
-      <section className="login-panel" id="home">
-        <div className="mobile-brand-row">
-          <a className="brand" href="#home" aria-label={t('brand')}>
+      <section className="login-panel bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" id="home">
+        <div className="login-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700">
+          <div className="login-card-header flex justify-between items-center w-full p-4">
+          <a className="login-card-brand" href="#home" aria-label={t('brand')}>
             <BrandMark compact />
             <span>Poultry<span className="brand-accent">Medix</span></span>
           </a>
-          <ThemeToggle />
-          <div className="language-switch language-switch--mobile" aria-label={t('language')}>
-            {languages.map(([code, label], index) => [
-              index > 0 && <span className="language-divider" key={`${code}-divider`} />,
-              <button key={code} type="button" className={language === code ? 'active' : ''} aria-pressed={language === code} onClick={() => setLanguage(code)}>{label}</button>,
-            ])}
+          <div className="login-card-actions flex items-center gap-3">
+            <ThemeToggle />
+            <div className="language-dropdown relative" ref={languageMenuRef}>
+              <button
+                className="language-dropdown-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                type="button"
+                aria-expanded={languageMenuOpen}
+                aria-haspopup="menu"
+                aria-label={t('language')}
+                onClick={() => setLanguageMenuOpen((current) => !current)}
+              >
+                <Globe size={18} className="language-dropdown-globe" aria-hidden="true" />
+                <span>{language.toUpperCase()}</span>
+              </button>
+              {languageMenuOpen && (
+                <div className="language-dropdown-menu absolute right-0 top-full mt-2 w-40 bg-white shadow-lg rounded-md z-50 dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="menu" aria-label={t('language')}>
+                  {languages.map(([code, label, shortCode]) => (
+                    <button
+                      className={language === code ? 'active' : ''}
+                      type="button"
+                      role="menuitem"
+                      key={code}
+                      onClick={() => {
+                        setLanguage(code)
+                        setLanguageMenuOpen(false)
+                      }}
+                    >
+                      {label} ({shortCode})
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-
-        <div className="login-card">
+          </div>
           <img src="/images/logo.png" alt="PoultryMedix" className="h-16 w-auto mx-auto mb-6 drop-shadow-md" />
           <div className="card-heading">
             <div className="welcome-kicker">{isSignUp ? t('authSignUpKicker') : t('welcomeKicker')}</div>
@@ -253,11 +316,12 @@ function App() {
             <p>{isSignUp ? t('authSignUpDescription') : t('welcomeDescription')}</p>
           </div>
 
-          <form className="login-form" onSubmit={handleSubmit}>
+          <form           className="login-form dark:text-gray-100" onSubmit={handleSubmit}>
             <label className="field-label" htmlFor="identity">{isPhone ? t('phoneNumber') : isSignUp ? t('email') : t('phoneOrEmail')}</label>
             <div className="input-wrap">
               <Icon name={isPhone ? 'phone' : 'mail'} size={19} />
               <input
+                className="dark:bg-gray-900 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
                 id="identity"
                 type={isPhone ? 'tel' : isSignUp ? 'email' : 'text'}
                 autoComplete={isPhone ? 'tel' : isSignUp ? 'email' : 'username'}
@@ -274,6 +338,7 @@ function App() {
                 <div className="input-wrap">
                   <Icon name="lock" size={19} />
                   <input
+                    className="dark:bg-gray-900 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
                     id="password"
                     type="password"
                     autoComplete={isSignUp ? 'new-password' : 'current-password'}
@@ -292,7 +357,7 @@ function App() {
                 <label className="field-label field-label--spaced" htmlFor="otp">{t('verificationCode')}</label>
                 <div className="input-wrap">
                   <Icon name="lock" size={19} />
-                  <input id="otp" type="text" inputMode="numeric" autoComplete="one-time-code" placeholder={t('codePlaceholder')} value={otp} onChange={(event) => setOtp(event.target.value)} required />
+                  <input className="dark:bg-gray-900 dark:text-white dark:border-gray-600 dark:placeholder-gray-400" id="otp" type="text" inputMode="numeric" autoComplete="one-time-code" placeholder={t('codePlaceholder')} value={otp} onChange={(event) => setOtp(event.target.value)} required />
                 </div>
               </>
             )}
@@ -300,7 +365,7 @@ function App() {
             <label className="field-label field-label--spaced" htmlFor="location">{t('location')}</label>
             <div className="input-wrap select-wrap">
               <Icon name="pin" size={19} className="pin-icon" />
-              <select id="location" value={location} onChange={(event) => setLocation(event.target.value)} required>
+              <select className="dark:bg-gray-900 dark:text-white dark:border-gray-600" id="location" value={location} onChange={(event) => setLocation(event.target.value)} required>
                 <option value="" disabled>{t('locationPlaceholder')}</option>
                 {countries.map(({ code, name }) => <option key={code} value={code}>{name}</option>)}
               </select>

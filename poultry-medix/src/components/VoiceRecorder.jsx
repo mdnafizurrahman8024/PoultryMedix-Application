@@ -4,7 +4,7 @@ import Icon from './Icon.jsx'
 
 const maxRecordingBytes = 8 * 1024 * 1024
 
-export default function VoiceRecorder({ onAudioReady, compact = false, disabled = false, buttonLabel, buttonAriaLabel }) {
+export default function VoiceRecorder({ onAudioReady, onRecordingChange, compact = false, disabled = false, buttonLabel, buttonAriaLabel }) {
   const { t } = useLanguage()
   const recorderRef = useRef(null)
   const streamRef = useRef(null)
@@ -43,11 +43,13 @@ export default function VoiceRecorder({ onAudioReady, compact = false, disabled 
         streamRef.current = null
         recorderRef.current = null
         setRecording(false)
+        onRecordingChange?.(false)
         if (blob.size > maxRecordingBytes) setError(t('audioTooLarge'))
         else if (blob.size) onAudioReady(blob)
       }, { once: true })
       recorder.start()
       setRecording(true)
+      onRecordingChange?.(true)
     } catch {
       streamRef.current?.getTracks().forEach((track) => track.stop())
       streamRef.current = null
@@ -58,7 +60,7 @@ export default function VoiceRecorder({ onAudioReady, compact = false, disabled 
   return (
     <div className={`voice-recorder${compact ? ' voice-recorder--compact' : ''}`}>
       <button
-        className={`voice-record-button${recording ? ' is-recording' : ''}`}
+        className={`voice-record-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700${recording ? ' is-recording' : ''}`}
         type="button"
         disabled={disabled}
         aria-pressed={recording}

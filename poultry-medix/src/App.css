@@ -371,7 +371,21 @@
   font-size: 10px;
 }
 
+.story-vision {
+  max-width: 520px;
+  margin: 0 0 18px;
+  color: rgba(247, 248, 236, 0.76);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.story-vision strong {
+  color: #fff;
+  font-weight: 700;
+}
+
 .login-panel {
+  position: relative;
   display: flex;
   min-height: 100vh;
   flex-direction: column;
@@ -387,6 +401,109 @@
 .mobile-brand-row,
 .mobile-footer {
   display: none;
+}
+
+.login-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 12px;
+  padding: 16px;
+  margin-bottom: 8px;
+}
+
+.login-card-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #234331;
+  font: 800 17px/1 'Manrope', 'Noto Sans Bengali', sans-serif;
+  letter-spacing: -0.7px;
+  text-decoration: none;
+}
+
+.login-card-brand .brand-mark--compact {
+  width: 34px;
+  height: 34px;
+}
+
+.login-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.language-dropdown-trigger {
+  display: inline-flex;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0 9px;
+  border: 1px solid #dfe8dc;
+  border-radius: 7px;
+  color: #657565;
+  background: #f4f7f1;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.language-dropdown-trigger:hover,
+.language-dropdown-trigger:focus-visible {
+  border-color: #9cb99d;
+  outline: none;
+  background: #eef5eb;
+  box-shadow: 0 0 0 3px rgba(75, 128, 83, 0.12);
+}
+
+.language-dropdown-globe {
+  flex: 0 0 auto;
+}
+
+.language-dropdown-menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  width: 160px;
+  min-width: 120px;
+  padding: 8px;
+  border: 1px solid #e1e9df;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(45, 69, 48, 0.16);
+}
+
+.language-dropdown-menu button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  outline: 0;
+  border-radius: 6px;
+  color: #456149;
+  background: none;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.language-dropdown-menu button:hover,
+.language-dropdown-menu button:focus-visible,
+.language-dropdown-menu button.active {
+  color: #245d35;
+  outline: none;
+  background: #edf6eb;
 }
 
 .login-card {
@@ -814,13 +931,15 @@
   .login-panel {
     min-height: 100svh;
     justify-content: flex-start;
-    padding: 20px 22px 22px;
+    padding: 72px 0 0;
+    background: #fff;
   }
 
   .mobile-brand-row {
     display: flex;
-    width: min(100%, 430px);
-    justify-content: space-between;
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 22px;
     margin: 0 auto 22px;
   }
 
@@ -835,23 +954,35 @@
     color: #397b48;
   }
 
-  .language-switch--mobile {
-    border-color: #e5eae2;
-    color: #778479;
+  .login-card-header {
+    gap: 7px;
+    padding: 12px 4px 16px;
+    margin-bottom: 8px;
   }
 
-  .language-switch--mobile button.active {
-    color: #315d39;
+  .login-card-brand {
+    font-size: 16px;
   }
 
-  .language-switch--mobile .language-divider {
-    background: #dce4da;
+  .login-card-actions {
+    gap: 5px;
+  }
+
+  .language-dropdown-trigger {
+    padding: 0 7px;
   }
 
   .login-card {
-    width: min(100%, 430px);
-    margin: auto;
+    width: 100%;
+    min-height: calc(100svh - 130px);
+    margin: 0;
     padding: 26px 24px;
+    border: 0;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 
   .mobile-footer {
@@ -866,8 +997,8 @@
 
 @media (max-width: 400px) {
   .login-panel {
-    padding-right: 18px;
-    padding-left: 18px;
+    padding-right: 0;
+    padding-left: 0;
   }
 
   .login-card {

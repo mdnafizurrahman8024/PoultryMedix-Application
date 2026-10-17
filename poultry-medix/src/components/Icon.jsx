@@ -51,6 +51,7 @@ export default function Icon({ name, size = 20, className = '' }) {
     home: <><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1V10Z" /><path d="m2 11 10-8 10 8" /></>,
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m12-13a4 4 0 0 1 0 8m4 5v-2a4 4 0 0 0-3-3.87" /><circle cx="10" cy="7" r="4" /></>,
+    userCheck: <><circle cx="9" cy="8" r="4" /><path d="M2 21a7 7 0 0 1 14 0m2-7 2 2 4-4" /></>,
     linkedin: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M8 10v7m0-10v.01M12 17v-7m0 3a3 3 0 0 1 6 0v4" /></>,
     facebook: <path d="M13.5 21v-8h2.8l.5-3h-3.3V8.1c0-.9.3-1.6 1.7-1.6H17V3.8c-.4-.1-1.4-.2-2.6-.2-2.6 0-4.4 1.6-4.4 4.5V10H7v3h3v8Z" />,
     orcid: <><circle cx="12" cy="12" r="9" /><path d="M8 10v7m0-10v.01M12 17v-7h2.2a3.5 3.5 0 0 1 0 7H12Z" /></>,

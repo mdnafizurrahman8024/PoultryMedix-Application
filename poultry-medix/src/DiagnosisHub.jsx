@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { runMultimodalDiagnosis } from './lib/ai.js'
 import { useLanguage } from './context/useLanguage.js'
@@ -6,9 +6,13 @@ import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
 import PrescriptionLookup from './veterinary/PrescriptionLookup.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
-import { saveHistoryEntry } from './veterinary/historyStore.js'
+import { saveHistoryEntry, saveUnifiedLog } from './veterinary/historyStore.js'
 
 const maxFileSize = 8 * 1024 * 1024
+const withdrawalDetails = [
+  { name: 'Enrofloxacin 10%', className: 'Fluoroquinolone • Used for CRD, colibacillosis', status: 'Antibiotic', localMeat: '7 days', localEggs: 'Not for layers', intlMeat: '8-10 days', intlEggs: 'Not permitted' },
+  { name: 'Colistin', className: 'Polymyxin (Banned)', status: 'Antibiotic • Banned', localMeat: 'Banned', localEggs: 'Banned', intlMeat: 'Banned', intlEggs: 'Banned' },
+]
 
 export default function DiagnosisHub() {
   const { t } = useLanguage()
@@ -26,6 +30,32 @@ export default function DiagnosisHub() {
   const [error, setError] = useState('')
   const [historyWarning, setHistoryWarning] = useState('')
   const [modelWarning, setModelWarning] = useState('')
+  const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false)
+  const [voiceTypingActive, setVoiceTypingActive] = useState(false)
+  const [recordingActive, setRecordingActive] = useState(false)
+  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const [clinicalLogs, setClinicalLogs] = useState([])
+  const [saveMessage, setSaveMessage] = useState('')
+
+  useEffect(() => {
+    if (!recordingActive) {
+      setRecordingSeconds(0)
+      return undefined
+    }
+    const timer = window.setInterval(() => setRecordingSeconds((seconds) => seconds + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [recordingActive])
+
+  function handlePrescriptionFile(file) {
+    const acceptedFile = acceptFile(file, 'prescription')
+    setPrescription(acceptedFile)
+    if (acceptedFile) setWithdrawalModalOpen(true)
+  }
+
+  function handlePrescriptionCapture(event) {
+    handlePrescriptionFile(event.target.files?.[0])
+    event.target.value = ''
+  }
 
   function acceptFile(file, expected) {
     setError('')
@@ -69,6 +99,18 @@ export default function DiagnosisHub() {
         onModelWarning: () => setModelWarning(t('visualModelUnavailable')),
       })
       setAnswer(result)
+      setClinicalLogs((logs) => [...logs, {
+        type: 'Smart Diagnosis',
+        summary: symptoms.trim() || result.answer.slice(0, 140),
+        createdAt: new Date().toISOString(),
+      }])
+      saveUnifiedLog('SMART_DIAGNOSIS', {
+        symptoms: symptoms.trim(),
+        summary: symptoms.trim() || result.answer.slice(0, 140),
+        answer: result.answer,
+        files: files.map(({ name }) => name),
+      })
+      setSaveMessage(t('antibiotics.savedToClinicalLog'))
       try {
         saveHistoryEntry('diagnosis', {
           id: crypto.randomUUID(),
@@ -107,7 +149,7 @@ export default function DiagnosisHub() {
   }
 
   return (
-    <section className="diagnosis-hub" aria-labelledby="diagnosis-hub-title">
+    <section className="diagnosis-hub bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" aria-labelledby="diagnosis-hub-title">
       <AiSafetyBanner />
       <div className="diagnosis-hub-heading">
         <div className="diagnosis-heading-icon"><Icon name="stethoscope" size={20} /></div>
@@ -116,74 +158,65 @@ export default function DiagnosisHub() {
           <h2 id="diagnosis-hub-title">{t('diagnosisHubTitle')}</h2>
           <p>{t('diagnosisHubDescription')}</p>
         </div>
-        <span className="diagnosis-ai-tag"><span />{t('geminiPowered')}</span>
       </div>
 
       <form onSubmit={submitDiagnosis}>
-        <label className="diagnosis-symptom-label" htmlFor="diagnosis-symptoms">{t('symptomsLabel')}</label>
-        <textarea
-          id="diagnosis-symptoms"
-          className="diagnosis-symptom-input"
-          value={symptoms}
-          onChange={(event) => setSymptoms(event.target.value)}
-          placeholder={t('symptomsPlaceholder')}
-          rows="3"
-        />
-
-        <div className="diagnosis-attachment-grid">
+        <section className="diagnosis-tool-card diagnosis-smart-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="smart-diagnosis-title">
+          <div className="diagnosis-section-heading dark:text-white">
+            <div><span className="diagnosis-section-kicker dark:text-gray-200 dark:font-semibold">{t('sectionOne')}</span><h3 id="smart-diagnosis-title" className="dark:text-white dark:font-bold">{t('smartDiagnosis')}</h3><p className="dark:text-gray-200">{t('smartDiagnosisDescription')}</p></div>
+            <span className="diagnosis-section-icon"><Icon name="spark" size={20} /></span>
+          </div>
+          <label className="diagnosis-symptom-label dark:text-gray-100 dark:font-semibold" htmlFor="diagnosis-symptoms">{t('symptomsLabel')}</label>
+          <textarea
+            id="diagnosis-symptoms"
+            className="diagnosis-symptom-input dark:bg-gray-900 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
+            value={symptoms}
+            onChange={(event) => setSymptoms(event.target.value)}
+            placeholder={t('symptomsPlaceholder')}
+            rows="3"
+          />
+          <div className="diagnosis-voice-tools" aria-label={t('voiceTypingAria')}>
+            <button className={`diagnosis-voice-toggle dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700${voiceTypingActive ? ' is-active' : ''}`} type="button" aria-pressed={voiceTypingActive} aria-label={t('voiceTypingAria')} onClick={() => setVoiceTypingActive((active) => !active)}><Icon name="mic" size={16} />{voiceTypingActive ? `🔴 ${t('listening')}` : t('voiceTyping')}</button>
+          </div>
+          <div className="diagnosis-attachment-grid diagnosis-media-grid">
           <section className="diagnosis-attachment" aria-labelledby="diagnosis-image-title">
-            <div className="diagnosis-input-card-heading">
+            <div className="diagnosis-input-card-heading dark:text-gray-100">
               <span className="attachment-icon attachment-icon--image"><Icon name="image" size={19} /></span>
-              <div><h3 id="diagnosis-image-title">{t('flockImageTitle')}</h3><p>{image?.name || t('flockImageDescription')}</p></div>
+              <div><h3 id="diagnosis-image-title" className="dark:text-white dark:font-bold">{t('flockImageTitle')}</h3><p className="dark:text-gray-200">{image?.name || t('flockImageDescription')}</p></div>
               {image && <button className="remove-attachment" type="button" aria-label={t('removeImage')} onClick={() => { setImage(null); if (imageInput.current) imageInput.current.value = ''; if (imageCameraInput.current) imageCameraInput.current.value = '' }}><Icon name="remove" size={16} /></button>}
             </div>
             <div className="diagnosis-input-options">
               <input ref={imageInput} className="visually-hidden-input" type="file" accept="image/jpeg,image/png" aria-label={t('uploadImage')} onChange={(event) => setImage(acceptFile(event.target.files?.[0], 'image'))} />
               <input ref={imageCameraInput} className="visually-hidden-input" type="file" accept="image/jpeg,image/png" capture="environment" aria-label={t('useLiveCamera')} onChange={(event) => setImage(acceptFile(event.target.files?.[0], 'image'))} />
-              <button className={`diagnosis-input-option${image ? ' has-file' : ''}`} type="button" aria-label={t('uploadImage')} onClick={() => imageInput.current?.click()}>
+              <button className={`diagnosis-input-option dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700${image ? ' has-file' : ''}`} type="button" aria-label={t('uploadImage')} onClick={() => imageInput.current?.click()}>
                 <Icon name="upload" size={15} /><span>{t('uploadShort')}</span>
               </button>
-              <button className="diagnosis-input-option" type="button" aria-label={t('useLiveCamera')} onClick={() => imageCameraInput.current?.click()}>
+              <button className="diagnosis-input-option dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" aria-label={t('useLiveCamera')} onClick={() => imageCameraInput.current?.click()}>
                 <Icon name="camera" size={15} /><span>{t('liveShort')}</span>
               </button>
             </div>
           </section>
 
           <section className="diagnosis-attachment" aria-labelledby="diagnosis-audio-title">
-            <div className="diagnosis-input-card-heading">
+            <div className="diagnosis-input-card-heading dark:text-gray-100">
               <span className="attachment-icon attachment-icon--audio"><Icon name="mic" size={19} /></span>
-              <div><h3 id="diagnosis-audio-title">{t('audioObservationTitle')}</h3><p>{audio?.name || t('audioObservationDescription')}</p></div>
+              <div><h3 id="diagnosis-audio-title" className="dark:text-white dark:font-bold">{t('audioObservationTitle')}</h3><p className="dark:text-gray-200">{audio?.name || t('audioObservationDescription')}</p></div>
               {audio && <button className="remove-attachment" type="button" aria-label={t('removeAudio')} onClick={() => setAudio(null)}><Icon name="remove" size={16} /></button>}
             </div>
             <div className="diagnosis-input-options">
               <input ref={audioInput} className="visually-hidden-input" type="file" accept="audio/*" aria-label={t('uploadAudioFile')} onChange={(event) => setAudio(acceptFile(event.target.files?.[0], 'audio'))} />
-              <button className={`diagnosis-input-option${audio ? ' has-file' : ''}`} type="button" aria-label={t('uploadAudioFile')} onClick={() => audioInput.current?.click()}>
+              <button className={`diagnosis-input-option dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700${audio ? ' has-file' : ''}`} type="button" aria-label={t('uploadAudioFile')} onClick={() => audioInput.current?.click()}>
                 <Icon name="upload" size={15} /><span>{t('uploadShort')}</span>
               </button>
-              <div className="diagnosis-input-option diagnosis-input-option--record">
-                <VoiceRecorder compact buttonLabel={t('liveShort')} buttonAriaLabel={t('recordLiveAudio')} onAudioReady={(blob) => setAudio(new File([blob], `flock-audio-${Date.now()}.webm`, { type: blob.type || 'audio/webm' }))} />
+              <div className="diagnosis-input-option diagnosis-input-option--record dark:text-gray-100 dark:border-gray-600">
+                <VoiceRecorder compact buttonLabel={t('liveShort')} buttonAriaLabel={t('recordLiveAudio')} onRecordingChange={setRecordingActive} onAudioReady={(blob) => setAudio(new File([blob], `flock-audio-${Date.now()}.webm`, { type: blob.type || 'audio/webm' }))} />
+                {recordingActive && <span className="diagnosis-recording-timer"><i />00:{String(recordingSeconds).padStart(2, '0')}</span>}
               </div>
             </div>
           </section>
 
-          <section className="diagnosis-attachment" aria-labelledby="diagnosis-prescription-title">
-            <div className="diagnosis-input-card-heading">
-              <span className="attachment-icon attachment-icon--pdf"><Icon name="pdf" size={19} /></span>
-              <div><h3 id="diagnosis-prescription-title">{t('prescriptionTitle')}</h3><p>{prescription?.name || t('prescriptionDescription')}</p></div>
-              {prescription && <button className="remove-attachment" type="button" aria-label={t('removePrescription')} onClick={() => { setPrescription(null); if (prescriptionInput.current) prescriptionInput.current.value = ''; if (prescriptionCameraInput.current) prescriptionCameraInput.current.value = '' }}><Icon name="remove" size={16} /></button>}
-            </div>
-            <div className="diagnosis-input-options">
-              <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => setPrescription(acceptFile(event.target.files?.[0], 'prescription'))} />
-              <input ref={prescriptionCameraInput} className="visually-hidden-input" type="file" accept="image/jpeg,image/png" capture="environment" aria-label={t('useLiveCamera')} onChange={(event) => setPrescription(acceptFile(event.target.files?.[0], 'prescription'))} />
-              <button className={`diagnosis-input-option${prescription ? ' has-file' : ''}`} type="button" aria-label={t('uploadPrescription')} onClick={() => prescriptionInput.current?.click()}>
-                <Icon name="upload" size={15} /><span>{t('uploadShort')}</span>
-              </button>
-              <button className="diagnosis-input-option" type="button" aria-label={t('useLiveCamera')} onClick={() => prescriptionCameraInput.current?.click()}>
-                <Icon name="camera" size={15} /><span>{t('liveShort')}</span>
-              </button>
-            </div>
-          </section>
-        </div>
+          </div>
+        </section>
 
         <p className="diagnosis-accuracy-note"><Icon name="spark" size={15} />{t('accuracyTip')}</p>
         {error && <p className="diagnosis-error" role="alert">{error}</p>}
@@ -199,8 +232,48 @@ export default function DiagnosisHub() {
         </div>
       </form>
 
-      <PrescriptionLookup />
+      <section className="diagnosis-tool-card diagnosis-prescription-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="prescription-info-title">
+        <div className="diagnosis-section-heading dark:text-gray-100">
+          <div><span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionTwo')}</span><h3 id="prescription-info-title" className="dark:text-gray-100">{t('prescriptionWithdrawal')}</h3><p className="dark:text-gray-300">{t('prescriptionWithdrawalDescription')}</p></div>
+          <span className="diagnosis-section-icon"><Icon name="pill" size={20} /></span>
+        </div>
+        <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => handlePrescriptionFile(event.target.files?.[0])} />
+        <input ref={prescriptionCameraInput} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} aria-label={t('useLiveCamera')} onChange={handlePrescriptionCapture} />
+        <div className="diagnosis-prescription-actions">
+          <button className="diagnosis-glass-button diagnosis-glass-button--primary dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" onClick={() => prescriptionCameraInput.current?.click()}><Icon name="camera" size={17} />{t('takePhotoScan')}</button>
+          <button className="diagnosis-glass-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" onClick={() => prescriptionInput.current?.click()}><Icon name="upload" size={17} />{t('uploadPrescriptionPhoto')}</button>
+        </div>
+        {prescription && <div className="diagnosis-selected-file"><Icon name="pdf" size={15} />{prescription.name}<button type="button" onClick={() => { setPrescription(null); if (prescriptionInput.current) prescriptionInput.current.value = ''; if (prescriptionCameraInput.current) prescriptionCameraInput.current.value = '' }} aria-label={t('removePrescription')}><Icon name="remove" size={14} /></button></div>}
+      </section>
 
+      <section className="diagnosis-tool-card diagnosis-dose-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="dose-calculator-title">
+        <div className="diagnosis-section-heading dark:text-gray-100">
+          <div><span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionThree')}</span><h3 id="dose-calculator-title" className="dark:text-gray-100">{t('doseCalculator')}</h3><p className="dark:text-gray-300">{t('doseValuesWarning')}</p></div>
+          <span className="diagnosis-section-icon"><Icon name="calculator" size={20} /></span>
+        </div>
+        <PrescriptionLookup hideDrugInfo alwaysShowDose />
+      </section>
+
+      {withdrawalModalOpen && <div className="diagnosis-withdrawal-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setWithdrawalModalOpen(false) }}>
+        <section className="diagnosis-withdrawal-modal dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="withdrawal-modal-title">
+          <div className="diagnosis-modal-heading dark:text-gray-100"><div><span className="diagnosis-section-kicker dark:text-gray-300">{t('antibiotics.extractedResult')}</span><h3 id="withdrawal-modal-title">{t('antibiotics.drugWithdrawalInfo')}</h3></div><button className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" onClick={() => setWithdrawalModalOpen(false)} aria-label={t('antibiotics.closeWithdrawalInfo')}><Icon name="close" size={18} /></button></div>
+          <p className="drug-info-source dark:text-gray-300">{t('antibiotics.mockAnalysisNotice')}</p>
+          {withdrawalDetails.map((drug) => <article className="diagnosis-modal-drug dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700" key={drug.name}>
+            <div className="drug-info-title-row"><h4>{drug.name}</h4><span className="drug-class-badge">{drug.status}</span></div>
+            <p>{drug.className}</p>
+            <div className="withdrawal-guidelines"><article className="withdrawal-local"><strong>LOCAL GUIDELINES (BD DLS)</strong><p>Meat: {drug.localMeat}, Eggs: {drug.localEggs}</p></article><article className="withdrawal-international"><strong>INTERNATIONAL GUIDELINES (WHO/WOAH)</strong><p>Meat: {drug.intlMeat}, Eggs: {drug.intlEggs}</p></article></div>
+          </article>)}
+          <button className="diagnosis-save-log-button" type="button" onClick={() => {
+            const summary = withdrawalDetails.map(({ name }) => name).join(', ')
+            setClinicalLogs((logs) => [...logs, { type: 'Prescription Scan', summary, createdAt: new Date().toISOString() }])
+            saveUnifiedLog('PRESCRIPTION_SCAN', { drugs: withdrawalDetails, summary })
+            setWithdrawalModalOpen(false)
+            setSaveMessage(t('antibiotics.prescriptionSavedToHistory'))
+          }}>{t('saveClinicalLog')}</button>
+        </section>
+      </div>}
+
+      {saveMessage && <p className="diagnosis-save-message" role="status">{saveMessage}</p>}
       {answer && <div className="ai-answer-card" aria-live="polite">
         <div className="ai-answer-heading"><span><Icon name="spark" size={17} />{t('aiTriageSummary')}</span><span className="ai-safety-label">{t('informationalOnly')}</span></div>
         {answer.visualResult && <p className="visual-classification"><Icon name="image" size={15} />{t('visualClassification')}: <strong>{answer.visualResult.label}</strong> ({Math.round(answer.visualResult.confidence * 100)}%)</p>}

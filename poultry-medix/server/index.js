@@ -7,6 +7,8 @@ import process from 'node:process'
 const app = express()
 const port = Number(process.env.PORT || 8787)
 const geminiKey = process.env.GEMINI_API_KEY
+const openAiKey = process.env.OPENAI_API_KEY
+const openWeatherKey = process.env.OPENWEATHER_API_KEY || process.env.VITE_OPENWEATHER_API_KEY
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -20,6 +22,21 @@ const allowedMimeTypes = new Set([
 ])
 const requestsByUser = new Map()
 const supportedUserRoles = new Set(['farmer', 'vet_student', 'registered_vet'])
+const supabase = {
+  auth: {
+    async getUser(token) {
+      const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          apikey: supabaseAnonKey,
+          authorization: `Bearer ${token}`,
+        },
+      })
+      if (!userResponse.ok) return { data: { user: null }, error: new Error('Invalid Supabase session.') }
+      const user = await userResponse.json()
+      return { data: { user }, error: user?.id ? null : new Error('Invalid Supabase session.') }
+    },
+  },
+}
 const veterinarySystemPrompt = [
   'You are a highly advanced Veterinary Clinical AI. You must act as a natural conversational agent (like ChatGPT).',
   'You MUST understand and process full natural language sentences, not just strict keywords.',
@@ -39,24 +56,62 @@ app.get('/api/health', (_request, response) => {
     configured: Boolean(geminiKey && supabaseUrl && supabaseAnonKey),
     visualModelConfigured: Boolean(process.env.VITE_TEACHABLE_MACHINE_MODEL_URL),
   })
+
+  app.get('/api/weather', async (request, response) => {
+    const latitude = Number(request.query.lat)
+    const longitude = Number(request.query.lon)
+    const language = typeof request.query.lang === 'string' ? request.query.lang : 'en'
+    const supportedWeatherLanguages = new Set(['en', 'bn', 'hi', 'ur'])
+
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90
+      || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      return response.status(400).json({ code: 'weatherFetchError' })
+    }
+    if (!openWeatherKey || /^your-|placeholder|example$/i.test(openWeatherKey)) {
+      return response.status(503).json({ code: 'weatherKeyMissing' })
+    }
+
+    const query = new URLSearchParams({
+      lat: String(latitude),
+      lon: String(longitude),
+      appid: openWeatherKey,
+      units: 'metric',
+      lang: supportedWeatherLanguages.has(language) ? language : 'en',
+    })
+
+    try {
+      const [weatherResponse, uvResponse, placeResponse] = await Promise.all([
+        fetch(`https://api.openweathermap.org/data/2.5/weather?${query}`),
+        fetch(`https://api.openweathermap.org/data/2.5/uvi?${query}`),
+        fetch(`https://api.openweathermap.org/geo/1.0/reverse?${query}&limit=1`),
+      ])
+      if (!weatherResponse.ok) {
+        console.error('OpenWeather request failed.', weatherResponse.status)
+        return response.status(502).json({ code: 'weatherFetchError' })
+      }
+      const current = await weatherResponse.json()
+      const uv = uvResponse.ok ? await uvResponse.json() : null
+      const places = placeResponse.ok ? await placeResponse.json() : []
+      return response.json({ current, uv, place: places[0] || null })
+    } catch (error) {
+      console.error('OpenWeather request could not be completed.', error.message)
+      return response.status(502).json({ code: 'weatherFetchError' })
+    }
+  })
 })
 
 async function requireUser(request, response, next) {
-  const authorization = request.get('authorization')
-  if (!authorization?.startsWith('Bearer ') || !supabaseUrl || !supabaseAnonKey) {
+  const rawAuthorization = request.get('authorization')?.trim()
+  const token = rawAuthorization?.replace(/^Bearer\s+/i, '').trim()
+  if (!token || !supabaseUrl || !supabaseAnonKey) {
     return response.status(401).json({ error: 'Sign in to use the AI tools.' })
   }
-
   try {
-    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: {
-        apikey: supabaseAnonKey,
-        authorization,
-      },
-    })
-    if (!userResponse.ok) return response.status(401).json({ error: 'Your session is no longer valid. Sign in again.' })
-    const user = await userResponse.json()
-    if (!user.id) return response.status(401).json({ error: 'Your session is no longer valid. Sign in again.' })
+    const { data, error } = await supabase.auth.getUser(token)
+    if (error || !data.user?.id) {
+      return response.status(401).json({ error: 'Your session is no longer valid. Sign in again.' })
+    }
+    const user = data.user
 
     const now = Date.now()
     const windowMs = 60_000
@@ -111,6 +166,232 @@ function validateRequest(body) {
 
   return null
 }
+
+function validateChatRequest(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return 'A valid chat request is required.'
+  const text = typeof body.text === 'string' ? body.text.trim() : ''
+  if (!text) return 'Enter a veterinary question before submitting.'
+  if (text.length > 12_000) return 'Text is too long. Please keep it under 12,000 characters.'
+  if (body.appLanguage !== undefined && (typeof body.appLanguage !== 'string' || body.appLanguage.length > 12)) return 'The selected app language is invalid.'
+  return null
+}
+
+async function openAiChat(messages, temperature = 0.2) {
+  const openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${openAiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      temperature,
+      messages,
+    }),
+    signal: AbortSignal.timeout(60_000),
+  })
+
+  if (!openAiResponse.ok) {
+    const errorBody = await openAiResponse.text()
+    console.error('OpenAI chat request failed.', openAiResponse.status, errorBody)
+    throw new Error('The language model could not complete this request.')
+  }
+
+  const result = await openAiResponse.json()
+  const content = result.choices?.[0]?.message?.content?.trim()
+  if (!content) throw new Error('The language model returned an empty response.')
+  return content
+}
+
+async function createOpenAiEmbedding(input) {
+  const embeddingResponse = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      authorization: `Bearer ${openAiKey}`,
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  })
+
+  if (!embeddingResponse.ok) {
+    const errorBody = await embeddingResponse.text()
+    console.error('OpenAI embedding request failed.', embeddingResponse.status, errorBody)
+    throw new Error('The embedding service could not process this request.')
+  }
+
+  const result = await embeddingResponse.json()
+  const embedding = result.data?.[0]?.embedding
+  if (!Array.isArray(embedding) || embedding.length !== 1536) {
+    throw new Error('The embedding service returned an unexpected vector dimension.')
+  }
+  return embedding
+}
+
+async function matchVeterinaryDocs(embedding, authorization) {
+  const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/match_veterinary_docs`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      authorization,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      query_embedding: embedding,
+      match_threshold: 0.65,
+      match_count: 5,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  })
+
+  if (!rpcResponse.ok) {
+    const errorBody = await rpcResponse.text()
+    console.error('Supabase veterinary document search failed.', rpcResponse.status, errorBody)
+    throw new Error('The veterinary document search could not be completed.')
+  }
+
+  const matches = await rpcResponse.json()
+  return Array.isArray(matches) ? matches : []
+}
+
+async function searchExternalVeterinarySource(keyword) {
+  const params = new URLSearchParams({
+    action: 'query',
+    generator: 'search',
+    gsrsearch: `${keyword} veterinary poultry`,
+    gsrnamespace: '0',
+    gsrlimit: '3',
+    prop: 'extracts',
+    exintro: '1',
+    explaintext: '1',
+    format: 'json',
+    origin: '*',
+  })
+  const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, {
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!searchResponse.ok) throw new Error('The external veterinary search could not be completed.')
+  const result = await searchResponse.json()
+  const page = Object.values(result.query?.pages || {})
+    .find((candidate) => typeof candidate?.extract === 'string' && candidate.extract.trim())
+  if (!page) return null
+  return {
+    content: page.extract.trim(),
+    source: page.title,
+    url: `https://en.wikipedia.org/?curid=${page.pageid}`,
+  }
+}
+
+app.post('/api/chat', requireUser, async (request, response) => {
+  const validationError = validateChatRequest(request.body)
+  if (validationError) return response.status(400).json({ error: validationError })
+  if (!openAiKey) return response.status(503).json({ error: 'The RAG language model is not configured on this server.' })
+
+  const { text, appLanguage = 'en' } = request.body
+
+  try {
+    const keywordJson = await openAiChat([
+      {
+        role: 'system',
+        content: [
+          'Extract exactly one core veterinary medical keyword or topic from the user message.',
+          'The message may be English, Bengali, Banglish, Hindi, Urdu, or mixed language.',
+          'Return JSON only in this exact shape: {"keyword":"coccidiosis"}.',
+          'Do not answer the question and do not add explanations.',
+        ].join(' '),
+      },
+      { role: 'user', content: text },
+    ], 0)
+
+    let keyword
+    try {
+      keyword = JSON.parse(keywordJson).keyword
+    } catch {
+      throw new Error('The intent extraction response was not valid JSON.')
+    }
+    if (typeof keyword !== 'string' || !keyword.trim()) throw new Error('No veterinary search keyword was extracted.')
+
+    const embedding = await createOpenAiEmbedding(keyword.trim())
+    const matches = await matchVeterinaryDocs(embedding, request.get('authorization'))
+    const references = matches
+      .map((match) => {
+        const metadata = match?.metadata || {}
+        const bookName = typeof (metadata.book_name ?? metadata.bookName ?? metadata.source) === 'string'
+          ? (metadata.book_name ?? metadata.bookName ?? metadata.source).trim()
+          : ''
+        const pageNumber = metadata.page ?? metadata.page_number ?? metadata.pageNumber
+        const content = typeof match?.content === 'string' ? match.content.trim() : ''
+        if (!content) return null
+        return {
+          content,
+          bookName: bookName || 'Veterinary reference',
+          pageNumber: pageNumber === undefined ? 'n/a' : pageNumber,
+        }
+      })
+      .filter(Boolean)
+
+    if (!references.length) {
+      const externalReference = await searchExternalVeterinarySource(keyword.trim())
+      if (!externalReference) {
+        return response.json({
+          answer: 'I could not find a matching veterinary reference. Please consult a registered veterinarian.',
+          sources: [],
+          keyword: keyword.trim(),
+        })
+      }
+      const answer = await openAiChat([
+        {
+          role: 'system',
+          content: [
+            'You are a cautious veterinary information assistant.',
+            `Answer in the same language and writing style as the user. The app language is ${appLanguage}, but preserve Banglish when the user writes Banglish.`,
+            'Use only the supplied external veterinary context for factual claims and clearly state that professional assessment is required.',
+            `End with exactly: Source: ${externalReference.source}, URL: ${externalReference.url}`,
+          ].join('\n'),
+        },
+        {
+          role: 'user',
+          content: `Original question:\n${text}\n\nExtracted keyword:\n${keyword.trim()}\n\nExternal veterinary context:\n${externalReference.content}`,
+        },
+      ])
+      const source = `Source: ${externalReference.source}, URL: ${externalReference.url}`
+      return response.json({ answer: answer.includes(source) ? answer : `${answer}\n\n${source}`, sources: [source], keyword: keyword.trim() })
+    }
+
+    const context = references.map((reference, index) => (
+      `[Reference ${index + 1}]\nBook: ${reference.bookName}\nPage: ${reference.pageNumber}\nText:\n${reference.content}`
+    )).join('\n\n')
+    const answer = await openAiChat([
+      {
+        role: 'system',
+        content: [
+          'You are a cautious veterinary information assistant.',
+          `Answer in the same language and writing style as the user. The app language is ${appLanguage}, but preserve Banglish when the user writes Banglish.`,
+          'Use only the supplied reference context for factual claims. Do not invent diagnoses, doses, withdrawal periods, or treatment plans.',
+          'Recommend a registered veterinarian for diagnosis and treatment decisions.',
+          'At the end, cite every reference used exactly as: Source: [book name], Page: [page number].',
+          'Use the exact metadata values supplied. Never cite Local Database, Database, or an invented source.',
+        ].join('\n'),
+      },
+      {
+        role: 'user',
+        content: `Original question:\n${text}\n\nExtracted keyword:\n${keyword.trim()}\n\nReference context:\n${context}`,
+      },
+    ])
+
+    return response.json({
+      answer,
+      keyword: keyword.trim(),
+      sources: references.map(({ bookName, pageNumber }) => `Source: ${bookName}, Page: ${pageNumber}`),
+    })
+  } catch (error) {
+    console.error('Veterinary RAG chat request failed.', error.message)
+    return response.status(502).json({ error: error.message || 'The veterinary RAG request could not be completed.' })
+  }
+})
 
 app.post('/api/diagnose', requireUser, async (request, response) => {
   if (!geminiKey) return response.status(503).json({ error: 'The AI service is not configured on this server.' })

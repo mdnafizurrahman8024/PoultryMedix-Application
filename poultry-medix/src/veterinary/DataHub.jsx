@@ -35,7 +35,7 @@ const initialBirdInformation = {
 
 function ChoiceField({ legend, name, options, value, onChange }) {
   return (
-    <fieldset className="bird-choice-field">
+    <fieldset className="bird-choice-field dark:border-gray-700 dark:text-gray-100">
       <legend>{legend}</legend>
       <div className="bird-choice-options">
         {options.map(({ value: optionValue, label }) => (
@@ -294,14 +294,14 @@ export default function DataHub({ onContributionSubmitted }) {
   }
 
   return (
-    <div className="veterinary-page data-hub-page">
+    <div className="veterinary-page data-hub-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <section className="veterinary-page-heading">
         <span className="veterinary-kicker">{t('veterinaryToolsEyebrow')}</span>
         <h1>{t('dataHubTitle')}</h1>
         <p>{t('dataHubDescription')}</p>
       </section>
 
-      <form className="data-hub-form" onSubmit={submitContribution}>
+      <form className="data-hub-form bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" onSubmit={submitContribution}>
         <label className="veterinary-field">
           <span>{t('dataHubTopic')}</span>
           <select value={topic} onChange={(event) => setTopic(event.target.value)}>
@@ -309,9 +309,9 @@ export default function DataHub({ onContributionSubmitted }) {
           </select>
         </label>
 
-        <section className="bird-information-accordion" aria-labelledby="bird-information-heading">
+        <section className="bird-information-accordion dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="bird-information-heading">
           <button
-            className="bird-information-trigger"
+            className="bird-information-trigger dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
             type="button"
             aria-expanded={birdInformationExpanded}
             aria-controls="bird-information-fields"
@@ -322,7 +322,7 @@ export default function DataHub({ onContributionSubmitted }) {
             <Icon className={`drug-info-accordion-chevron${birdInformationExpanded ? ' is-open' : ''}`} name="chevron" size={17} />
           </button>
           {birdInformationExpanded && (
-            <div className="bird-information-fields" id="bird-information-fields">
+            <div className="bird-information-fields dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700" id="bird-information-fields">
               <div className="data-hub-field-grid">
                 <label className="veterinary-field"><span>{t('clinicalFlockLabel')}</span><input maxLength={120} value={birdInformation.flockLabel} onChange={(event) => updateBirdInformation('flockLabel', event.target.value)} placeholder={t('clinicalFlockPlaceholder')} /></label>
                 <label className="veterinary-field"><span>{t('clinicalDate')}</span><input type="date" value={birdInformation.observedOn} onChange={(event) => updateBirdInformation('observedOn', event.target.value)} /></label>
@@ -416,7 +416,7 @@ export default function DataHub({ onContributionSubmitted }) {
         </section>
 
         {isClinicalSignsTopic && (
-          <section className="clinical-observation-fields" aria-labelledby="clinical-observation-heading">
+          <section className="clinical-observation-fields dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="clinical-observation-heading">
             <h2 id="clinical-observation-heading">{t('clinicalSigns')}</h2>
             <label className="veterinary-field"><span>{t('clinicalSigns')}</span><textarea required maxLength={3000} rows="4" value={clinicalSigns} onChange={(event) => setClinicalSigns(event.target.value)} placeholder={t('clinicalSignsPlaceholder')} /></label>
             <label className="veterinary-field"><span>{t('clinicalOutcome')}</span><textarea maxLength={1000} rows="2" value={outcome} onChange={(event) => setOutcome(event.target.value)} placeholder={t('clinicalOutcomePlaceholder')} /></label>
@@ -440,7 +440,7 @@ export default function DataHub({ onContributionSubmitted }) {
           <textarea maxLength={5000} rows="5" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder={t('dataHubNotesPlaceholder')} />
         </label>}
 
-        <section className="multimodal-upload" aria-labelledby="multimodal-upload-title">
+        <section className="multimodal-upload dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="multimodal-upload-title">
           <div className="veterinary-section-heading">
             <span className="veterinary-section-icon"><Icon name="upload" size={18} /></span>
             <div><h2 id="multimodal-upload-title">{t('multimodalUploadTitle')}</h2><p>{t('multimodalUploadHint')}</p></div>
@@ -453,7 +453,7 @@ export default function DataHub({ onContributionSubmitted }) {
               ['pdf', t('uploadDocuments')],
               ['video', t('uploadVideos')],
             ].map(([icon, label]) => (
-              <button className="upload-type-card" type="button" key={icon} onClick={() => fileInput.current?.click()}><Icon name={icon} size={19} /><strong>{label}</strong></button>
+              <button className="upload-type-card dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" key={icon} onClick={() => fileInput.current?.click()}><Icon name={icon} size={19} /><strong>{label}</strong></button>
             ))}
           </div>
           {files.length > 0 && <ul className="data-hub-file-list">{files.map((file, index) => <li key={`${file.name}-${file.size}`}><span><Icon name={file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'mic' : file.type === 'application/pdf' ? 'pdf' : 'image'} size={15} />{file.name}</span><button type="button" aria-label={t('removeFile', { name: file.name })} onClick={() => removeFile(index)}><Icon name="remove" size={16} /></button></li>)}</ul>}
@@ -472,7 +472,7 @@ export default function DataHub({ onContributionSubmitted }) {
         </button>
       </form>
 
-      <section className="recent-contributions" aria-labelledby="recent-contributions-title">
+      <section className="recent-contributions dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="recent-contributions-title">
         <div className="veterinary-section-heading"><span className="veterinary-section-icon"><Icon name="chart" size={18} /></span><div><h2 id="recent-contributions-title">{t('recentContributions')}</h2><p>{t('recentContributionsPrivacy')}</p></div></div>
         {loadingHistory ? <p className="veterinary-hint">{t('dataHubHistoryLoading')}</p> : historyError ? <p className="veterinary-error" role="alert">{historyError}</p> : submissions.length === 0 ? <p className="veterinary-hint">{t('dataHubHistoryEmpty')}</p> : (
           <ul className="contribution-list">{submissions.map((submission) => (

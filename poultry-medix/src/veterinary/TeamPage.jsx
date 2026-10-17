@@ -15,21 +15,21 @@ const teamMembers = [
     id: 'sojib',
     name: 'Md. Sojib Hossain',
     role: 'Intern Doctor, AMR Researcher, Field Data Collector, Database & Information Collector, Data Management & Validation, Research Documentation, Application Development Support.',
-    bio: "I'm interested in Microbiology, Poultry, AMR, One Health, Animal Health, Wildlife Conservation, and Entomology.",
+    bioKey: 'teamBioSojib',
     image: '/images/sojib.jpeg',
   },
   {
     id: 'fathynul',
     name: 'Md Fathynul Islam',
     role: 'Veterinary Student, AMR Researcher, Field Data Collector, Database & Information Collector, Data Management & Validation, Research Documentation, Application Development Support.',
-    bio: 'Passionate about scientific research, animal health, One Health, wildlife conservation, and human rights.',
+    bioKey: 'teamBioFathynul',
     image: '/images/fethynul.jpeg',
   },
   {
     id: 'tika',
     name: 'Tika B.K.',
     role: 'Veterinary Student, AMR Researcher, Field Data Collector, Database & Information Collector, Data Management & Validation, Research Documentation, Application Development Support.',
-    bio: 'Passionate about scientific research, animal health, One Health, public health, wildlife conservation, and animal rights. I believe animals cannot express their feelings... science should give a voice to those who cannot speak.',
+    bioKey: 'teamBioTika',
     image: '/images/tika.jpeg',
   },
 ]
@@ -67,14 +67,14 @@ export default function TeamPage() {
   const { t } = useLanguage()
 
   return (
-    <div className="veterinary-page team-page">
+    <div className="veterinary-page team-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <section className="veterinary-page-heading">
         <span className="veterinary-kicker">{t('veterinaryToolsEyebrow')}</span>
         <h1>{t('teamPageTitle')}</h1>
         <p>{t('teamPageDescription')}</p>
       </section>
 
-      <article className="team-lead-card">
+      <article className="team-lead-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700">
         <div className="team-lead-profile">
           <div className="team-lead-photo-wrap">
             <div className="team-lead-photo-frame">
@@ -132,13 +132,13 @@ export default function TeamPage() {
         </div>
         <div className="team-member-grid">
           {teamMembers.map((member, index) => (
-            <article className="team-member-card" key={member.id}>
+            <article className="team-member-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" key={member.id}>
               <MemberPhoto member={member} />
               <div className="team-member-details">
-                <span className="team-member-number">{t('teamMemberNumber', { number: index + 2 })}</span>
+                <span className="team-member-number">{t('teamMemberNumber', { number: index + 1 })}</span>
                 <h3>{member.name}</h3>
                 <p className="team-member-role">{member.role}</p>
-                <p className="team-member-bio">{member.bio}</p>
+                <p className="team-member-bio">{t(member.bioKey)}</p>
               </div>
             </article>
           ))}

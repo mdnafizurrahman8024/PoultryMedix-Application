@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import Icon from '../components/Icon.jsx'
-import { saveHistoryEntry } from './historyStore.js'
+import { saveHistoryEntry, saveUnifiedLog } from './historyStore.js'
 import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
+import { useUser } from '../context/UserContext.jsx'
+import { useLanguage } from '../context/useLanguage.js'
 import './Telemedicine.css'
 
 const paymentMethods = [
-  { id: 'bkash', label: 'bKash', detail: 'Mobile financial service' },
-  { id: 'nagad', label: 'Nagad', detail: 'Mobile financial service' },
-  { id: 'rocket', label: 'Rocket', detail: 'Mobile financial service' },
-  { id: 'bank-card', label: 'Bank / Card', detail: 'Debit, credit, or bank transfer' },
+  { id: 'bkash', labelKey: 'bkash', detailKey: 'mobileFinancialService' },
+  { id: 'nagad', labelKey: 'nagad', detailKey: 'mobileFinancialService' },
+  { id: 'rocket', labelKey: 'rocket', detailKey: 'mobileFinancialService' },
+  { id: 'bank-card', labelKey: 'bankCard', detailKey: 'bankTransferDetail' },
 ]
 
 const birdTypes = ['Broiler', 'Layer', 'Sonali', 'Breeder', 'Other']
@@ -45,12 +47,12 @@ const emptyMedication = () => ({
 })
 
 function Field({ label, children, className = '' }) {
-  return <label className={`telemedicine-field ${className}`}><span>{label}</span>{children}</label>
+  return <label className={`telemedicine-field dark:text-gray-100 ${className}`}><span>{label}</span>{children}</label>
 }
 
 function FormSection({ title, icon, children }) {
   return (
-    <section className="telemedicine-form-section">
+    <section className="telemedicine-form-section dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
       <h3><span className="telemedicine-section-icon"><Icon name={icon} size={17} /></span>{title}</h3>
       {children}
     </section>
@@ -58,6 +60,9 @@ function FormSection({ title, icon, children }) {
 }
 
 export default function Telemedicine() {
+  const { role } = useUser()
+  const { t } = useLanguage()
+  const isRegisteredVet = role === 'REGISTERED_VET'
   const [booking, setBooking] = useState({ farmer: '', farm: '', concern: '', date: '', time: '', payment: 'bkash' })
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
@@ -67,6 +72,7 @@ export default function Telemedicine() {
   const [complaintDraft, setComplaintDraft] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  const canStartCall = isRegisteredVet || bookingConfirmed
 
   function updateBooking(field, value) {
     setBooking((current) => ({ ...current, [field]: value }))
@@ -95,7 +101,8 @@ export default function Telemedicine() {
     event.preventDefault()
     setBookingConfirmed(true)
     setCallMode('')
-    const paymentMethodLabel = paymentMethods.find(({ id }) => id === booking.payment)?.label || booking.payment
+    const paymentMethod = paymentMethods.find(({ id }) => id === booking.payment)
+    const paymentMethodLabel = paymentMethod ? t(paymentMethod.labelKey) : booking.payment
     try {
       saveHistoryEntry('appointment', {
         id: crypto.randomUUID(),
@@ -110,10 +117,10 @@ export default function Telemedicine() {
         paymentMethodLabel,
         paymentStatusKey: 'historyPaymentNotProcessed',
       })
-      setBookingMessage(`Mock booking confirmed with ${paymentMethodLabel}. No payment was processed.`)
+      setBookingMessage(t('mockBookingConfirmed', { payment: paymentMethodLabel }))
     } catch (error) {
       console.error('Unable to save the mock consultation booking to history.', error)
-      setBookingMessage(`Mock booking confirmed with ${paymentMethodLabel}, but it could not be saved to history.`)
+      setBookingMessage(t('mockBookingSaveFailed', { payment: paymentMethodLabel }))
     }
   }
 
@@ -141,6 +148,7 @@ export default function Telemedicine() {
         medications: medications.map((medication) => ({ ...medication })),
       }
       localStorage.setItem('poultry-telemedicine-prescriptions', JSON.stringify([record, ...stored].slice(0, 100)))
+      saveUnifiedLog('FARMER_PRESCRIPTION', record)
       const analyticsRecord = {
         ...record,
         source: 'consult',
@@ -154,116 +162,116 @@ export default function Telemedicine() {
       const analyticsRecords = JSON.parse(localStorage.getItem(prescriptionStorageKeys.consult) || '[]')
       localStorage.setItem(prescriptionStorageKeys.consult, JSON.stringify([analyticsRecord, ...analyticsRecords].slice(0, 100)))
       notifyPrescriptionDataChanged()
-      setSaveMessage('Prescription saved to this device’s simulated Farmer Clinical History.')
+      setSaveMessage(t('prescriptionSavedDevice'))
     } catch (error) {
-      setSaveError(`Could not save prescription: ${error.message}`)
+      setSaveError(t('prescriptionSaveError', { message: error.message }))
     }
   }
 
   return (
-    <main className="veterinary-page telemedicine-page">
+    <main className="veterinary-page telemedicine-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <section className="veterinary-page-heading telemedicine-heading">
-        <span className="veterinary-kicker">VETERINARY CONSULTATION & CARE</span>
-        <h1>Vet Telemedicine &amp; Digital Prescription</h1>
-        <p>Arrange a consultation and prepare a clear prescription record with a live, print-ready preview.</p>
+        <span className="veterinary-kicker">{t('telemedicineEyebrow')}</span>
+        <h1>{t('telemedicineTitle')}</h1>
+        <p>{t('telemedicineDescription')}</p>
       </section>
 
-      <section className="telemedicine-booking-card" aria-labelledby="consult-booking-heading">
+      {!isRegisteredVet && <section className="telemedicine-booking-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="consult-booking-heading">
         <div className="telemedicine-card-heading">
           <span className="telemedicine-hero-icon"><Icon name="stethoscope" size={22} /></span>
-          <div><span className="telemedicine-eyebrow">REMOTE VETERINARY SUPPORT</span><h2 id="consult-booking-heading">Book a vet consultation</h2></div>
+          <div><span className="telemedicine-eyebrow">{t('remoteVeterinarySupport')}</span><h2 id="consult-booking-heading">{t('bookVetConsultation')}</h2></div>
         </div>
-        <form className="telemedicine-booking-form" onSubmit={confirmBooking}>
-          <Field label="Farmer name"><input required maxLength={120} value={booking.farmer} onChange={(event) => updateBooking('farmer', event.target.value)} placeholder="Name" /></Field>
-          <Field label="Farm name"><input required maxLength={120} value={booking.farm} onChange={(event) => updateBooking('farm', event.target.value)} placeholder="Farm or flock name" /></Field>
-          <Field label="Main concern"><input required maxLength={300} value={booking.concern} onChange={(event) => updateBooking('concern', event.target.value)} placeholder="Briefly describe the concern" /></Field>
-          <Field label="Preferred date"><input required type="date" min={new Date().toISOString().slice(0, 10)} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
-          <Field label="Preferred time"><input required type="time" value={booking.time} onChange={(event) => updateBooking('time', event.target.value)} /></Field>
-          <fieldset className="telemedicine-payment-options">
-            <legend>Mock payment method</legend>
+        <form className="telemedicine-booking-form dark:text-gray-100" onSubmit={confirmBooking}>
+          <Field label={t('farmerName')}><input required maxLength={120} value={booking.farmer} onChange={(event) => updateBooking('farmer', event.target.value)} placeholder={t('namePlaceholder')} /></Field>
+          <Field label={t('farmName')}><input required maxLength={120} value={booking.farm} onChange={(event) => updateBooking('farm', event.target.value)} placeholder={t('farmFlockPlaceholder')} /></Field>
+          <Field label={t('mainConcern')}><input required maxLength={300} value={booking.concern} onChange={(event) => updateBooking('concern', event.target.value)} placeholder={t('concernPlaceholder')} /></Field>
+          <Field label={t('preferredDate')}><input required type="date" min={new Date().toISOString().slice(0, 10)} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
+          <Field label={t('preferredTime')}><input required type="time" value={booking.time} onChange={(event) => updateBooking('time', event.target.value)} /></Field>
+          <fieldset className="telemedicine-payment-options dark:border-gray-700 dark:text-gray-100">
+            <legend>{t('mockPaymentMethod')}</legend>
             <div className="telemedicine-payment-grid">
               {paymentMethods.map((method) => (
-                <label className={`telemedicine-payment-option${booking.payment === method.id ? ' selected' : ''}`} key={method.id}>
+                <label className={`telemedicine-payment-option dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700${booking.payment === method.id ? ' selected' : ''}`} key={method.id}>
                   <input type="radio" name="payment-method" value={method.id} checked={booking.payment === method.id} onChange={() => updateBooking('payment', method.id)} />
                   <span className="telemedicine-payment-mark"><Icon name={method.id === 'bank-card' ? 'creditCard' : 'phone'} size={17} /></span>
-                  <span><strong>{method.label}</strong><small>{method.detail}</small></span>
+                  <span><strong>{t(method.labelKey)}</strong><small>{t(method.detailKey)}</small></span>
                 </label>
               ))}
             </div>
-            <p className="telemedicine-payment-note">Demo only — no charge, transaction, or payment credentials are collected.</p>
+            <p className="telemedicine-payment-note">{t('paymentDemoNotice')}</p>
           </fieldset>
-          <button className="telemedicine-primary-button" type="submit"><Icon name="check" size={17} />Confirm mock booking</button>
+          <button className="telemedicine-primary-button" type="submit"><Icon name="check" size={17} />{t('confirmMockBooking')}</button>
           {bookingMessage && <p className="telemedicine-status" role="status">{bookingMessage}</p>}
         </form>
         <div className="telemedicine-call-actions">
-          <div><h3>Consultation room</h3><p>{bookingConfirmed ? 'Your mock booking is ready. Choose a call mode to open a demo call state.' : 'Confirm a consultation booking to enable the demo call controls.'}</p></div>
+          <div><h3>{t('consultationRoom')}</h3><p>{bookingConfirmed ? t('bookingReady') : t('confirmBookingToCall')}</p></div>
           <div className="telemedicine-call-buttons">
-            <button type="button" className="telemedicine-audio-button" disabled={!bookingConfirmed} onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />Start Audio Call</button>
-            <button type="button" className="telemedicine-video-button" disabled={!bookingConfirmed} onClick={() => setCallMode('video')}><Icon name="video" size={18} />Start Video Call</button>
+            <button type="button" className="telemedicine-audio-button" disabled={!canStartCall} onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />{t('startAudioCall')}</button>
+            <button type="button" className="telemedicine-video-button" disabled={!canStartCall} onClick={() => setCallMode('video')}><Icon name="video" size={18} />{t('startVideoCall')}</button>
           </div>
         </div>
-        {callMode && <div className="telemedicine-call-panel" role="status">
+        {callMode && <div className="telemedicine-call-panel dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" role="status">
           <span className="telemedicine-call-pulse"><Icon name={callMode === 'audio' ? 'phone' : 'video'} size={18} /></span>
-          <div><strong>{callMode === 'audio' ? 'Demo audio call' : 'Demo video call'} is ready</strong><p>No real call connection is made by this prototype.</p></div>
-          <button type="button" onClick={() => setCallMode('')}>End demo</button>
+          <div><strong>{callMode === 'audio' ? t('demoAudioCall') : t('demoVideoCall')} {t('isReady')}</strong><p>{t('noRealCall')}</p></div>
+          <button type="button" onClick={() => setCallMode('')}>{t('endDemo')}</button>
         </div>}
-      </section>
+      </section>}
 
-      <section className="telemedicine-prescription-section" aria-labelledby="prescription-builder-heading">
+      {isRegisteredVet && <section className="telemedicine-prescription-section bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" aria-labelledby="prescription-builder-heading">
         <div className="telemedicine-builder-heading">
-          <div><span className="telemedicine-eyebrow">VETERINARIAN WORKSPACE</span><h2 id="prescription-builder-heading">Digital Prescription Builder</h2><p>Enter the details once; the print-ready prescription updates as you type.</p></div>
-          <button className="telemedicine-print-button" type="button" onClick={printPrescription}><Icon name="pdf" size={17} />Print / Save PDF</button>
+          <div><span className="telemedicine-eyebrow">{t('veterinarianWorkspace')}</span><h2 id="prescription-builder-heading">{t('digitalPrescriptionBuilder')}</h2><p>{t('prescriptionBuilderDescription')}</p></div>
+          <button className="telemedicine-print-button" type="button" onClick={printPrescription}><Icon name="pdf" size={17} />{t('printSavePdf')}</button>
         </div>
 
-        <div className="telemedicine-builder-grid">
-          <form className="telemedicine-entry-form" onSubmit={(event) => event.preventDefault()}>
-            <FormSection title="Veterinarian information" icon="user">
+        <div className="telemedicine-builder-grid dark:text-gray-100">
+          <form className="telemedicine-entry-form dark:text-gray-100" onSubmit={(event) => event.preventDefault()}>
+            <FormSection title={t('veterinarianInformation')} icon="user">
               <div className="telemedicine-fields-grid">
-                <Field label="Vet name"><input value={prescription.vetName} onChange={(event) => updatePrescription('vetName', event.target.value)} placeholder="Veterinarian name" /></Field>
-                <Field label="Degrees"><input value={prescription.vetDegrees} onChange={(event) => updatePrescription('vetDegrees', event.target.value)} placeholder="DVM, MS, etc." /></Field>
-                <Field label="Registration number"><input value={prescription.registrationNumber} onChange={(event) => updatePrescription('registrationNumber', event.target.value)} placeholder="Registration ID" /></Field>
-                <Field label="Clinic details"><input value={prescription.clinicDetails} onChange={(event) => updatePrescription('clinicDetails', event.target.value)} placeholder="Clinic name, address, phone" /></Field>
+                <Field label={t('vetName')}><input value={prescription.vetName} onChange={(event) => updatePrescription('vetName', event.target.value)} placeholder={t('veterinarianName')} /></Field>
+                <Field label={t('degrees')}><input value={prescription.vetDegrees} onChange={(event) => updatePrescription('vetDegrees', event.target.value)} placeholder={t('degreesPlaceholder')} /></Field>
+                <Field label={t('registrationNumber')}><input value={prescription.registrationNumber} onChange={(event) => updatePrescription('registrationNumber', event.target.value)} placeholder={t('registrationId')} /></Field>
+                <Field label={t('clinicDetails')}><input value={prescription.clinicDetails} onChange={(event) => updatePrescription('clinicDetails', event.target.value)} placeholder={t('clinicDetailsPlaceholder')} /></Field>
               </div>
             </FormSection>
 
-            <FormSection title="Flock & farmer information" icon="bird">
+            <FormSection title={t('flockFarmerInformation')} icon="bird">
               <div className="telemedicine-fields-grid">
-                <Field label="Farmer name"><input value={prescription.farmerName} onChange={(event) => updatePrescription('farmerName', event.target.value)} /></Field>
-                <Field label="Farm name"><input value={prescription.farmName} onChange={(event) => updatePrescription('farmName', event.target.value)} /></Field>
-                <Field label="Age"><input type="text" value={prescription.age} onChange={(event) => updatePrescription('age', event.target.value)} placeholder="e.g., 28 days" /></Field>
-                <Field label="Flock size"><input type="number" min="0" value={prescription.flockSize} onChange={(event) => updatePrescription('flockSize', event.target.value)} /></Field>
-                <Field label="Average weight"><input type="number" min="0" step="any" value={prescription.averageWeight} onChange={(event) => updatePrescription('averageWeight', event.target.value)} placeholder="kg" /></Field>
-                <Field label="Bird type"><select value={prescription.birdType} onChange={(event) => updatePrescription('birdType', event.target.value)}>{birdTypes.map((type) => <option key={type}>{type}</option>)}</select></Field>
+                <Field label={t('farmerName')}><input value={prescription.farmerName} onChange={(event) => updatePrescription('farmerName', event.target.value)} /></Field>
+                <Field label={t('farmName')}><input value={prescription.farmName} onChange={(event) => updatePrescription('farmName', event.target.value)} /></Field>
+                <Field label={t('age')}><input type="text" value={prescription.age} onChange={(event) => updatePrescription('age', event.target.value)} placeholder={t('agePlaceholder')} /></Field>
+                <Field label={t('flockSize')}><input type="number" min="0" value={prescription.flockSize} onChange={(event) => updatePrescription('flockSize', event.target.value)} /></Field>
+                <Field label={t('averageWeight')}><input type="number" min="0" step="any" value={prescription.averageWeight} onChange={(event) => updatePrescription('averageWeight', event.target.value)} placeholder={t('kg')} /></Field>
+                <Field label={t('birdType')}><select value={prescription.birdType} onChange={(event) => updatePrescription('birdType', event.target.value)}>{birdTypes.map((type) => <option key={type}>{t(`birdTypes.${type}`)}</option>)}</select></Field>
               </div>
             </FormSection>
 
-            <FormSection title="Clinical history & diagnosis" icon="clipboard">
+            <FormSection title={t('clinicalHistoryDiagnosis')} icon="clipboard">
               <div className="telemedicine-tag-entry">
-                <Field label="Chief complaints & symptoms"><input value={complaintDraft} onChange={(event) => setComplaintDraft(event.target.value)} placeholder="Enter a symptom, then select Add" /></Field>
-                <button type="button" className="telemedicine-add-button" onClick={addComplaint}><Icon name="plus" size={15} />Add</button>
+                <Field label={t('chiefComplaints')}><input value={complaintDraft} onChange={(event) => setComplaintDraft(event.target.value)} placeholder={t('symptomPlaceholder')} /></Field>
+                <button type="button" className="telemedicine-add-button" onClick={addComplaint}><Icon name="plus" size={15} />{t('add')}</button>
               </div>
               {prescription.complaints.length > 0 && <div className="telemedicine-tags">{prescription.complaints.map((complaint) => <span key={complaint}>{complaint}<button type="button" aria-label={`Remove ${complaint}`} onClick={() => updatePrescription('complaints', prescription.complaints.filter((item) => item !== complaint))}><Icon name="close" size={13} /></button></span>)}</div>}
-              <Field label="Tentative / final diagnosis"><input value={prescription.diagnosis} onChange={(event) => updatePrescription('diagnosis', event.target.value)} placeholder="Diagnosis" /></Field>
+              <Field label={t('tentativeDiagnosis')}><input value={prescription.diagnosis} onChange={(event) => updatePrescription('diagnosis', event.target.value)} placeholder={t('diagnosisPlaceholder')} /></Field>
             </FormSection>
 
-            <FormSection title="Medication / Rx details" icon="pill">
+            <FormSection title={t('medicationDetails')} icon="pill">
               <div className="telemedicine-medication-list">
                 {medications.map((medication, index) => (
-                  <fieldset className="telemedicine-medication-row" key={medication.id}>
-                    <legend>Medicine {index + 1}</legend>
+                  <fieldset className="telemedicine-medication-row dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" key={medication.id}>
+                    <legend>{t('medicineNumber', { number: index + 1 })}</legend>
                     {medications.length > 1 && <button className="telemedicine-remove-button" type="button" aria-label={`Remove medicine ${index + 1}`} onClick={() => setMedications((current) => current.filter(({ id }) => id !== medication.id))}><Icon name="remove" size={16} />Remove</button>}
                     <div className="telemedicine-fields-grid">
-                      <Field label="Drug / medicine name"><input value={medication.name} onChange={(event) => updateMedication(medication.id, 'name', event.target.value)} placeholder="Medicine name" /></Field>
-                      <Field label="Formulation"><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation}>{formulation}</option>)}</select></Field>
-                      <Field label="Dosage"><input value={medication.dosage} onChange={(event) => updateMedication(medication.id, 'dosage', event.target.value)} placeholder="e.g., 1g / 1L water" /></Field>
-                      <Field label="Frequency / timing"><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency}>{frequency}</option>)}</select></Field>
-                      <Field label="Duration"><span className="telemedicine-duration-inputs"><input type="number" min="1" value={medication.duration} onChange={(event) => updateMedication(medication.id, 'duration', event.target.value)} /><select aria-label="Duration type" value={medication.durationType} onChange={(event) => updateMedication(medication.id, 'durationType', event.target.value)}><option>Days</option><option>Weeks</option></select></span></Field>
-                      <Field label="Withdrawal period (meat & eggs)"><input value={medication.withdrawal} onChange={(event) => updateMedication(medication.id, 'withdrawal', event.target.value)} placeholder="Enter label/local guidance" /></Field>
+                      <Field label={t('drugMedicineName')}><input value={medication.name} onChange={(event) => updateMedication(medication.id, 'name', event.target.value)} placeholder={t('medicineName')} /></Field>
+                      <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation}>{t(`formulations.${formulation}`)}</option>)}</select></Field>
+                      <Field label={t('dosage')}><input value={medication.dosage} onChange={(event) => updateMedication(medication.id, 'dosage', event.target.value)} placeholder={t('dosagePlaceholder')} /></Field>
+                      <Field label={t('frequencyTiming')}><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency}>{t(`frequencies.${frequency}`)}</option>)}</select></Field>
+                      <Field label={t('duration')}><span className="telemedicine-duration-inputs"><input type="number" min="1" value={medication.duration} onChange={(event) => updateMedication(medication.id, 'duration', event.target.value)} /><select aria-label={t('durationType')} value={medication.durationType} onChange={(event) => updateMedication(medication.id, 'durationType', event.target.value)}><option>{t('days')}</option><option>{t('weeks')}</option></select></span></Field>
+                      <Field label={t('withdrawalPeriod')}><input value={medication.withdrawal} onChange={(event) => updateMedication(medication.id, 'withdrawal', event.target.value)} placeholder={t('withdrawalPlaceholder')} /></Field>
                     </div>
                   </fieldset>
                 ))}
               </div>
-              <button type="button" className="telemedicine-add-medication" onClick={() => setMedications((current) => [...current, emptyMedication()])}><Icon name="plus" size={16} />Add another medicine</button>
+              <button type="button" className="telemedicine-add-medication" onClick={() => setMedications((current) => [...current, emptyMedication()])}><Icon name="plus" size={16} />{t('addAnotherMedicine')}</button>
             </FormSection>
 
             <FormSection title="Investigations & advice" icon="file">
@@ -273,9 +281,9 @@ export default function Telemedicine() {
             </FormSection>
           </form>
 
-          <aside className="telemedicine-preview-column" aria-label="Live prescription preview">
+          <aside className="telemedicine-preview-column dark:text-gray-100" aria-label="Live prescription preview">
             <div className="telemedicine-preview-topline"><span><Icon name="file" size={16} />Live print-ready preview</span><span>PREVIEW</span></div>
-            <article className="prescription-preview">
+            <article className="prescription-preview dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
               <header className="prescription-pad-header">
                 <div className="prescription-pad-brand"><span className="prescription-pad-logo"><Icon name="stethoscope" size={21} /></span><div><strong>{prescription.clinicDetails || 'Veterinary Clinic'}</strong><span>POULTRY VETERINARY PRESCRIPTION</span></div></div>
                 <div className="prescription-pad-vet"><strong>{[prescription.vetName, prescription.vetDegrees].filter(Boolean).join(', ') || 'Veterinarian name & degrees'}</strong><span>{prescription.registrationNumber ? `Reg. No. ${prescription.registrationNumber}` : 'Registration number'}</span></div>
@@ -302,6 +310,7 @@ export default function Telemedicine() {
                   </div>
                 ))}
               </section>
+
               {(prescription.tests || prescription.advice) && <section className="prescription-preview-block"><h3>Investigations &amp; advice</h3>{prescription.tests && <p><strong>Tests:</strong> {prescription.tests}</p>}{prescription.advice && <p>{prescription.advice}</p>}</section>}
               <div className="prescription-preview-followup"><span>FOLLOW-UP</span><strong>{prescription.followUpDate || 'As advised'}</strong></div>
               <footer className="prescription-pad-footer"><span>For veterinary use. Follow the veterinarian’s instructions and the approved product label.</span><div><span className="prescription-signature">{prescription.vetName || 'Veterinarian signature'}</span><small>Signature &amp; seal</small></div></footer>
@@ -312,7 +321,22 @@ export default function Telemedicine() {
             <p className="telemedicine-preview-note">Saved on this device for this prototype; it is not uploaded to a clinical database.</p>
           </aside>
         </div>
-      </section>
+      </section>}
+
+      {isRegisteredVet && <section className="telemedicine-booking-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="vet-consultation-room-heading">
+        <div className="telemedicine-call-actions">
+          <div><h3 id="vet-consultation-room-heading">Consultation room</h3><p>Choose a call mode to open a demo call state.</p></div>
+          <div className="telemedicine-call-buttons">
+            <button type="button" className="telemedicine-audio-button" onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />Start Audio Call</button>
+            <button type="button" className="telemedicine-video-button" onClick={() => setCallMode('video')}><Icon name="video" size={18} />Start Video Call</button>
+          </div>
+        </div>
+        {callMode && <div className="telemedicine-call-panel dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" role="status">
+          <span className="telemedicine-call-pulse"><Icon name={callMode === 'audio' ? 'phone' : 'video'} size={18} /></span>
+          <div><strong>{callMode === 'audio' ? 'Demo audio call' : 'Demo video call'} is ready</strong><p>No real call connection is made by this prototype.</p></div>
+          <button type="button" onClick={() => setCallMode('')}>End demo</button>
+        </div>}
+      </section>}
     </main>
   )
 }

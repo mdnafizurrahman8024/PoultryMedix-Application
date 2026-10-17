@@ -4,6 +4,27 @@ const storageKeys = {
   appointment: 'poultry-telemedicine-appointments',
 }
 
+const unifiedLogKey = 'poultryMedixLogs'
+
+export function readUnifiedLogs() {
+  const existingLogs = JSON.parse(localStorage.getItem(unifiedLogKey) || '[]')
+  if (!Array.isArray(existingLogs)) throw new Error('Saved unified clinical logs are invalid.')
+  return existingLogs
+}
+
+export function saveUnifiedLog(type, payload) {
+  const existingLogs = JSON.parse(localStorage.getItem('poultryMedixLogs') || '[]')
+  if (!Array.isArray(existingLogs)) throw new Error('Saved unified clinical logs are invalid.')
+  const newEntry = {
+    id: Date.now(),
+    date: new Date().toLocaleString(),
+    type,
+    payload,
+  }
+  localStorage.setItem(unifiedLogKey, JSON.stringify([newEntry, ...existingLogs].slice(0, 100)))
+  return newEntry
+}
+
 export function readHistory(type) {
   const key = storageKeys[type]
   if (!key) throw new Error(`Unknown history type: ${type}`)
