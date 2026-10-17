@@ -114,7 +114,7 @@ export default function PrescriptionLookup({ hideDrugInfo = false, hideDose = fa
             </form>
             {doseMg !== null && (
               <output className="dose-calculation" aria-live="polite">
-                {t('doseCalculated', { amount: formattedDose })}
+                {t('doseCalculated').replace('{amount}', formattedDose)}
               </output>
             )}
             <p className="dose-safety-warning">{t('doseSafety')}</p>

@@ -1,17 +1,19 @@
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import express from 'express'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import process from 'node:process'
 
+const serverDirectory = path.dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: path.join(serverDirectory, '.env') })
+
 const app = express()
 const port = Number(process.env.PORT || 8787)
 const geminiKey = process.env.GEMINI_API_KEY
 const openAiKey = process.env.OPENAI_API_KEY
-const openWeatherKey = process.env.OPENWEATHER_API_KEY || process.env.VITE_OPENWEATHER_API_KEY
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
-const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const projectRoot = path.resolve(serverDirectory, '..')
 const maxFileBytes = 8 * 1024 * 1024
 const maxRequestBytes = 15 * 1024 * 1024
 const allowedMimeTypes = new Set([
@@ -55,48 +57,6 @@ app.get('/api/health', (_request, response) => {
   response.json({
     configured: Boolean(geminiKey && supabaseUrl && supabaseAnonKey),
     visualModelConfigured: Boolean(process.env.VITE_TEACHABLE_MACHINE_MODEL_URL),
-  })
-
-  app.get('/api/weather', async (request, response) => {
-    const latitude = Number(request.query.lat)
-    const longitude = Number(request.query.lon)
-    const language = typeof request.query.lang === 'string' ? request.query.lang : 'en'
-    const supportedWeatherLanguages = new Set(['en', 'bn', 'hi', 'ur'])
-
-    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90
-      || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
-      return response.status(400).json({ code: 'weatherFetchError' })
-    }
-    if (!openWeatherKey || /^your-|placeholder|example$/i.test(openWeatherKey)) {
-      return response.status(503).json({ code: 'weatherKeyMissing' })
-    }
-
-    const query = new URLSearchParams({
-      lat: String(latitude),
-      lon: String(longitude),
-      appid: openWeatherKey,
-      units: 'metric',
-      lang: supportedWeatherLanguages.has(language) ? language : 'en',
-    })
-
-    try {
-      const [weatherResponse, uvResponse, placeResponse] = await Promise.all([
-        fetch(`https://api.openweathermap.org/data/2.5/weather?${query}`),
-        fetch(`https://api.openweathermap.org/data/2.5/uvi?${query}`),
-        fetch(`https://api.openweathermap.org/geo/1.0/reverse?${query}&limit=1`),
-      ])
-      if (!weatherResponse.ok) {
-        console.error('OpenWeather request failed.', weatherResponse.status)
-        return response.status(502).json({ code: 'weatherFetchError' })
-      }
-      const current = await weatherResponse.json()
-      const uv = uvResponse.ok ? await uvResponse.json() : null
-      const places = placeResponse.ok ? await placeResponse.json() : []
-      return response.json({ current, uv, place: places[0] || null })
-    } catch (error) {
-      console.error('OpenWeather request could not be completed.', error.message)
-      return response.status(502).json({ code: 'weatherFetchError' })
-    }
   })
 })
 

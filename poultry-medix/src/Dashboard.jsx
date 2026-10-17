@@ -74,6 +74,8 @@ function resolveWeatherTheme(weather) {
   return 'sunny'
 }
 
+const openWeatherApiKey = import.meta.env.VITE_OPENWEATHER_API_KEY
+
 function Dashboard({ onLogout, initialName, initialLocation }) {
   const { t, language, setLanguage } = useLanguage()
   const { role, setRole } = useUser()
@@ -218,32 +220,48 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       setWeatherLoading(false)
       return () => { active = false }
     }
+    if (!openWeatherApiKey) {
+      setWeatherError('weatherKeyMissing')
+      setWeatherLoading(false)
+      return () => { active = false }
+    }
 
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       try {
         const query = new URLSearchParams({
           lat: String(coords.latitude),
           lon: String(coords.longitude),
+          appid: openWeatherApiKey,
+          units: 'metric',
           lang: language,
         })
-        const response = await fetch(`/api/weather?${query.toString()}`)
-        const result = await response.json().catch(() => null)
-        if (!response.ok) {
-          throw new Error(result?.code || 'weatherFetchError')
+        const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?${query.toString()}`
+        const optionalWeatherRequest = (url) => fetch(url)
+          .then((response) => response.ok ? response.json() : null)
+          .catch(() => null)
+        const [response, uv, places] = await Promise.all([
+          fetch(weatherUrl),
+          optionalWeatherRequest(`https://api.openweathermap.org/data/2.5/uvi?${query.toString()}`),
+          optionalWeatherRequest(`https://api.openweathermap.org/geo/1.0/reverse?${query.toString()}&limit=1`),
+        ])
+        const current = await response.json().catch(() => null)
+        if (!response.ok || !current?.main || !Array.isArray(current.weather)) {
+          throw new Error('weatherFetchError')
         }
-        const { current, uv, place } = result
+        const place = Array.isArray(places) ? places[0] : null
+        const currentWeather = current.weather[0]
         if (active) {
           setWeather({
             city: place?.local_names?.[language] || place?.name || current.name || t('yourLocation'),
-            country: place?.country || '',
+            country: place?.country || current.sys?.country || '',
             temperature: Math.round(current.main.temp),
             feelsLike: Math.round(current.main.feels_like),
-            condition: current.weather?.[0]?.description || t('weatherUnavailable'),
-            icon: current.weather?.[0]?.icon || '01d',
-            theme: resolveWeatherTheme(current.weather?.[0]),
+            condition: currentWeather?.description || t('weatherUnavailable'),
+            icon: /^\d{2}[dn]$/.test(currentWeather?.icon || '') ? currentWeather.icon : '01d',
+            theme: resolveWeatherTheme(currentWeather),
             humidity: current.main.humidity,
             wind: Math.round((current.wind?.speed || 0) * 3.6),
-            uv: uv?.value ?? null,
+            uv: Number.isFinite(uv?.value) ? uv.value : null,
           })
           setWeatherError('')
         }
