@@ -7,6 +7,7 @@ import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import DataHub from './veterinary/DataHub.jsx'
 import TeamPage from './veterinary/TeamPage.jsx'
+import PrivacyPolicy from './veterinary/PrivacyPolicy.jsx'
 import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
@@ -100,6 +101,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         ? t(weatherError)
         : ''
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [profileAction, setProfileAction] = useState('')
   const [sosOpen, setSosOpen] = useState(false)
   const [noticeSearch, setNoticeSearch] = useState('')
   const [visibleNotices, setVisibleNotices] = useState(notices)
@@ -350,16 +352,17 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   }, [language, t, weatherRefresh])
 
   useEffect(() => {
-    if (!settingsOpen && !sosOpen) return undefined
+    if (!settingsOpen && !sosOpen && !profileAction) return undefined
     function closeOnEscape(event) {
       if (event.key === 'Escape') {
         setSettingsOpen(false)
         setSosOpen(false)
+        setProfileAction('')
       }
     }
     document.addEventListener('keydown', closeOnEscape)
     return () => document.removeEventListener('keydown', closeOnEscape)
-  }, [settingsOpen, sosOpen])
+  }, [settingsOpen, sosOpen, profileAction])
 
   const heatStress = weather && (
     weather.temperature >= 35
@@ -481,6 +484,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       onLogout()
     } catch {
       setSettingsMessage(t('logoutError'))
+      setSettingsOpen(true)
     }
   }
 
@@ -537,11 +541,35 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   )
 
   const renderPrivacyControl = () => (
-    <button className="header-menu-item" type="button" onClick={() => { setIsMobileMenuOpen(false); setDesktopProfileMenuOpen(false) }}>
+    <button className="header-menu-item" type="button" onClick={() => { setIsMobileMenuOpen(false); setDesktopProfileMenuOpen(false); setActiveView('privacy') }}>
       <Icon name="shield" size={18} />
       <span>Privacy &amp; Security</span>
     </button>
   )
+
+  const closeProfileMenus = () => {
+    setIsMobileMenuOpen(false)
+    setDesktopProfileMenuOpen(false)
+  }
+
+  const renderProfileActions = () => <>
+    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); setProfileAction('manual') }}>
+      <Icon name="book" size={18} />
+      <span>{t('userManual')}</span>
+    </button>
+    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); shareApp() }}>
+      <Icon name="share" size={18} />
+      <span>{t('shareApp')}</span>
+    </button>
+    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); setProfileAction('feedback') }}>
+      <Icon name="message" size={18} />
+      <span>{t('feedbackTitle')}</span>
+    </button>
+    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); logout() }}>
+      <Icon name="logout" size={18} />
+      <span>{t('signOut')}</span>
+    </button>
+  </>
 
   return (
     <main className="dashboard-shell w-full min-w-0 max-w-full md:text-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
@@ -634,6 +662,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
                 </button>
                 {renderAboutUsControl()}
                 {renderPrivacyControl()}
+                {renderProfileActions()}
               </div>
             )}
           </div>
@@ -646,12 +675,13 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             {renderProfileControl()}
             {renderAboutUsControl()}
             {renderPrivacyControl()}
+            {renderProfileActions()}
           </div>
         )}
       </header>
 
       <div className="dashboard-content w-full min-w-0 max-w-full md:max-w-7xl mx-auto px-4 md:px-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" style={isWideDesktop ? { width: 'min(calc(100% - 96px), 1280px)', maxWidth: '1280px', marginInline: 'auto', paddingInline: '32px' } : undefined}>
-        <AIChat isWideDesktop={isWideDesktop} />
+        <AIChat />
         {activeView === 'home' ? <>
         <section className="dashboard-greeting">
           <div>
@@ -769,7 +799,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
-        ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'telemedicine' ? <Telemedicine /> : (
+        ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'privacy' ? <PrivacyPolicy /> : activeView === 'telemedicine' ? <Telemedicine /> : (
           <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
@@ -813,16 +843,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
                 {settingsMessage && <p className="settings-feedback" role="status">{settingsMessage}</p>}
               </section>
 
-              <section className="settings-block manual-block">
-                <div className="settings-block-heading"><span className="settings-icon"><Icon name="book" size={17} /></span><div><h3>{t('userManual')}</h3><p>{t('manualDescription')}</p></div></div>
-                {['scannerManual', 'prescriptionManual', 'outbreakManual', 'dataHubManual', 'guidelinesManual'].map((key) => (
-                  <details className="manual-item" key={key}>
-                    <summary>{t(`${key}Title`)}<Icon name="chevron" size={16} /></summary>
-                    <p>{t(key)}</p>
-                  </details>
-                ))}
-              </section>
-
               <section className="settings-block">
                <div className="settings-block-heading"><span className="settings-icon"><Icon name="globe" size={17} /></span><div><h3>{t('fontSize')}</h3><p>{t('fontSizeDescription')}</p></div></div>
                <label className="settings-label" htmlFor="font-size-range">
@@ -843,27 +863,41 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
               </section>
 
               <section className="settings-block">
-                <div className="settings-block-heading"><span className="settings-icon"><Icon name="share" size={17} /></span><div><h3>{t('shareApp')}</h3><p>{t('shareDescription')}</p></div></div>
-                <button className="settings-action" type="button" onClick={shareApp}>{t('shareApp')} <Icon name="arrow" size={15} /></button>
-                {shareMessage && <p className="settings-feedback" role="status">{shareMessage}</p>}
-              </section>
-
-              <section className="settings-block">
                 <div className="settings-block-heading"><span className="settings-icon"><Icon name="bell" size={17} /></span><div><h3>{t('notifications')}</h3><p>{t('notificationDescription')}</p></div></div>
                 <div className="toggle-row"><span>{t('dailyTipsNotifications')}</span><button type="button" role="switch" aria-checked={dailyTipsEnabled} aria-label={t('dailyTipsNotifications')} className={`toggle-switch${dailyTipsEnabled ? ' is-on' : ''}`} onClick={() => saveNotification('tips', !dailyTipsEnabled)}><span /></button></div>
                 <div className="toggle-row"><span>{t('noticeNotifications')}</span><button type="button" role="switch" aria-checked={noticesEnabled} aria-label={t('noticeNotifications')} className={`toggle-switch${noticesEnabled ? ' is-on' : ''}`} onClick={() => saveNotification('notices', !noticesEnabled)}><span /></button></div>
               </section>
 
-              <section className="settings-block">
-                <div className="settings-block-heading"><span className="settings-icon"><Icon name="message" size={17} /></span><div><h3>{t('feedbackTitle')}</h3><p>{t('feedbackDescription')}</p></div></div>
-                <form className="feedback-form" onSubmit={submitFeedback}>
-                  <textarea value={feedback} onChange={(event) => { setFeedback(event.target.value); setFeedbackSent(false) }} placeholder={t('feedbackPlaceholder')} rows="3" />
-                  <button type="submit" disabled={!feedback.trim()}>{t('sendFeedback')}</button>
-                </form>
-                {feedbackSent && <p className="settings-feedback" role="status">{t('feedbackThanks')}</p>}
-              </section>
+            </div>
+          </section>
+        </div>
+      )}
 
-              <button className="signout-button" type="button" onClick={logout}><Icon name="logout" size={17} /> {t('signOut')}</button>
+      {profileAction && (
+        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setProfileAction('') }}>
+          <section className="settings-modal fixed bottom-0 left-0 z-50 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl shadow-lg lg:relative lg:inset-auto lg:z-auto lg:w-[min(100%,560px)] lg:max-h-[min(90vh,850px)] lg:overflow-hidden lg:rounded-2xl lg:shadow-[0_25px_80px_rgba(18,43,25,0.23)] bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="profile-action-title">
+            <div className="settings-header">
+              <div><p>{t('settingsEyebrow')}</p><h2 id="profile-action-title">{profileAction === 'manual' ? t('userManual') : t('feedbackTitle')}</h2></div>
+              <button className="icon-button modal-close" type="button" aria-label={t('close')} onClick={() => setProfileAction('')}><Icon name="close" size={20} /></button>
+            </div>
+            <div className="settings-body">
+              {profileAction === 'manual' ? (
+                <section className="settings-block manual-block">
+                  <div className="settings-block-heading"><span className="settings-icon"><Icon name="book" size={17} /></span><div><h3>{t('userManual')}</h3><p>{t('manualDescription')}</p></div></div>
+                  {['scannerManual', 'prescriptionManual', 'outbreakManual', 'dataHubManual', 'guidelinesManual'].map((key) => (
+                    <details className="manual-item" key={key}><summary>{t(`${key}Title`)}<Icon name="chevron" size={16} /></summary><p>{t(key)}</p></details>
+                  ))}
+                </section>
+              ) : (
+                <section className="settings-block">
+                  <div className="settings-block-heading"><span className="settings-icon"><Icon name="message" size={17} /></span><div><h3>{t('feedbackTitle')}</h3><p>{t('feedbackDescription')}</p></div></div>
+                  <form className="feedback-form" onSubmit={submitFeedback}>
+                    <textarea value={feedback} onChange={(event) => { setFeedback(event.target.value); setFeedbackSent(false) }} placeholder={t('feedbackPlaceholder')} rows="3" />
+                    <button type="submit" disabled={!feedback.trim()}>{t('sendFeedback')}</button>
+                  </form>
+                  {feedbackSent && <p className="settings-feedback" role="status">{t('feedbackThanks')}</p>}
+                </section>
+              )}
             </div>
           </section>
         </div>

@@ -32,6 +32,13 @@ const teamMembers = [
     bioKey: 'teamBioTika',
     image: '/images/tika.jpeg',
   },
+  {
+    id: 'afia-anjum-eisha',
+    name: 'Afia Anjum Eisha',
+    role: 'Dedicated and compassionate third-year Doctor of Veterinary Medicine (DVM) student at University of Rajshahi. Operational proficiency assisting in small animal clinical settings, emergency triage. Proven background in safe animal restraint, client communication and basic diagnostic procedures. Eager to bring strong medical enthusiasm and a team-oriented mindset to a clinical externship or assistant role.',
+    bioKey: null,
+    image: null,
+  },
 ]
 
 function FemaleAvatar() {
@@ -135,10 +142,10 @@ export default function TeamPage() {
             <article className="team-member-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" key={member.id}>
               <MemberPhoto member={member} />
               <div className="team-member-details">
-                <span className="team-member-number">{t('teamMemberNumber', { number: index + 1 })}</span>
+                <span className="team-member-number">MEMBER {index + 1}</span>
                 <h3>{member.name}</h3>
                 <p className="team-member-role">{member.role}</p>
-                <p className="team-member-bio">{t(member.bioKey)}</p>
+                {member.bioKey && <p className="team-member-bio">{t(member.bioKey)}</p>}
               </div>
             </article>
           ))}
