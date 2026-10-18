@@ -603,7 +603,7 @@
   "levelsThree": "3 levels",
   "antibioticHierarchy": "Antibiotic Usage Hierarchy",
   "antibioticHierarchyDescription": "Generic Antibiotic Class ? Specific Generic ? Trade Name (Company) ? Generation Usage Ratio (%)",
-  "totalAnalyzed": "Total Analyzed: {count} Prescriptions",
+  "totalAnalyzed": "Total Analyzed: {{count}} Prescriptions",
   "allCombined": "All Combined (100%)",
   "homePageData": "Home Page Data",
   "consultVetData": "Consult Vet Data",

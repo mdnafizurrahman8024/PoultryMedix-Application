@@ -954,3 +954,51 @@ html[data-theme="dark"] .weather-card:not(.weather-card--night) .heat-alert--hig
     transition: color 180ms ease, background-color 220ms ease, border-color 180ms ease;
   }
 }
+
+@media (max-width: 767px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  #root :is(p, label, button, input, select, textarea, small, li, a, span, strong, summary, td, th, dd, dt) {
+    font-size: max(16px, 1rem) !important;
+    line-height: 1.4;
+  }
+
+  #root :is(h1, h2, h3, h4) {
+    font-size: max(22px, 1.25rem) !important;
+    line-height: 1.25;
+  }
+
+  #root button:not(.theme-toggle-option) {
+    min-height: 44px;
+  }
+
+  #root :is(.icon-button, .profile-button, .mobile-header-menu-trigger) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  #root input:not([type="checkbox"]):not([type="radio"]),
+  #root select,
+  #root textarea {
+    min-height: 48px;
+    max-width: 100%;
+    font-size: 16px !important;
+  }
+
+  #root :is(img, video, iframe) {
+    max-width: 100%;
+  }
+
+  #root .dashboard-brand > span,
+  #root .dashboard-brand > span > span {
+    font-size: clamp(18px, 5.5vw, 28px) !important;
+  }
+}

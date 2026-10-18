@@ -36,7 +36,6 @@ function ProgressBar({ percentage, color }) {
     </span>
   )
 }
-
 function AntibioticHierarchy({ source, district }) {
   const { t } = useLanguage()
   const [analytics, setAnalytics] = useState(() => getPrescriptionAnalytics(source, district))
@@ -73,14 +72,14 @@ function AntibioticHierarchy({ source, district }) {
           <p>{t('antibioticHierarchyDescription')}</p>
         </div>
       </div>
-      <div style={{ alignItems: 'center', backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 8px 20px rgba(15, 23, 42, .1)', display: 'flex', flexWrap: 'wrap', gap: '.6rem', marginBottom: '1rem', padding: '.75rem' }}>
-        <strong>{t('totalAnalyzed', { count: analytics.total })}</strong>
+      <div className="mb-4 flex w-full min-w-0 flex-wrap items-center gap-2 p-3 lg:gap-[0.6rem]" style={{ backdropFilter: 'blur(14px)', background: 'rgba(255, 255, 255, .75)', border: '1px solid rgba(255, 255, 255, .6)', borderRadius: '1rem', boxShadow: '0 8px 20px rgba(15, 23, 42, .1)' }}>
+        <strong className="w-full min-w-0 break-words sm:w-auto">{t('totalAnalyzed', { count: analytics.total })}</strong>
         {[
           ['all', t('allCombined')],
           ['home', t('homePageData')],
           ['consult', t('consultVetData')],
         ].map(([value, label]) => (
-          <button key={value} type="button" onClick={() => window.dispatchEvent(new CustomEvent('poultrymedix-source-filter', { detail: value }))} className="cursor-pointer transition-all active:scale-95" style={{ background: source === value ? '#0f766e' : 'rgba(255, 255, 255, .7)', border: 0, borderRadius: 999, color: source === value ? 'white' : '#334155', cursor: 'pointer', padding: '.45rem .7rem' }}>
+          <button key={value} type="button" onClick={() => window.dispatchEvent(new CustomEvent('poultrymedix-source-filter', { detail: value }))} className="min-w-0 max-w-full flex-[1_1_auto] whitespace-normal break-words text-center leading-snug transition-all active:scale-95 lg:flex-[0_1_auto] lg:break-normal lg:leading-normal lg:text-center" style={{ background: source === value ? '#0f766e' : 'rgba(255, 255, 255, .7)', border: 0, borderRadius: 999, color: source === value ? 'white' : '#334155', cursor: 'pointer', padding: '.45rem .7rem' }}>
             {label}
           </button>
         ))}
@@ -186,7 +185,7 @@ export default function EpidemiologyMap() {
   }
 
   return (
-    <main className="veterinary-page epidemiology-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <main className="veterinary-page epidemiology-page w-full min-w-0 max-w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <section className="veterinary-page-heading"><span className="veterinary-kicker">{t('veterinaryTools')}</span><h1>{t('outbreakMap')}</h1><p>{t('outbreakMapDescription')}</p></section>
       <section className="amr-map-card dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" aria-labelledby="live-epidemiology-title">
         <div className="map-card-heading" style={{ alignItems: 'center', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}>
@@ -205,3 +204,4 @@ export default function EpidemiologyMap() {
     </main>
   )
 }
+

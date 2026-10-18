@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react'
-import { Globe } from 'lucide-react'
+import { Globe, Menu, X } from 'lucide-react'
 import AIChat from './AIChat.jsx'
 import DiagnosisHub from './DiagnosisHub.jsx'
 import { supabase } from './lib/supabase.js'
@@ -80,7 +80,13 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const { t, language, setLanguage } = useLanguage()
   const { role, setRole } = useUser()
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
+  const [desktopProfileMenuOpen, setDesktopProfileMenuOpen] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showPointsPopup, setShowPointsPopup] = useState(false)
   const languageMenuRef = useRef(null)
+  const mobileLanguageMenuRef = useRef(null)
+  const headerRef = useRef(null)
+  const pointsPopupRef = useRef(null)
   const [weather, setWeather] = useState(null)
   const [weatherError, setWeatherError] = useState('')
   const [weatherLoadingState, setWeatherLoading] = useState(true)
@@ -132,13 +138,21 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
   useEffect(() => {
     function closeLanguageMenu(event) {
-      if (languageMenuRef.current && !languageMenuRef.current.contains(event.target)) {
+      const clickedDesktopLanguage = languageMenuRef.current?.contains(event.target)
+      const clickedMobileLanguage = mobileLanguageMenuRef.current?.contains(event.target)
+      if (!clickedDesktopLanguage && !clickedMobileLanguage) {
         setLanguageMenuOpen(false)
+      }
+      if (headerRef.current && !headerRef.current.contains(event.target)) {
+        setDesktopProfileMenuOpen(false)
       }
     }
 
     function closeLanguageMenuOnEscape(event) {
-      if (event.key === 'Escape') setLanguageMenuOpen(false)
+      if (event.key === 'Escape') {
+        setLanguageMenuOpen(false)
+        setDesktopProfileMenuOpen(false)
+      }
     }
 
     document.addEventListener('mousedown', closeLanguageMenu)
@@ -148,6 +162,52 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       document.removeEventListener('keydown', closeLanguageMenuOnEscape)
     }
   }, [])
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) return undefined
+
+    function closeMobileMenu(event) {
+      if (headerRef.current && !headerRef.current.contains(event.target)) {
+        setIsMobileMenuOpen(false)
+        setLanguageMenuOpen(false)
+      }
+    }
+
+    function closeMobileMenuOnEscape(event) {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false)
+        setLanguageMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', closeMobileMenu)
+    document.addEventListener('keydown', closeMobileMenuOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeMobileMenu)
+      document.removeEventListener('keydown', closeMobileMenuOnEscape)
+    }
+  }, [isMobileMenuOpen])
+
+  useEffect(() => {
+    if (!showPointsPopup) return undefined
+
+    function closePointsPopup(event) {
+      if (pointsPopupRef.current && !pointsPopupRef.current.contains(event.target)) {
+        setShowPointsPopup(false)
+      }
+    }
+
+    function closePointsPopupOnEscape(event) {
+      if (event.key === 'Escape') setShowPointsPopup(false)
+    }
+
+    document.addEventListener('mousedown', closePointsPopup)
+    document.addEventListener('keydown', closePointsPopupOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closePointsPopup)
+      document.removeEventListener('keydown', closePointsPopupOnEscape)
+    }
+  }, [showPointsPopup])
 
   useEffect(() => {
     const query = noticeSearch.trim().toLocaleLowerCase()
@@ -415,16 +475,98 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     }
   }
 
+  const renderLanguageControl = (ref) => (
+    <div className="dashboard-language-menu" ref={ref}>
+      <button className="dashboard-language-trigger" type="button" aria-expanded={languageMenuOpen} aria-haspopup="menu" aria-label={t('language')} title={t('language')} onClick={() => setLanguageMenuOpen((current) => !current)}>
+        <Globe size={17} strokeWidth={1.8} aria-hidden="true" />
+        <span>{language.toUpperCase()}</span>
+      </button>
+      {languageMenuOpen && (
+        <div className="dashboard-language-dropdown absolute z-50 rounded shadow-lg dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="menu" aria-label={t('language')}>
+          {[
+            ['en', 'EN'],
+            ['bn', 'à¦¬à¦¾à¦‚à¦²à¦¾'],
+            ['hi', 'à¤¹à¤¿à¦‚à¦¦à¥€'],
+            ['ur', 'Ø§Ø±Ø¯Ùˆ'],
+          ].map(([code]) => (
+            <button className={`${language === code ? 'active' : ''} dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700`} type="button" role="menuitem" key={code} onClick={() => { setLanguage(code); setLanguageMenuOpen(false) }}>
+              {({ en: 'English', bn: '\u09ac\u09be\u0982\u09b2\u09be', hi: '\u0939\u093f\u0928\u094d\u0926\u0940', ur: '\u0627\u0631\u062f\u0648' })[code]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+
+  const renderRoleControl = () => import.meta.env.DEV && (
+    <label className="role-switcher">
+      <span>{t('devRole')}</span>
+      <select value={role} onChange={(event) => setRole(event.target.value)} aria-label={t('switchDevelopmentRole')}>
+        {USER_ROLES.map((userRole) => <option key={userRole} value={userRole}>{t(`roleOptions.${userRole}`)}</option>)}
+      </select>
+    </label>
+  )
+
+  const renderProfileControl = () => (
+    <button className="mobile-profile-control" type="button" onClick={() => { setIsMobileMenuOpen(false); setSettingsOpen(true); setSettingsMessage('') }} aria-label={t('profileSettings')}>
+      <span className="mobile-profile-avatar">{avatar ? <img src={avatar} alt="" /> : <Icon name="user" size={19} />}</span>
+      <span>{t('settings')}</span>
+    </button>
+  )
+
+  const openAboutUs = () => {
+    setIsMobileMenuOpen(false)
+    setDesktopProfileMenuOpen(false)
+    setActiveView('team')
+  }
+
+  const renderAboutUsControl = () => (
+    <button className="header-menu-item" type="button" onClick={openAboutUs}>
+      <Icon name="users" size={18} />
+      <span>About Us</span>
+    </button>
+  )
+
+  const renderPrivacyControl = () => (
+    <button className="header-menu-item" type="button" onClick={() => { setIsMobileMenuOpen(false); setDesktopProfileMenuOpen(false) }}>
+      <Icon name="shield" size={18} />
+      <span>Privacy &amp; Security</span>
+    </button>
+  )
+
   return (
-    <main className="dashboard-shell bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-      <header className="dashboard-header bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:border-gray-700">
+    <main className="dashboard-shell w-full min-w-0 max-w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <header className={`dashboard-header bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:border-gray-700${isMobileMenuOpen || showPointsPopup ? ' is-mobile-menu-open' : ''}`} ref={headerRef}>
         <a className="dashboard-brand" href="#dashboard" aria-label={t('brand')} onClick={() => setActiveView('home')}>
           <img className="dashboard-brand-mark" src="/images/logo.png" alt="" />
           <span>Poultry<span>Medix</span></span>
         </a>
         <div className="dashboard-header-actions flex items-center gap-4">
-          <div className="points-pill" aria-label={`${t('points')}: ${points}`}><Icon name="star" size={14} /><strong>{points}</strong> <span>{t('points')}</span></div>
+          <div className="points-pill header-points-pill" aria-label={`${t('points')}: ${points}`}><Icon name="star" size={14} /><strong>{points}</strong> <span>{t('points')}</span></div>
+          <div className="mobile-points-wrap" ref={pointsPopupRef}>
+            <button className="mobile-points-trigger" type="button" aria-label={`${points} ${t('points')}`} aria-expanded={showPointsPopup} onClick={() => { setIsMobileMenuOpen(false); setShowPointsPopup((current) => !current) }}>
+              <Icon name="star" size={20} />
+            </button>
+            {showPointsPopup && (
+              <div className="mobile-points-popup" role="status">
+                <Icon name="star" size={18} />
+                <strong>{points}</strong>
+                <span>{t('points')}</span>
+              </div>
+            )}
+          </div>
           <ThemeToggle />
+          <button
+            className="mobile-header-menu-trigger block md:hidden"
+            type="button"
+            aria-label={isMobileMenuOpen ? t('close') : t('profileSettings')}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="dashboard-mobile-menu"
+            onClick={() => { setShowPointsPopup(false); setIsMobileMenuOpen((current) => !current) }}
+          >
+            {isMobileMenuOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
+          </button>
+          <div className="hidden md:flex items-center gap-x-4 dashboard-desktop-header-controls">
           <div className="dashboard-language-menu" ref={languageMenuRef}>
             <button
               className="dashboard-language-trigger"
@@ -471,13 +613,35 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
               </select>
             </label>
           )}
-          <button className="profile-button" type="button" onClick={() => { setSettingsOpen(true); setSettingsMessage('') }} aria-label={t('profileSettings')}>
-            {avatar ? <img src={avatar} alt="" /> : <Icon name="user" size={19} />}
-          </button>
+          <div className="desktop-profile-menu-wrap">
+            <button className="profile-button" type="button" onClick={() => setDesktopProfileMenuOpen((current) => !current)} aria-label={t('profileSettings')} aria-expanded={desktopProfileMenuOpen}>
+              {avatar ? <img src={avatar} alt="" /> : <Icon name="user" size={19} />}
+            </button>
+            {desktopProfileMenuOpen && (
+              <div className="desktop-profile-menu" role="menu">
+                <button className="header-menu-item" type="button" role="menuitem" onClick={() => { setDesktopProfileMenuOpen(false); setSettingsOpen(true); setSettingsMessage('') }}>
+                  <Icon name="settings" size={18} />
+                  <span>{t('settings')}</span>
+                </button>
+                {renderAboutUsControl()}
+                {renderPrivacyControl()}
+              </div>
+            )}
+          </div>
+          </div>
         </div>
+        {isMobileMenuOpen && (
+          <div id="dashboard-mobile-menu" className="absolute top-full right-0 w-full bg-white dark:bg-gray-900 p-4 shadow-lg z-[100] flex flex-col gap-4 md:hidden mobile-header-dropdown">
+            {renderLanguageControl(mobileLanguageMenuRef)}
+            {renderRoleControl()}
+            {renderProfileControl()}
+            {renderAboutUsControl()}
+            {renderPrivacyControl()}
+          </div>
+        )}
       </header>
 
-      <div className="dashboard-content bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <div className="dashboard-content min-w-0 max-w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
         {activeView === 'home' ? <>
         <section className="dashboard-greeting">
           <div>
@@ -610,7 +774,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           ['history', 'clipboard', 'clinicalHistoryNav'],
           ['data', 'brain', 'bottomContribute'],
           ['telemedicine', 'stethoscope', 'consultVetNav'],
-          ['team', 'users', 'teamNav'],
         ].map(([view, icon, label]) => (
           <button type="button" key={view} aria-current={activeView === view ? 'page' : undefined} className={activeView === view ? 'active' : ''} onClick={() => setActiveView(view)}>
             <Icon name={icon} size={19} /><span>{t(label)}</span>
@@ -620,7 +783,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
       {settingsOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSettingsOpen(false) }}>
-          <section className="settings-modal bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+          <section className="settings-modal fixed bottom-0 left-0 z-50 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl shadow-lg lg:relative lg:inset-auto lg:z-auto lg:w-[min(100%,560px)] lg:max-h-[min(90vh,850px)] lg:overflow-hidden lg:rounded-2xl lg:shadow-[0_25px_80px_rgba(18,43,25,0.23)] bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="settings-title">
             <div className="settings-header">
               <div><p>{t('settingsEyebrow')}</p><h2 id="settings-title">{t('settings')}</h2></div>
               <button className="icon-button modal-close" type="button" aria-label={t('close')} onClick={() => setSettingsOpen(false)}><Icon name="close" size={20} /></button>

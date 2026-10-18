@@ -10,6 +10,7 @@ import {
 import logo from "@/assets/logo.png.asset.json";
 import leadImg from "@/assets/lead.png.asset.json";
 import { T, type TT, type Lang } from "@/components/pm/i18n";
+import { checkSupabaseConnection } from "@/lib/supabaseClient";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,6 +30,10 @@ type Screen = "onboard" | "home" | "chat" | "rx" | "drug" | "hub" | "feedback" |
 type Nav = (s: Screen) => void;
 
 function App() {
+  useEffect(() => {
+    void checkSupabaseConnection();
+  }, []);
+
   const [lang, setLang] = useState<Lang>("en");
   const [screen, setScreen] = useState<Screen>("onboard");
   const [points, setPoints] = useState(140);

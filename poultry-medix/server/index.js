@@ -5,6 +5,8 @@ import path from 'node:path'
 import process from 'node:process'
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url))
+const projectRoot = path.resolve(serverDirectory, '..')
+dotenv.config({ path: path.join(projectRoot, '.env') })
 dotenv.config({ path: path.join(serverDirectory, '.env') })
 
 const app = express()
@@ -13,7 +15,6 @@ const geminiKey = process.env.GEMINI_API_KEY
 const openAiKey = process.env.OPENAI_API_KEY
 const supabaseUrl = process.env.VITE_SUPABASE_URL
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
-const projectRoot = path.resolve(serverDirectory, '..')
 const maxFileBytes = 8 * 1024 * 1024
 const maxRequestBytes = 15 * 1024 * 1024
 const allowedMimeTypes = new Set([
@@ -45,7 +46,7 @@ const veterinarySystemPrompt = [
   'You MUST fluently understand and reply in English, Bengali (বাংলা script), and Banglish (Bengali written in English letters, e.g., "amake farming niye bolo").',
   "Extract the user's true intent regardless of spelling or grammar.",
   'You MUST provide detailed clinical, diagnostic, and treatment information when asked.',
-  'Fetch and prioritize data in this exact order: 1) Local application database context, 2) Credible veterinary sources (Merck Vet Manual, FAO, OIE, PubMed). Do not rely solely on Wikipedia.',
+  'Always search the local Supabase veterinary documents first. If no relevant local record exists, use only retrieved PubMed research context. Never use Wikipedia or general web results.',
   "You MUST append a clear 'References/Sources' section at the end of every medical response.",
   'Be explicit about uncertainty, emergency warning signs, and when in-person veterinary assessment is needed. Never present an unverified image classification as a confirmed diagnosis.',
 ].join('\n')
@@ -90,6 +91,22 @@ async function requireUser(request, response, next) {
     return response.status(503).json({ error: 'Authentication could not be checked. Please try again.' })
   }
 }
+
+function allowDevelopmentGuest(request, response, next) {
+  const guestId = `development-guest:${request.ip}`
+  const now = Date.now()
+  const requestTimes = (requestsByUser.get(guestId) || []).filter((time) => now - time < 60_000)
+  if (requestTimes.length >= 8) {
+    return response.status(429).json({ error: 'Please wait a minute before making another AI request.' })
+  }
+  requestTimes.push(now)
+  requestsByUser.set(guestId, requestTimes)
+  request.userId = guestId
+  return next()
+}
+
+// Keep the strict middleware available for production; development chat accepts guests.
+const requireAiUser = process.env.NODE_ENV === 'development' ? allowDevelopmentGuest : requireUser
 
 function validateRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return 'A valid diagnosis request is required.'
@@ -196,7 +213,7 @@ async function matchVeterinaryDocs(embedding, authorization) {
     method: 'POST',
     headers: {
       apikey: supabaseAnonKey,
-      authorization,
+      authorization: authorization || `Bearer ${supabaseAnonKey}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
@@ -217,35 +234,71 @@ async function matchVeterinaryDocs(embedding, authorization) {
   return Array.isArray(matches) ? matches : []
 }
 
-async function searchExternalVeterinarySource(keyword) {
+async function searchLocalVeterinaryDocs(query, authorization) {
+  if (openAiKey) {
+    const embedding = await createOpenAiEmbedding(query)
+    return matchVeterinaryDocs(embedding, authorization)
+  }
+
+  // Development can retrieve local records lexically when no OpenAI embedding key is configured.
+  const stopWords = new Set(['about', 'after', 'again', 'are', 'can', 'does', 'from', 'have', 'help', 'how', 'what', 'when', 'where', 'with'])
+  const terms = [...new Set(query.toLocaleLowerCase().match(/[\p{L}\p{N}-]{3,}/gu) || [])]
+    .filter((term) => !stopWords.has(term))
+    .slice(0, 8)
+  if (!terms.length) return []
+
   const params = new URLSearchParams({
-    action: 'query',
-    generator: 'search',
-    gsrsearch: `${keyword} veterinary poultry`,
-    gsrnamespace: '0',
-    gsrlimit: '3',
-    prop: 'extracts',
-    exintro: '1',
-    explaintext: '1',
-    format: 'json',
-    origin: '*',
+    select: 'id,content,metadata',
+    or: `(${terms.map((term) => `content.ilike.*${term}*`).join(',')})`,
+    limit: '5',
   })
-  const searchResponse = await fetch(`https://en.wikipedia.org/w/api.php?${params}`, {
+  const searchResponse = await fetch(`${supabaseUrl}/rest/v1/documents?${params}`, {
+    headers: {
+      apikey: supabaseAnonKey,
+      authorization: authorization || `Bearer ${supabaseAnonKey}`,
+    },
     signal: AbortSignal.timeout(20_000),
   })
-  if (!searchResponse.ok) throw new Error('The external veterinary search could not be completed.')
+  if (!searchResponse.ok) {
+    const errorBody = await searchResponse.text()
+    console.error('Supabase veterinary document search failed.', searchResponse.status, errorBody)
+    throw new Error('The local veterinary document search could not be completed.')
+  }
+
+  const records = await searchResponse.json()
+  return Array.isArray(records) ? records : []
+}
+
+async function searchExternalVeterinarySource(keyword) {
+  const params = new URLSearchParams({
+    query: `SRC:MED AND (${keyword}) AND (poultry OR chicken OR avian)`,
+    format: 'json',
+    pageSize: '3',
+    resultType: 'core',
+  })
+  const searchResponse = await fetch(`https://www.ebi.ac.uk/europepmc/webservices/rest/search?${params}`, {
+    signal: AbortSignal.timeout(20_000),
+  })
+  if (!searchResponse.ok) throw new Error('The PubMed veterinary literature search could not be completed.')
   const result = await searchResponse.json()
-  const page = Object.values(result.query?.pages || {})
-    .find((candidate) => typeof candidate?.extract === 'string' && candidate.extract.trim())
-  if (!page) return null
+  const article = result.resultList?.result?.find((candidate) => (
+    typeof candidate?.abstractText === 'string' && candidate.abstractText.trim()
+  ))
+  if (!article) return null
+  const pmid = typeof article.pmid === 'string' ? article.pmid : ''
+  const pmcid = typeof article.pmcid === 'string' ? article.pmcid : ''
+  const url = pmid
+    ? `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`
+    : `https://europepmc.org/article/PMC/${pmcid.replace(/^PMC/i, '')}`
+  const source = [article.title, article.journalTitle, article.pubYear].filter(Boolean).join('. ')
   return {
-    content: page.extract.trim(),
-    source: page.title,
-    url: `https://en.wikipedia.org/?curid=${page.pageid}`,
+    content: article.abstractText.trim(),
+    source: source || 'PubMed indexed veterinary research article',
+    url,
   }
 }
 
-app.post('/api/chat', requireUser, async (request, response) => {
+app.post('/api/chat', requireAiUser, async (request, response) => {
   const validationError = validateChatRequest(request.body)
   if (validationError) return response.status(400).json({ error: validationError })
   if (!openAiKey) return response.status(503).json({ error: 'The RAG language model is not configured on this server.' })
@@ -279,15 +332,17 @@ app.post('/api/chat', requireUser, async (request, response) => {
     const references = matches
       .map((match) => {
         const metadata = match?.metadata || {}
-        const bookName = typeof (metadata.book_name ?? metadata.bookName ?? metadata.source) === 'string'
-          ? (metadata.book_name ?? metadata.bookName ?? metadata.source).trim()
-          : ''
+        const suppliedSource = metadata.book_name ?? metadata.bookName ?? metadata.source ?? metadata.title
+        const documentId = match?.id ?? match?.document_id
+        const bookName = typeof suppliedSource === 'string' && suppliedSource.trim()
+          ? suppliedSource.trim()
+          : `Supabase documents table${documentId ? ` record ${documentId}` : ''}`
         const pageNumber = metadata.page ?? metadata.page_number ?? metadata.pageNumber
         const content = typeof match?.content === 'string' ? match.content.trim() : ''
         if (!content) return null
         return {
           content,
-          bookName: bookName || 'Veterinary reference',
+          bookName,
           pageNumber: pageNumber === undefined ? 'n/a' : pageNumber,
         }
       })
@@ -297,8 +352,8 @@ app.post('/api/chat', requireUser, async (request, response) => {
       const externalReference = await searchExternalVeterinarySource(keyword.trim())
       if (!externalReference) {
         return response.json({
-          answer: 'I could not find a matching veterinary reference. Please consult a registered veterinarian.',
-          sources: [],
+          answer: 'I could not find a matching verified veterinary reference, so I cannot provide a sourced answer. Please consult a registered veterinarian.\n\nReferences/Sources\n- No matching source found in the local veterinary database or PubMed.',
+          sources: ['No matching source found in the local veterinary database or PubMed.'],
           keyword: keyword.trim(),
         })
       }
@@ -309,7 +364,7 @@ app.post('/api/chat', requireUser, async (request, response) => {
             'You are a cautious veterinary information assistant.',
             `Answer in the same language and writing style as the user. The app language is ${appLanguage}, but preserve Banglish when the user writes Banglish.`,
             'Use only the supplied external veterinary context for factual claims and clearly state that professional assessment is required.',
-            `End with exactly: Source: ${externalReference.source}, URL: ${externalReference.url}`,
+            'Do not add a References section; the application will append the verified citation.',
           ].join('\n'),
         },
         {
@@ -318,7 +373,7 @@ app.post('/api/chat', requireUser, async (request, response) => {
         },
       ])
       const source = `Source: ${externalReference.source}, URL: ${externalReference.url}`
-      return response.json({ answer: answer.includes(source) ? answer : `${answer}\n\n${source}`, sources: [source], keyword: keyword.trim() })
+      return response.json({ answer: `${answer}\n\nReferences/Sources\n- ${source}`, sources: [source], keyword: keyword.trim() })
     }
 
     const context = references.map((reference, index) => (
@@ -332,7 +387,7 @@ app.post('/api/chat', requireUser, async (request, response) => {
           `Answer in the same language and writing style as the user. The app language is ${appLanguage}, but preserve Banglish when the user writes Banglish.`,
           'Use only the supplied reference context for factual claims. Do not invent diagnoses, doses, withdrawal periods, or treatment plans.',
           'Recommend a registered veterinarian for diagnosis and treatment decisions.',
-          'At the end, cite every reference used exactly as: Source: [book name], Page: [page number].',
+          'Use only the supplied reference context for factual claims. Do not add a References section; the application appends exact citations.',
           'Use the exact metadata values supplied. Never cite Local Database, Database, or an invented source.',
         ].join('\n'),
       },
@@ -342,10 +397,11 @@ app.post('/api/chat', requireUser, async (request, response) => {
       },
     ])
 
+    const sources = references.map(({ bookName, pageNumber }) => `Source: ${bookName}, Page: ${pageNumber}`)
     return response.json({
-      answer,
+      answer: `${answer}\n\nReferences/Sources\n${sources.map((source) => `- ${source}`).join('\n')}`,
       keyword: keyword.trim(),
-      sources: references.map(({ bookName, pageNumber }) => `Source: ${bookName}, Page: ${pageNumber}`),
+      sources,
     })
   } catch (error) {
     console.error('Veterinary RAG chat request failed.', error.message)
@@ -353,7 +409,7 @@ app.post('/api/chat', requireUser, async (request, response) => {
   }
 })
 
-app.post('/api/diagnose', requireUser, async (request, response) => {
+app.post('/api/diagnose', requireAiUser, async (request, response) => {
   if (!geminiKey) return response.status(503).json({ error: 'The AI service is not configured on this server.' })
   const validationError = validateRequest(request.body)
   if (validationError) return response.status(400).json({ error: validationError })
@@ -375,7 +431,7 @@ app.post('/api/diagnose', requireUser, async (request, response) => {
       veterinarySystemPrompt,
       roleInstructions,
       `App language preference: ${appLanguage}. Reply in the exact language of the user's latest message when it is clear (English, Bengali script, or Banglish). Otherwise prioritize the app language preference.`,
-      'Every medical response must end with a clearly labeled "References" section. Cite the local application database and any internationally valid veterinary sources used, such as Merck Veterinary Manual, FAO, WOAH/OIE, PubMed, or WHO. Never invent citations.',
+      'Use only the verified local database or PubMed context supplied below for factual claims. Do not invent diagnoses, citations, or references. The application will append the exact verified citations at the end of your response.',
       'Help the farmer organize observations, highlight possible urgency, and suggest safe next steps.',
       role === 'farmer'
         ? 'Do not claim a definitive diagnosis, prescribe or calculate drug doses, or advise starting/stopping medicines.'
@@ -401,6 +457,36 @@ app.post('/api/diagnose', requireUser, async (request, response) => {
   }
 
   try {
+    const retrievalQuery = text.trim() || 'poultry disease clinical signs and diagnosis'
+    const matches = await searchLocalVeterinaryDocs(retrievalQuery, request.get('authorization'))
+    const localReferences = matches.map((match) => {
+      const metadata = match?.metadata || {}
+      const content = typeof match?.content === 'string' ? match.content.trim() : ''
+      if (!content) return null
+      const documentId = match?.id ?? match?.document_id
+      const bookName = metadata.book_name ?? metadata.bookName ?? metadata.source ?? metadata.title
+        ?? `Supabase documents table${documentId ? ` record ${documentId}` : ''}`
+      const pageNumber = metadata.page ?? metadata.page_number ?? metadata.pageNumber ?? 'n/a'
+      return { content, bookName: String(bookName), pageNumber }
+    }).filter(Boolean)
+    const externalReference = localReferences.length
+      ? null
+      : await searchExternalVeterinarySource(retrievalQuery)
+    if (!localReferences.length && !externalReference) {
+      return response.json({
+        answer: 'I could not find a matching verified veterinary reference, so I cannot provide a sourced answer. Please consult a registered veterinarian.\n\nReferences/Sources\n- No matching source found in the local veterinary database or PubMed.',
+        sources: ['No matching source found in the local veterinary database or PubMed.'],
+      })
+    }
+    const retrievedContext = localReferences.length
+      ? localReferences.map((reference, index) => (
+        `[Local reference ${index + 1}] ${reference.bookName}, page ${reference.pageNumber}\n${reference.content}`
+      )).join('\n\n')
+      : externalReference
+        ? `[PubMed reference] ${externalReference.source}\nURL: ${externalReference.url}\n${externalReference.content}`
+        : 'No verified veterinary reference was found. Do not provide an unsupported medical answer; recommend consulting a registered veterinarian.'
+    parts[0].text += `\n\nVerified veterinary reference context (local Supabase search runs first):\n${retrievedContext}`
+
     const geminiResponse = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
       {
@@ -433,11 +519,13 @@ app.post('/api/diagnose', requireUser, async (request, response) => {
       return response.status(502).json({ error: 'The AI service returned an empty response. Please try again.' })
     }
 
-    const answerWithReferences = /references(?:\/sources)?\s*:/i.test(answer)
-      ? answer
-      : `${answer}\n\nReferences\n- PoultryMedix local application context\n- International veterinary sources should be verified against the cited Merck Veterinary Manual, FAO, WOAH/OIE, PubMed, or WHO material.`
-    const sources = ['Gemini multimodal analysis', 'PoultryMedix local application context']
+    const sources = localReferences.length
+      ? localReferences.map(({ bookName, pageNumber }) => `Source: ${bookName}, Page: ${pageNumber}`)
+      : externalReference
+        ? [`Source: ${externalReference.source}, URL: ${externalReference.url}`]
+        : ['No matching source found in the local veterinary database or PubMed.']
     if (visualResult) sources.push(`Teachable Machine: ${visualResult.label} (${Math.round(visualResult.confidence * 100)}%)`)
+    const answerWithReferences = `${answer}\n\nReferences/Sources\n${sources.map((source) => `- ${source}`).join('\n')}`
     return response.json({ answer: answerWithReferences, sources })
   } catch (error) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError') {

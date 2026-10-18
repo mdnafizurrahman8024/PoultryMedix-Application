@@ -1512,7 +1512,7 @@
   bottom: 0;
   left: 0;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   min-height: calc(66px + env(safe-area-inset-bottom));
   padding: 6px max(8px, env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-right));
   border-top: 1px solid #e3e9df;
@@ -3010,5 +3010,39 @@ button.history-entry-trigger:focus-visible,
   .history-prescription-modal {
     max-height: 94vh;
     border-radius: 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .bottom-navigation {
+    display: flex;
+    grid-template-columns: none;
+    justify-content: flex-start;
+    gap: 16px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    padding-right: 16px;
+    padding-left: 16px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bottom-navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bottom-navigation button {
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: max-content;
+  }
+
+  .bottom-navigation button span {
+    max-width: none;
+    overflow: visible;
   }
 }

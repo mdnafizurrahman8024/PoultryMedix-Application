@@ -4,8 +4,6 @@ import { runMultimodalDiagnosis } from './lib/ai.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
-import { findLocalPoultryKnowledge } from './lib/poultryKnowledge.js'
-import { searchWikipedia } from './lib/wikipedia.js'
 import { saveHistoryEntry } from './veterinary/historyStore.js'
 
 const supportedMimeTypes = new Set([
@@ -44,7 +42,6 @@ function VetDoctorChatImage({ className, alt = 'PoultryMedix AI Diagnostic', siz
     />
   )
 }
-
 export default function AIChat() {
   const { t, language } = useLanguage()
   const [userRole, setUserRole] = useState('farmer')
@@ -60,6 +57,7 @@ export default function AIChat() {
   const [loadingStatusKey, setLoadingStatusKey] = useState('analyzing')
   const [dragError, setDragError] = useState('')
   const [modelWarning, setModelWarning] = useState('')
+  const [guestNotice, setGuestNotice] = useState('')
   const [historyWarning, setHistoryWarning] = useState('')
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
@@ -350,101 +348,27 @@ export default function AIChat() {
     setDragError('')
     setModelWarning('')
     setLoading(true)
-    setLoadingStatusKey(question ? 'searchingOnlineSources' : 'analyzing')
+    setLoadingStatusKey('analyzing')
     try {
-      if (question && queuedFiles.length === 0) {
-        let { data, error } = await supabase.auth.getSession()
-        if (error) throw error
-        if (!data.session?.access_token) {
-          const refreshed = await supabase.auth.refreshSession()
-          data = refreshed.data
-          error = refreshed.error
-          if (error) throw error
-        }
-        if (!data.session?.access_token) throw new Error(t('aiSignInRequired'))
-
-        const chatResponse = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${data.session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            text: question,
-            userRole,
-            appLanguage: language,
-          }),
-        })
-        const chatResult = await chatResponse.json().catch(() => ({}))
-        if (!chatResponse.ok) throw new Error(chatResult.error || t('aiRequestFailed'))
-
-        const assistantMessage = {
-          role: 'assistant',
-          text: chatResult.answer,
-          sources: chatResult.sources || [],
-        }
-        saveChatResponse(question, queuedFiles, assistantMessage)
-        setMessages((previous) => [...previous, {
-          id: `${Date.now()}-assistant`,
-          ...assistantMessage,
-        }])
-        return
-      }
-
-      const localKnowledge = question ? findLocalPoultryKnowledge(question, language) : null
-      if (localKnowledge && queuedFiles.length === 0) {
-        const assistantMessage = {
-          role: 'assistant',
-          text: `${localKnowledge.answer}\n\nReferences/Sources\n- PoultryMedix local application knowledge base`,
-          sources: [t('aiLocalKnowledgeSource')],
-        }
-        saveChatResponse(question, queuedFiles, assistantMessage)
-        setMessages((previous) => [...previous, {
-          id: `${Date.now()}-assistant`,
-          ...assistantMessage,
-        }])
-        return
-      }
-
-      let externalReference = null
-      if (question && !localKnowledge) {
-        const controller = new AbortController()
-        const timeout = window.setTimeout(() => controller.abort(), 12000)
+      let accessToken = ''
+      if (!import.meta.env.DEV) {
+        let session = null
         try {
-          externalReference = await searchWikipedia(question, language, controller.signal)
-        } catch {
-          throw new Error(t('externalSearchError'))
-        } finally {
-          window.clearTimeout(timeout)
+          const current = await supabase.auth.getSession()
+          session = current.data.session
+          if (!session?.access_token) {
+            const refreshed = await supabase.auth.refreshSession()
+            session = refreshed.data.session
+          }
+        } catch (error) {
+          console.info('Unable to restore the Supabase session for AI diagnosis.', error)
         }
-      }
-
-      if (question && !localKnowledge && !externalReference && queuedFiles.length === 0) {
-        const assistantMessage = { role: 'assistant', text: t('noExternalSearchResult'), sources: [] }
-        saveChatResponse(question, queuedFiles, assistantMessage)
-        setMessages((previous) => [...previous, {
-          id: `${Date.now()}-assistant`,
-          ...assistantMessage,
-        }])
-        return
-      }
-
-      setLoadingStatusKey('analyzing')
-      let { data, error } = await supabase.auth.getSession()
-      if (error) throw error
-      if (!data.session?.access_token) {
-        const refreshed = await supabase.auth.refreshSession()
-        data = refreshed.data
-        error = refreshed.error
-        if (error) throw error
-      }
-      if (!data.session?.access_token) {
-        if (externalReference && queuedFiles.length === 0) {
+        accessToken = session?.access_token || ''
+        if (!accessToken) {
           const assistantMessage = {
             role: 'assistant',
-            text: externalReference.extract,
+            text: 'Please create an account to use this feature.',
             sources: [],
-            externalReference,
           }
           saveChatResponse(question, queuedFiles, assistantMessage)
           setMessages((previous) => [...previous, {
@@ -453,25 +377,22 @@ export default function AIChat() {
           }])
           return
         }
-        throw new Error(t('aiSignInRequired'))
       }
+      setGuestNotice(!accessToken && import.meta.env.DEV
+        ? 'Please create an account to use this feature.'
+        : '')
       const transcript = messages
         .filter((item) => item.role !== 'error')
         .slice(-6)
         .map((item) => `${item.role === 'assistant' ? 'Assistant' : 'Farmer'}: ${item.text}`)
         .join('\n')
-      const searchContext = [
-        localKnowledge ? `${t('aiLocalKnowledgeSource')}: ${localKnowledge.answer}` : '',
-        externalReference ? `External reference: ${externalReference.title}\n${externalReference.extract}\n${externalReference.url}` : '',
-      ].filter(Boolean).join('\n\n')
-      const contextualQuestion = [
-        transcript ? `${t('chatHistoryContext')}\n${transcript}\nFarmer: ${question || t('attachedFilesOnly')}` : question,
-        searchContext ? `${t('retrievedKnowledgeContext')}\n${searchContext}` : '',
-      ].filter(Boolean).join('\n\n')
+      const contextualQuestion = transcript
+        ? `${t('chatHistoryContext')}\n${transcript}\nFarmer: ${question || t('attachedFilesOnly')}`
+        : question
       const result = await runMultimodalDiagnosis({
         text: contextualQuestion,
         files: queuedFiles,
-        accessToken: data.session.access_token,
+        accessToken,
         userRole,
         appLanguage: language,
         onModelWarning: () => setModelWarning(t('visualModelUnavailable')),
@@ -481,7 +402,6 @@ export default function AIChat() {
         text: result.answer,
         sources: result.sources,
         visualResult: result.visualResult,
-        externalReference,
       }
       saveChatResponse(question, queuedFiles, assistantMessage)
       setMessages((previous) => [...previous, {
@@ -489,14 +409,12 @@ export default function AIChat() {
         ...assistantMessage,
       }])
     } catch (error) {
-      const localizedErrorKey = ['externalSearchError', 'aiSignInRequired']
-        .find((key) => error.message === t(key))
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-error`,
         role: 'error',
         text: language === 'en'
           ? error.message || t('aiRequestFailed')
-          : localizedErrorKey ? t(localizedErrorKey) : t('aiRequestFailed'),
+          : t('aiRequestFailed'),
       }])
     } finally {
       setLoading(false)
@@ -506,7 +424,7 @@ export default function AIChat() {
   return (
     <div className="ai-chat-widget bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       {open && <section
-        className={`ai-chat-panel dark:text-gray-100${open && expanded ? ' ai-chat-panel--expanded' : ''}`}
+        className={`ai-chat-panel fixed bottom-0 left-0 z-50 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl shadow-lg lg:bottom-[94px] lg:left-auto lg:right-[25px] lg:z-30 lg:w-[min(390px,calc(100vw-36px))] lg:max-h-none lg:overflow-hidden lg:rounded-[15px] lg:shadow-[0_15px_48px_rgba(29,54,32,0.2)] dark:text-gray-100${open && expanded ? ' ai-chat-panel--expanded' : ''}`}
         aria-label={t('aiChatTitle')}
         style={open && expanded ? {
           position: 'fixed',
@@ -586,7 +504,6 @@ export default function AIChat() {
               <span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>
               <div className="chat-source-list">
                 {item.sources.map((source) => <span key={source}>{source}</span>)}
-                {item.externalReference && <a href={item.externalReference.url} target="_blank" rel="noreferrer">{t('wikipediaSource')}: {item.externalReference.title}</a>}
               </div>
               <aside className="chat-message-safety dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="note">
                 <strong>{t('veterinaryConsultingAlertTitle')}</strong>
@@ -595,6 +512,7 @@ export default function AIChat() {
             </>}
           </article>)}
           {loading && <div className="chat-typing"><span /><span /><span />{t(loadingStatusKey)}</div>}
+          {guestNotice && <p className="chat-warning" role="status">{guestNotice}</p>}
           {modelWarning && <p className="chat-warning" role="status">{modelWarning}</p>}
           {historyWarning && <p className="chat-warning" role="status">{historyWarning}</p>}
         </div>
@@ -667,3 +585,4 @@ export default function AIChat() {
     </div>
   )
 }
+

@@ -49,12 +49,11 @@ export async function requestDiagnosis({ text, files, accessToken, visualResult,
     mimeType: file.type,
     data: await readFileAsBase64(file),
   })))
+  const headers = { 'content-type': 'application/json' }
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`
   const response = await fetch('/api/diagnose', {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${accessToken}`,
-    },
+    headers,
     body: JSON.stringify({ text, attachments, visualResult, userRole, appLanguage }),
   })
   const result = await response.json().catch(() => ({}))
