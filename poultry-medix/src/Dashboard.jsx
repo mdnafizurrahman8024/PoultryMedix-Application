@@ -12,7 +12,6 @@ import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import { USER_ROLES, useUser } from './context/UserContext.jsx'
-import { searchWikipedia } from './lib/wikipedia.js'
 import './Dashboard.css'
 import './VeterinaryFeatures.css'
 
@@ -103,10 +102,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileAction, setProfileAction] = useState('')
   const [sosOpen, setSosOpen] = useState(false)
-  const [noticeSearch, setNoticeSearch] = useState('')
-  const [visibleNotices, setVisibleNotices] = useState(notices)
-  const [noticeSearchLoading, setNoticeSearchLoading] = useState(false)
-  const [noticeSearchError, setNoticeSearchError] = useState('')
   const [points, setPoints] = useState(140)
   const [pointsToast, setPointsToast] = useState(false)
   const [fontSize, setFontSize] = useState(() => {
@@ -219,65 +214,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       document.removeEventListener('keydown', closePointsPopupOnEscape)
     }
   }, [showPointsPopup])
-
-  useEffect(() => {
-    const query = noticeSearch.trim().toLocaleLowerCase()
-    let active = true
-    const controller = new AbortController()
-    const searchTimeout = window.setTimeout(async () => {
-      const results = query
-        ? notices.filter(({ titleKey, descriptionKey, typeKey }) => (
-          `${t(titleKey)} ${t(descriptionKey)} ${t(typeKey)}`.toLocaleLowerCase().includes(query)
-        ))
-        : notices
-      if (!active) return
-      setNoticeSearchError('')
-      if (!query || results.length) {
-        setVisibleNotices(results)
-        setNoticeSearchLoading(false)
-        return
-      }
-
-      setNoticeSearchLoading(true)
-      try {
-        const externalResult = await searchWikipedia(noticeSearch.trim(), language, controller.signal)
-        if (!active) return
-        setVisibleNotices(externalResult ? [{
-          id: `external-${externalResult.title}`,
-          typeKey: 'dailyTip',
-          external: externalResult,
-        }] : [])
-        if (!externalResult) setNoticeSearchError('noExternalSearchResult')
-      } catch {
-        if (active && !controller.signal.aborted) {
-          setVisibleNotices([])
-          setNoticeSearchError('externalSearchError')
-        }
-      } finally {
-        if (active) setNoticeSearchLoading(false)
-      }
-    }, query ? 350 : 0)
-
-    return () => {
-      active = false
-      controller.abort()
-      window.clearTimeout(searchTimeout)
-    }
-  }, [noticeSearch, language, t])
-
-  function handleNoticeSearchChange(event) {
-    const nextQuery = event.target.value
-    const normalizedQuery = nextQuery.trim().toLocaleLowerCase()
-    const localResults = normalizedQuery
-      ? notices.filter(({ titleKey, descriptionKey, typeKey }) => (
-        `${t(titleKey)} ${t(descriptionKey)} ${t(typeKey)}`.toLocaleLowerCase().includes(normalizedQuery)
-      ))
-      : notices
-
-    setNoticeSearch(nextQuery)
-    setNoticeSearchError('')
-    setNoticeSearchLoading(Boolean(normalizedQuery && localResults.length === 0))
-  }
 
   useEffect(() => {
     if (!pointsToast) return undefined
@@ -767,24 +703,19 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         <section className="notices-section" aria-labelledby="notices-heading">
           <div className="section-heading notices-heading">
             <div><span className="section-icon section-icon--sun"><Icon name="bell" size={18} /></span><div><h2 id="notices-heading">{t('noticesTitle')}</h2><p>{t('noticesSubtitle')}</p></div></div>
-            <div className="notice-search-wrap">
-              <label className="notice-search"><Icon name="search" size={17} /><input type="search" placeholder={t('searchNotices')} value={noticeSearch} onChange={handleNoticeSearchChange} aria-label={t('searchNotices')} /></label>
-              {noticeSearchLoading && <p className="notice-search-status" role="status">{t('searchingOnlineSources')}</p>}
-            </div>
           </div>
           <div className="notice-list">
-            {!noticeSearchLoading && (visibleNotices.length ? visibleNotices.map(({ id, typeKey, titleKey, descriptionKey, dateKey, external }) => (
+            {notices.length ? notices.map(({ id, typeKey, titleKey, descriptionKey, dateKey }) => (
               <article className={`notice-item${id === 'colistin' ? ' notice-item--important' : ''}`} key={id}>
                 <span className={`notice-symbol${id === 'colistin' ? ' notice-symbol--red' : ''}`}><Icon name={id === 'colistin' ? 'alert' : 'leaf'} size={17} /></span>
                 <div className="notice-copy">
-                  <span className="notice-type">{external ? t('externalSourceBadge') : t(typeKey)}</span>
-                  <h3>{external?.title || t(titleKey)}</h3>
-                  <p>{external?.extract || t(descriptionKey)}</p>
-                  {external && <a className="external-source-badge" href={external.url} target="_blank" rel="noreferrer">{t('wikipediaSource')}</a>}
+                  <span className="notice-type">{t(typeKey)}</span>
+                  <h3>{t(titleKey)}</h3>
+                  <p>{t(descriptionKey)}</p>
                 </div>
-                {!external && <time>{t(dateKey)}</time>}
+                <time>{t(dateKey)}</time>
               </article>
-            )) : <p className="empty-notices">{noticeSearchError ? t(noticeSearchError) : t('noNotices')}</p>)}
+            )) : <p className="empty-notices">{t('noNotices')}</p>}
           </div>
           <p className="notice-disclaimer">{t('noticeDisclaimer')}</p>
         </section>

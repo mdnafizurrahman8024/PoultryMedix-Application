@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   BookOpen,
   Brain,
+  CreditCard,
   ChevronDown,
   ExternalLink,
   FileDown,
@@ -17,11 +18,12 @@ import { useLanguage } from '../context/useLanguage.js'
 import { readHistory, readPrescriptionHistory } from './historyStore.js'
 
 const historyTabs = [
-  { id: 'unified', label: 'All Clinical Logs' },
+  { id: 'unified', labelKey: 'historyAllClinicalLogsTab' },
   { id: 'diagnosis', labelKey: 'historyDiagnosisTab' },
   { id: 'chat', labelKey: 'historyChatTab' },
   { id: 'prescriptions', labelKey: 'historyPrescriptionsTab' },
-  { id: 'appointments', labelKey: 'historyAppointmentsTab' },
+  { id: 'consultations', labelKey: 'historyVetConsultationsTab' },
+  { id: 'payments', labelKey: 'historyPaymentHistoryTab' },
 ]
 
 const historyTabIcons = {
@@ -29,7 +31,8 @@ const historyTabIcons = {
   diagnosis: Brain,
   chat: MessageCircle,
   prescriptions: FileText,
-  appointments: Stethoscope,
+  consultations: Stethoscope,
+  payments: CreditCard,
 }
 
 function formattedDate(value, locale, options = { dateStyle: 'medium' }) {
@@ -109,7 +112,7 @@ function PrescriptionActions({ record, labels, onStatus, onRead }) {
 export default function ClinicalLog() {
   const { t, language } = useLanguage()
   const locale = { en: 'en-BD', bn: 'bn-BD', hi: 'hi-IN', ur: 'ur-PK' }[language] || 'en-BD'
-  const [activeTab, setActiveTab] = useState('diagnosis')
+  const [activeTab, setActiveTab] = useState('unified')
   const [history] = useState(() => {
     try {
       return {
@@ -176,6 +179,10 @@ export default function ClinicalLog() {
     downloadPdf: t('historyDownloadPdf'),
     share: t('historyShare'),
   }
+  const consultationHistory = [
+    ...appointments.map((record) => ({ ...record, historyType: 'appointment' })),
+    ...prescriptions.map((record) => ({ ...record, historyType: 'prescription' })),
+  ]
 
   return (
     <div className="veterinary-page clinical-history-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
@@ -211,7 +218,7 @@ export default function ClinicalLog() {
         {activeTab === 'unified' && (
           <HistoryList
             records={unifiedLogs}
-            emptyText="No saved clinical logs found yet. Start by analyzing a flock or scanning a prescription."
+            emptyText={t('historyNoClinicalLogs')}
             render={(record) => {
               const payload = record.payload || {}
               const summary = safeText(payload.summary, record.type.replaceAll('_', ' '))
@@ -310,11 +317,28 @@ export default function ClinicalLog() {
           />
         )}
 
-        {activeTab === 'appointments' && (
+        {activeTab === 'consultations' && (
           <HistoryList
-            records={appointments}
-            emptyText={t('historyNoAppointments')}
+            records={consultationHistory}
+            emptyText={t('historyNoVetConsultations')}
+            emptyDescription={t('historyNoVetConsultationsDescription')}
+            emptyIcon={Stethoscope}
             render={(record) => {
+              if (record.historyType === 'prescription') {
+                return (
+                  <article className="history-prescription-card dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" key={`consultation-prescription-${record.id}`}>
+                    <div className="history-entry-trigger history-prescription-summary">
+                      <span className="history-entry-icon history-entry-icon--teal"><Stethoscope size={18} /></span>
+                      <span className="history-entry-summary">
+                        <strong>{safeText(record.diagnosis, t('historyPrescriptionTitle'))}</strong>
+                        <small>{formattedDate(record.savedAt || record.createdAt, locale)} - {safeText(record.vetName, t('historyVetNotAssigned'))}</small>
+                      </span>
+                    </div>
+                    <p className="history-prescription-meta">{safeText(record.farmName, t('historyFarmNotListed'))} - {Array.isArray(record.medications) ? record.medications.length : 0} {t('historyMedicationCount')}</p>
+                    <PrescriptionActions record={record} labels={prescriptionLabels} onStatus={setActionStatus} onRead={setSelectedPrescription} />
+                  </article>
+                )
+              }
               const appointmentDate = new Date(`${record.date}T${record.time || '00:00'}`)
               const isUpcoming = !Number.isNaN(appointmentDate.getTime()) && appointmentDate >= new Date()
               return (
@@ -324,17 +348,37 @@ export default function ClinicalLog() {
                     <div><strong>{safeText(record.vetName, t('historyVetNotAssigned'))}</strong><small>{formattedDate(appointmentDate, locale, { dateStyle: 'medium', timeStyle: 'short' })}</small></div>
                     <span className={`history-status${isUpcoming ? ' history-status--upcoming' : ''}`}>{isUpcoming ? t('historyUpcoming') : t('historyCompleted')}</span>
                   </div>
-                  <div className="history-payment-grid">
+                  <div className="history-payment-grid history-consultation-grid">
                     <span><small>{t('historyConsultationStatus')}</small><strong>{isUpcoming ? t('historyBookingConfirmed') : t('historyConsultationPending')}</strong></span>
-                    <span><small>{t('historyPaymentAmount')}</small><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: record.currency || 'BDT', maximumFractionDigits: 0 }).format(Number(record.amount) || 0)}</strong></span>
-                    <span><small>{t('historyPaymentMethod')}</small><strong>{record.paymentMethodLabel || record.paymentMethod || t('historyNotAvailable')}</strong></span>
-                    <span><small>{t('historyPaymentStatus')}</small><strong>{t(record.paymentStatusKey || 'historyPaymentNotProcessed')}</strong></span>
+                    {record.concern && <span><small>{t('historyConsultationConcern')}</small><strong>{record.concern}</strong></span>}
                   </div>
-                  {record.concern && <p className="history-appointment-concern">{record.concern}</p>}
                   <p className="history-demo-note">{t('historyMockRecordNotice')}</p>
                 </article>
               )
             }}
+          />
+        )}
+
+        {activeTab === 'payments' && (
+          <HistoryList
+            records={appointments}
+            emptyText={t('historyNoPaymentHistory')}
+            emptyDescription={t('historyNoPaymentHistoryDescription')}
+            emptyIcon={CreditCard}
+            render={(record) => (
+              <article className="history-appointment-card history-payment-card dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" key={record.id}>
+                <div className="history-appointment-heading">
+                  <span className="history-entry-icon history-entry-icon--amber"><CreditCard size={18} /></span>
+                  <div><strong>{safeText(record.vetName, t('historyVetNotAssigned'))}</strong><small>{formattedDate(new Date(`${record.date}T${record.time || '00:00'}`), locale, { dateStyle: 'medium', timeStyle: 'short' })}</small></div>
+                </div>
+                <div className="history-payment-grid">
+                  <span><small>{t('historyPaymentAmount')}</small><strong>{new Intl.NumberFormat(locale, { style: 'currency', currency: record.currency || 'BDT', maximumFractionDigits: 0 }).format(Number(record.amount) || 0)}</strong></span>
+                  <span><small>{t('historyPaymentMethod')}</small><strong>{record.paymentMethodLabel || record.paymentMethod || t('historyNotAvailable')}</strong></span>
+                  <span><small>{t('historyPaymentStatus')}</small><strong>{t(record.paymentStatusKey || 'historyPaymentNotProcessed')}</strong></span>
+                </div>
+                <p className="history-demo-note">{t('historyMockRecordNotice')}</p>
+                </article>
+            )}
           />
         )}
       </section>
@@ -366,8 +410,8 @@ export default function ClinicalLog() {
   )
 }
 
-function HistoryList({ records, emptyText, render }) {
+function HistoryList({ records, emptyText, emptyDescription, emptyIcon: EmptyIcon = History, render }) {
   return records.length
     ? <div className="history-entry-list">{records.map(render)}</div>
-    :     <div className="history-empty"><span><History size={23} /></span><p>{emptyText}</p></div>
+    : <div className="history-empty"><span><EmptyIcon size={23} /></span><div><p>{emptyText}</p>{emptyDescription && <small>{emptyDescription}</small>}</div></div>
 }

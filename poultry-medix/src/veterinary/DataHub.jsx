@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useLanguage } from '../context/useLanguage.js'
 import Icon from '../components/Icon.jsx'
+import VoiceRecorder from '../components/VoiceRecorder.jsx'
 import { dataHubTopics, supportedUploadTypes } from './dataHubTopics.js'
 
 const maxFileBytes = 8 * 1024 * 1024
@@ -79,6 +80,8 @@ function safeExtension(file) {
 export default function DataHub({ onContributionSubmitted }) {
   const { t } = useLanguage()
   const fileInput = useRef(null)
+  const imageCameraInput = useRef(null)
+  const videoCameraInput = useRef(null)
   const [topic, setTopic] = useState(dataHubTopics[0])
   const [notes, setNotes] = useState('')
   const [birdInformation, setBirdInformation] = useState(initialBirdInformation)
@@ -97,10 +100,17 @@ export default function DataHub({ onContributionSubmitted }) {
   const [historyError, setHistoryError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [toastError, setToastError] = useState('')
 
   const showAntimicrobialFields = antimicrobialTopicSet.has(topic)
   const isClinicalSignsTopic = topic === clinicalSignsTopic
   const totalBytes = useMemo(() => files.reduce((sum, file) => sum + file.size, 0), [files])
+
+  useEffect(() => {
+    if (!toastError) return undefined
+    const timer = window.setTimeout(() => setToastError(''), 3500)
+    return () => window.clearTimeout(timer)
+  }, [toastError])
 
   function updateBirdInformation(field, value) {
     setBirdInformation((current) => ({ ...current, [field]: value }))
@@ -186,6 +196,11 @@ export default function DataHub({ onContributionSubmitted }) {
     event.preventDefault()
     setError('')
     setSuccess('')
+    setToastError('')
+    if (!shareLocation) {
+      setToastError(t('locationRequiredError'))
+      return
+    }
     const normalizedBirdInformation = {
       ...birdInformation,
       flockLabel: birdInformation.flockLabel.trim(),
@@ -295,13 +310,14 @@ export default function DataHub({ onContributionSubmitted }) {
 
   return (
     <div className="veterinary-page data-hub-page bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      {toastError && <div className="data-hub-toast" role="alert">{toastError}</div>}
       <section className="veterinary-page-heading">
         <span className="veterinary-kicker">{t('veterinaryToolsEyebrow')}</span>
         <h1>{t('dataHubTitle')}</h1>
         <p>{t('dataHubDescription')}</p>
       </section>
 
-      <form className="data-hub-form bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" onSubmit={submitContribution}>
+      <form className="data-hub-form bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" onSubmit={submitContribution} noValidate>
         <label className="veterinary-field">
           <span>{t('dataHubTopic')}</span>
           <select value={topic} onChange={(event) => setTopic(event.target.value)}>
@@ -446,22 +462,48 @@ export default function DataHub({ onContributionSubmitted }) {
             <div><h2 id="multimodal-upload-title">{t('multimodalUploadTitle')}</h2><p>{t('multimodalUploadHint')}</p></div>
           </div>
           <input ref={fileInput} className="visually-hidden-input" type="file" multiple accept="image/jpeg,image/png,image/webp,audio/*,application/pdf,video/mp4,video/webm,video/quicktime" onChange={(event) => selectFiles(event.target.files)} aria-label={t('multimodalUploadTitle')} />
+          <input ref={imageCameraInput} className="visually-hidden-input" type="file" accept="image/*" capture="environment" onChange={(event) => { selectFiles(event.target.files); event.target.value = '' }} aria-label={t('useLiveCamera')} />
+          <input ref={videoCameraInput} className="visually-hidden-input" type="file" accept="video/*" capture="environment" onChange={(event) => { selectFiles(event.target.files); event.target.value = '' }} aria-label={t('useLiveCamera')} />
           <div className="upload-type-grid">
-            {[
-              ['image', t('uploadImages')],
-              ['mic', t('uploadAudio')],
-              ['pdf', t('uploadDocuments')],
-              ['video', t('uploadVideos')],
-            ].map(([icon, label]) => (
-              <button className="upload-type-card dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" key={icon} onClick={() => fileInput.current?.click()}><Icon name={icon} size={19} /><strong>{label}</strong></button>
-            ))}
+            <div className="upload-type-category upload-type-category--images">
+              <div className="upload-type-category-heading"><Icon name="image" size={17} /><strong>{t('uploadImages')}</strong></div>
+              <div className="upload-type-category-actions">
+                <button className="upload-type-action upload-type-action--upload" type="button" onClick={() => fileInput.current?.click()}><Icon name="upload" size={15} /><span>{t('uploadShort')}</span></button>
+                <button className="upload-type-action upload-type-action--live" type="button" aria-label={t('useLiveCamera')} onClick={() => imageCameraInput.current?.click()}><Icon name="camera" size={15} /><span>{t('liveShort')}</span></button>
+              </div>
+            </div>
+            <div className="upload-type-category upload-type-category--documents">
+              <div className="upload-type-category-heading"><Icon name="pdf" size={17} /><strong>{t('uploadDocuments')}</strong></div>
+              <div className="upload-type-category-actions">
+                <button className="upload-type-action upload-type-action--upload" type="button" onClick={() => fileInput.current?.click()}><Icon name="upload" size={15} /><span>{t('uploadShort')}</span></button>
+                <button className="upload-type-action upload-type-action--live" type="button" aria-label={t('useLiveCamera')} onClick={() => imageCameraInput.current?.click()}><Icon name="camera" size={15} /><span>{t('liveShort')}</span></button>
+              </div>
+            </div>
+            <div className="upload-type-category upload-type-category--video">
+              <div className="upload-type-category-heading"><Icon name="video" size={17} /><strong>{t('uploadVideos')}</strong></div>
+              <div className="upload-type-category-actions">
+                <button className="upload-type-action upload-type-action--upload" type="button" onClick={() => fileInput.current?.click()}><Icon name="upload" size={15} /><span>{t('uploadShort')}</span></button>
+                <button className="upload-type-action upload-type-action--live" type="button" aria-label={t('useLiveCamera')} onClick={() => videoCameraInput.current?.click()}><Icon name="camera" size={15} /><span>{t('liveShort')}</span></button>
+              </div>
+            </div>
+            <div className="upload-type-category upload-type-category--audio">
+              <div className="upload-type-category-heading"><Icon name="mic" size={17} /><strong>{t('uploadAudio')}</strong></div>
+              <div className="upload-type-category-actions">
+                <button className="upload-type-action upload-type-action--upload" type="button" onClick={() => fileInput.current?.click()}><Icon name="upload" size={15} /><span>{t('uploadShort')}</span></button>
+                <VoiceRecorder compact buttonLabel={t('liveShort')} buttonAriaLabel={t('recordLiveAudio')} onAudioReady={(blob) => {
+                  const type = (blob.type || 'audio/webm').split(';')[0]
+                  const extension = type.includes('mp4') ? 'm4a' : type.includes('mpeg') ? 'mp3' : 'webm'
+                  selectFiles([new File([blob], `contribution-audio-${Date.now()}.${extension}`, { type })])
+                }} />
+              </div>
+            </div>
           </div>
           {files.length > 0 && <ul className="data-hub-file-list">{files.map((file, index) => <li key={`${file.name}-${file.size}`}><span><Icon name={file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'mic' : file.type === 'application/pdf' ? 'pdf' : 'image'} size={15} />{file.name}</span><button type="button" aria-label={t('removeFile', { name: file.name })} onClick={() => removeFile(index)}><Icon name="remove" size={16} /></button></li>)}</ul>}
           <p className="upload-size-note">{t('dataHubFileLimits', { count: files.length, size: (totalBytes / (1024 * 1024)).toFixed(1) })}</p>
         </section>
 
         <label className="share-location-consent">
-          <input type="checkbox" checked={shareLocation} onChange={(event) => setShareLocation(event.target.checked)} />
+          <input type="checkbox" aria-required="true" checked={shareLocation} onChange={(event) => { setShareLocation(event.target.checked); if (event.target.checked) setToastError('') }} />
           <span><strong>{t('shareApproximateLocation')}</strong><small>{t('approximateLocationPrivacy')}</small></span>
         </label>
         {error && <p className="veterinary-error" role="alert">{error}</p>}

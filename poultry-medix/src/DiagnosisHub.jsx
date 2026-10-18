@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { runMultimodalDiagnosis } from './lib/ai.js'
 import { useLanguage } from './context/useLanguage.js'
@@ -7,6 +7,7 @@ import VoiceRecorder from './components/VoiceRecorder.jsx'
 import PrescriptionLookup from './veterinary/PrescriptionLookup.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
 import { saveHistoryEntry, saveUnifiedLog } from './veterinary/historyStore.js'
+import useSpeechToText from './hooks/useSpeechToText.js'
 
 const maxFileSize = 8 * 1024 * 1024
 const withdrawalDetails = [
@@ -15,7 +16,7 @@ const withdrawalDetails = [
 ]
 
 export default function DiagnosisHub() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const imageInput = useRef(null)
   const imageCameraInput = useRef(null)
   const audioInput = useRef(null)
@@ -31,20 +32,9 @@ export default function DiagnosisHub() {
   const [historyWarning, setHistoryWarning] = useState('')
   const [modelWarning, setModelWarning] = useState('')
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false)
-  const [voiceTypingActive, setVoiceTypingActive] = useState(false)
-  const [recordingActive, setRecordingActive] = useState(false)
-  const [recordingSeconds, setRecordingSeconds] = useState(0)
   const [clinicalLogs, setClinicalLogs] = useState([])
   const [saveMessage, setSaveMessage] = useState('')
-
-  useEffect(() => {
-    if (!recordingActive) {
-      setRecordingSeconds(0)
-      return undefined
-    }
-    const timer = window.setInterval(() => setRecordingSeconds((seconds) => seconds + 1), 1000)
-    return () => window.clearInterval(timer)
-  }, [recordingActive])
+  const speech = useSpeechToText({ language, value: symptoms, onChange: setSymptoms, onError: (key) => setError(t(key)) })
 
   function handlePrescriptionFile(file) {
     const acceptedFile = acceptFile(file, 'prescription')
@@ -79,6 +69,7 @@ export default function DiagnosisHub() {
 
   async function submitDiagnosis(event) {
     event.preventDefault()
+    speech.stop()
     const files = [image, audio, prescription].filter(Boolean)
     if (!symptoms.trim() && !files.length) {
       setError(t('aiInputRequired'))
@@ -167,16 +158,16 @@ export default function DiagnosisHub() {
             <span className="diagnosis-section-icon"><Icon name="spark" size={20} /></span>
           </div>
           <label className="diagnosis-symptom-label dark:text-gray-100 dark:font-semibold" htmlFor="diagnosis-symptoms">{t('symptomsLabel')}</label>
-          <textarea
-            id="diagnosis-symptoms"
-            className="diagnosis-symptom-input dark:bg-gray-900 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
-            value={symptoms}
-            onChange={(event) => setSymptoms(event.target.value)}
-            placeholder={t('symptomsPlaceholder')}
-            rows="3"
-          />
-          <div className="diagnosis-voice-tools" aria-label={t('voiceTypingAria')}>
-            <button className={`diagnosis-voice-toggle dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700${voiceTypingActive ? ' is-active' : ''}`} type="button" aria-pressed={voiceTypingActive} aria-label={t('voiceTypingAria')} onClick={() => setVoiceTypingActive((active) => !active)}><Icon name="mic" size={16} />{voiceTypingActive ? `🔴 ${t('listening')}` : t('voiceTyping')}</button>
+          <div className="diagnosis-textarea-wrap">
+            <textarea
+              id="diagnosis-symptoms"
+              className="diagnosis-symptom-input dark:bg-gray-900 dark:text-white dark:border-gray-600 dark:placeholder-gray-400"
+              value={symptoms}
+              onChange={(event) => setSymptoms(event.target.value)}
+              placeholder={t('symptomsPlaceholder')}
+              rows="3"
+            />
+            <button className={`diagnosis-textarea-mic${speech.listening ? ' is-listening' : ''}`} type="button" aria-label={t(speech.listening ? 'stopVoiceTyping' : 'startVoiceTyping')} aria-pressed={speech.listening} onClick={() => { setError(''); speech.start() }} disabled={loading}><Icon name="mic" size={16} /></button>
           </div>
           <div className="diagnosis-attachment-grid diagnosis-media-grid">
           <section className="diagnosis-attachment" aria-labelledby="diagnosis-image-title">
@@ -201,20 +192,16 @@ export default function DiagnosisHub() {
             <div className="diagnosis-input-card-heading dark:text-gray-100">
               <span className="attachment-icon attachment-icon--audio"><Icon name="mic" size={19} /></span>
               <div><h3 id="diagnosis-audio-title" className="dark:text-white dark:font-bold">{t('audioObservationTitle')}</h3><p className="dark:text-gray-200">{audio?.name || t('audioObservationDescription')}</p></div>
-              {audio && <button className="remove-attachment" type="button" aria-label={t('removeAudio')} onClick={() => setAudio(null)}><Icon name="remove" size={16} /></button>}
+              {audio && <button className="remove-attachment" type="button" aria-label={t('removeAudio')} onClick={() => { setAudio(null); if (audioInput.current) audioInput.current.value = '' }}><Icon name="remove" size={16} /></button>}
             </div>
-            <div className="diagnosis-input-options">
-              <input ref={audioInput} className="visually-hidden-input" type="file" accept="audio/*" aria-label={t('uploadAudioFile')} onChange={(event) => setAudio(acceptFile(event.target.files?.[0], 'audio'))} />
-              <button className={`diagnosis-input-option dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700${audio ? ' has-file' : ''}`} type="button" aria-label={t('uploadAudioFile')} onClick={() => audioInput.current?.click()}>
+            <div className="upload-type-category-actions diagnosis-smart-audio-actions">
+              <input ref={audioInput} className="visually-hidden-input" type="file" accept="audio/*" aria-label={t('uploadAudioFile')} onChange={(event) => { setAudio(acceptFile(event.target.files?.[0], 'audio')); event.target.value = '' }} />
+              <button className="upload-type-action upload-type-action--upload" type="button" aria-label={t('uploadAudioFile')} onClick={() => audioInput.current?.click()}>
                 <Icon name="upload" size={15} /><span>{t('uploadShort')}</span>
               </button>
-              <div className="diagnosis-input-option diagnosis-input-option--record dark:text-gray-100 dark:border-gray-600">
-                <VoiceRecorder compact buttonLabel={t('liveShort')} buttonAriaLabel={t('recordLiveAudio')} onRecordingChange={setRecordingActive} onAudioReady={(blob) => setAudio(new File([blob], `flock-audio-${Date.now()}.webm`, { type: blob.type || 'audio/webm' }))} />
-                {recordingActive && <span className="diagnosis-recording-timer"><i />00:{String(recordingSeconds).padStart(2, '0')}</span>}
-              </div>
+              <VoiceRecorder compact buttonLabel={t('liveShort')} buttonAriaLabel={t('recordLiveAudio')} onAudioReady={(blob) => setAudio(new File([blob], `flock-audio-${Date.now()}.webm`, { type: blob.type || 'audio/webm' }))} />
             </div>
           </section>
-
           </div>
         </section>
 

@@ -5,6 +5,7 @@ import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
 import { saveHistoryEntry } from './veterinary/historyStore.js'
+import useSpeechToText from './hooks/useSpeechToText.js'
 
 const supportedMimeTypes = new Set([
   'image/jpeg', 'image/png', 'image/webp', 'application/pdf',
@@ -61,8 +62,7 @@ export default function AIChat() {
   const [historyWarning, setHistoryWarning] = useState('')
   const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const [recording, setRecording] = useState(false)
-  const [recordingSeconds, setRecordingSeconds] = useState(0)
+  const speech = useSpeechToText({ language, value: message, onChange: setMessage, onError: (key) => setDragError(t(key)) })
   const inputRef = useRef(null)
   const cameraInputRef = useRef(null)
   const listRef = useRef(null)
@@ -70,9 +70,6 @@ export default function AIChat() {
   const dragRef = useRef(null)
   const draggedRef = useRef(false)
   const suppressClickRef = useRef(false)
-  const recorderRef = useRef(null)
-  const streamRef = useRef(null)
-  const recordingTimerRef = useRef(null)
   const chatSessionId = useRef('')
   if (!chatSessionId.current) chatSessionId.current = crypto.randomUUID()
 
@@ -165,10 +162,11 @@ export default function AIChat() {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [open])
 
+  useEffect(() => {
+    if (!open) speech.stop()
+  }, [open, speech.stop])
+
   useEffect(() => () => {
-    recorderRef.current?.stop()
-    streamRef.current?.getTracks().forEach((track) => track.stop())
-    window.clearInterval(recordingTimerRef.current)
     const drag = dragRef.current
     if (drag) {
       if (drag.rafId) window.cancelAnimationFrame(drag.rafId)
@@ -267,50 +265,6 @@ export default function AIChat() {
     setOpen((value) => !value)
   }
 
-  function queueAudioBlob(blob) {
-    const extension = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('mpeg') ? 'mp3' : 'webm'
-    queueFiles([new File([blob], `voice-note-${Date.now()}.${extension}`, { type: blob.type || 'audio/webm' })])
-  }
-
-  async function startRecording() {
-    setDragError('')
-    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
-      setDragError(t('audioUnavailable'))
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4']
-        .find((type) => MediaRecorder.isTypeSupported(type))
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-      const chunks = []
-      recorder.addEventListener('dataavailable', (event) => {
-        if (event.data.size) chunks.push(event.data)
-      })
-      recorder.addEventListener('stop', () => {
-        const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
-        stream.getTracks().forEach((track) => track.stop())
-        streamRef.current = null
-        recorderRef.current = null
-        setRecording(false)
-        window.clearInterval(recordingTimerRef.current)
-        if (blob.size) queueAudioBlob(blob)
-      }, { once: true })
-      recorder.start()
-      recorderRef.current = recorder
-      streamRef.current = stream
-      setRecordingSeconds(0)
-      setRecording(true)
-      recordingTimerRef.current = window.setInterval(() => setRecordingSeconds((value) => value + 1), 1000)
-    } catch {
-      setDragError(t('audioPermissionError'))
-    }
-  }
-
-  function stopRecording() {
-    recorderRef.current?.stop()
-  }
-
   function queueFiles(fileList) {
     setDragError('')
     const incoming = Array.from(fileList)
@@ -335,6 +289,7 @@ export default function AIChat() {
   async function sendMessage(event) {
     event.preventDefault()
     if (loading || (!message.trim() && files.length === 0)) return
+    speech.stop()
     const question = message.trim()
     const queuedFiles = [...files]
     setMessages((previous) => [...previous, {
@@ -519,11 +474,7 @@ export default function AIChat() {
         <div className="chat-composer-wrap">
           {files.length > 0 && <div className="chat-queued-files">{files.map((file, index) => <span className="queued-file" key={`${file.name}-${index}`}><Icon name={file.type.startsWith('image/') ? 'image' : file.type === 'application/pdf' ? 'pdf' : 'mic'} size={13} /><span>{file.name}</span><button type="button" aria-label={t('removeFile', { name: file.name })} onClick={() => setFiles((previous) => previous.filter((_, fileIndex) => fileIndex !== index))}><Icon name="close" size={12} /></button></span>)}</div>}
           {dragError && <p className="chat-composer-error" role="alert">{dragError}</p>}
-          {recording ? <div className="chat-recording-panel dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
-            <div className="chat-recording-status"><span className="chat-recording-mic"><Icon name="mic" size={22} /></span><span><strong>{t('aiListening')}</strong><small>{t('aiSpeakNow')}</small></span><time>0:{String(recordingSeconds).padStart(2, '0')}s</time></div>
-            <div className="chat-waveform" aria-hidden="true">{Array.from({ length: 24 }, (_, index) => <i key={index} style={{ animationDelay: `${index * 45}ms` }} />)}</div>
-            <button className="chat-stop-recording" type="button" onClick={stopRecording}><Icon name="stop" size={15} />{t('aiStopRecording')}</button>
-          </div> : <form className="chat-composer dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" onSubmit={sendMessage}>
+          <form className="chat-composer dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" onSubmit={sendMessage}>
             <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder={t('chatPlaceholder')} rows="2" aria-label={t('chatPlaceholder')} onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
@@ -541,16 +492,16 @@ export default function AIChat() {
                   onClick={(event) => event.stopPropagation()}
                   style={{ position: 'absolute', bottom: '68px', left: '16px', width: '240px', backgroundColor: '#ffffff', border: '1px solid #d1fae5', borderRadius: '16px', padding: '8px', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.18)', zIndex: 9999 }}
                 >
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="upload" size={15} />{t('aiUploadFiles')}</button>
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setDragError(t('aiDriveUnavailable')) }}><Icon name="cloud" size={15} />{t('aiGoogleDrive')}</button>
                   <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); cameraInputRef.current?.click() }}><Icon name="camera" size={15} />{t('aiTakePhoto')}</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="upload" size={15} />{t('aiUploadFiles')}</button>
                   <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); inputRef.current?.click() }}><Icon name="pdf" size={15} />{t('antibiotics.aiPrescriptionPdf')}</button>
-                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); startRecording() }}><Icon name="mic" size={15} />{t('antibiotics.aiVoiceNote')}</button>
+                  <button style={{ backgroundColor: '#f8fafc', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', marginBottom: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'left' }} type="button" role="menuitem" onClick={() => { setAttachmentMenuOpen(false); setDragError(t('aiDriveUnavailable')) }}><Icon name="cloud" size={15} />{t('aiGoogleDrive')}</button>
                 </div>}
               </div>
+              <button className={`chat-tool-button speech-mic-button${speech.listening ? ' is-listening' : ''}`} type="button" aria-label={t(speech.listening ? 'stopVoiceTyping' : 'startVoiceTyping')} aria-pressed={speech.listening} onClick={() => { setDragError(''); speech.start() }} disabled={loading}><Icon name="mic" size={16} /></button>
               <button className="chat-send-button" type="submit" disabled={loading || (!message.trim() && !files.length)} aria-label={t('sendMessage')}><Icon name="send" size={16} /></button>
             </div>
-          </form>}
+          </form>
           <p className="chat-disclaimer">{t('aiInformationalNotice')}</p>
         </div>
       </section>}
