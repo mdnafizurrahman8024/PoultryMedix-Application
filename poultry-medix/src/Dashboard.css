@@ -964,6 +964,7 @@ html[data-theme="dark"] .mobile-profile-control {
 }
 
 .dashboard-content {
+  position: relative;
   width: min(100% - 48px, 1020px);
   margin: 0 auto;
   padding: 36px 0 30px;
@@ -978,6 +979,68 @@ html[data-theme="dark"] .mobile-profile-control {
 .dashboard-content > section:nth-child(3) { animation-delay: 90ms; }
 .dashboard-content > section:nth-child(4) { animation-delay: 135ms; }
 .dashboard-content > section:nth-child(5) { animation-delay: 180ms; }
+
+@media (min-width: 1024px) {
+  .dashboard-content {
+    width: min(calc(100% - 96px), 1400px);
+    max-width: 1400px;
+  }
+
+  .dashboard-content > .ai-chat-widget {
+    position: static;
+  }
+
+  .dashboard-greeting {
+    padding-right: 122px;
+  }
+
+  .dashboard-content {
+    font-size: 16px;
+  }
+
+  .dashboard-kicker {
+    font-size: 11px;
+  }
+
+  .dashboard-greeting > div > p:last-child {
+    font-size: 15px;
+  }
+
+  .weather-location p {
+    font-size: 13px;
+  }
+
+  .weather-condition small {
+    font-size: 13px;
+  }
+
+  .weather-metrics > div > span {
+    font-size: 14px;
+  }
+
+  .weather-metrics strong {
+    font-size: 16px;
+  }
+
+  .weather-metrics strong small {
+    font-size: 12px;
+  }
+
+  .heat-alert small,
+  .notice-copy p {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 767px) {
+  .dashboard-content > .ai-chat-widget {
+    position: static;
+  }
+
+  .dashboard-greeting {
+    padding-right: 88px;
+  }
+}
 
 @keyframes page-enter {
   from { opacity: 0; transform: translateY(10px); }
@@ -4125,5 +4188,40 @@ html[data-theme="dark"] .mobile-profile-control {
 
   .mobile-points-trigger {
     width: 36px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .weather-metrics > div > span {
+    font-size: 14px;
+  }
+
+  .weather-metrics strong {
+    font-size: 16px;
+  }
+
+  .weather-metrics strong small {
+    font-size: 12px;
+  }
+
+  .dashboard-content {
+    font-size: 16px;
+  }
+
+  .dashboard-greeting > div > p:last-child,
+  .heat-alert small,
+  .notice-copy p {
+    font-size: 14px;
+  }
+}
+
+.dashboard-content > .ai-chat-widget {
+  position: static;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-shell,
+  .app-shell {
+    font-size: 18px;
   }
 }

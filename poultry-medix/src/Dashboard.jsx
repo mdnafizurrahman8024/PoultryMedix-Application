@@ -82,6 +82,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false)
   const [desktopProfileMenuOpen, setDesktopProfileMenuOpen] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isWideDesktop, setIsWideDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
   const [showPointsPopup, setShowPointsPopup] = useState(false)
   const languageMenuRef = useRef(null)
   const mobileLanguageMenuRef = useRef(null)
@@ -125,6 +126,14 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [shareMessage, setShareMessage] = useState('')
   const [guidelinesExpanded, setGuidelinesExpanded] = useState(false)
   const [activeView, setActiveView] = useState('home')
+
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 1024px)')
+    const updateDesktopLayout = () => setIsWideDesktop(desktopQuery.matches)
+    updateDesktopLayout()
+    desktopQuery.addEventListener('change', updateDesktopLayout)
+    return () => desktopQuery.removeEventListener('change', updateDesktopLayout)
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -535,7 +544,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   )
 
   return (
-    <main className="dashboard-shell w-full min-w-0 max-w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+    <main className="dashboard-shell w-full min-w-0 max-w-full md:text-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
       <header className={`dashboard-header bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:border-gray-700${isMobileMenuOpen || showPointsPopup ? ' is-mobile-menu-open' : ''}`} ref={headerRef}>
         <a className="dashboard-brand" href="#dashboard" aria-label={t('brand')} onClick={() => setActiveView('home')}>
           <img className="dashboard-brand-mark" src="/images/logo.png" alt="" />
@@ -641,7 +650,8 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         )}
       </header>
 
-      <div className="dashboard-content min-w-0 max-w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
+      <div className="dashboard-content w-full min-w-0 max-w-full md:max-w-7xl mx-auto px-4 md:px-8 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" style={isWideDesktop ? { width: 'min(calc(100% - 96px), 1280px)', maxWidth: '1280px', marginInline: 'auto', paddingInline: '32px' } : undefined}>
+        <AIChat isWideDesktop={isWideDesktop} />
         {activeView === 'home' ? <>
         <section className="dashboard-greeting">
           <div>
@@ -767,18 +777,20 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       </div>
       {pointsToast && <div className="points-toast" role="status">+10 Point earned for your contribution!</div>}
 
-      <nav className="bottom-navigation" aria-label={t('featureNavigation')}>
-        {[
-          ['home', 'home', 'bottomHome'],
-          ['map', 'map', 'bottomMap'],
-          ['history', 'clipboard', 'clinicalHistoryNav'],
-          ['data', 'brain', 'bottomContribute'],
-          ['telemedicine', 'stethoscope', 'consultVetNav'],
-        ].map(([view, icon, label]) => (
-          <button type="button" key={view} aria-current={activeView === view ? 'page' : undefined} className={activeView === view ? 'active' : ''} onClick={() => setActiveView(view)}>
-            <Icon name={icon} size={19} /><span>{t(label)}</span>
-          </button>
-        ))}
+      <nav className="bottom-navigation w-full md:max-w-7xl mx-auto" aria-label={t('featureNavigation')} style={isWideDesktop ? { display: 'flex', width: '100vw', maxWidth: 'none', boxSizing: 'border-box', left: '50%', right: 'auto', transform: 'translateX(-50%)' } : undefined}>
+        <div className="bottom-navigation-items flex w-full justify-between items-center px-2 md:px-8" style={isWideDesktop ? { display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', paddingInline: '32px' } : undefined}>
+          {[
+            ['home', 'home', 'bottomHome'],
+            ['map', 'map', 'bottomMap'],
+            ['history', 'clipboard', 'clinicalHistoryNav'],
+            ['data', 'brain', 'bottomContribute'],
+            ['telemedicine', 'stethoscope', 'consultVetNav'],
+          ].map(([view, icon, label]) => (
+            <button type="button" key={view} aria-current={activeView === view ? 'page' : undefined} className={`flex-1 flex flex-col items-center justify-center min-w-[70px] md:min-w-[100px] text-center${activeView === view ? ' active' : ''}`} onClick={() => setActiveView(view)} style={isWideDesktop ? { display: 'flex', flex: '1 1 0', minWidth: '100px', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' } : undefined}>
+              <Icon name={icon} size={19} /><span className="text-xs md:text-base font-medium" style={isWideDesktop ? { maxWidth: 'none', overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap', fontSize: '16px', fontWeight: 500 } : undefined}>{t(label)}</span>
+            </button>
+          ))}
+        </div>
       </nav>
 
       {settingsOpen && (
@@ -868,7 +880,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           </section>
         </div>
       )}
-      <AIChat />
     </main>
   )
 }

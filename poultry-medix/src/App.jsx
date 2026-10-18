@@ -228,7 +228,7 @@ function App() {
   }
 
   return (
-    <main className="app-shell bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
+    <main className="app-shell md:text-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       <section className="story-panel bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" aria-label={t('brand')}>
         <div className="story-topline">
           <a className="brand" href="#home" aria-label={t('brand')}>

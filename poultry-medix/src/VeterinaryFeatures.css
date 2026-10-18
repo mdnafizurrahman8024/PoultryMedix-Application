@@ -1551,6 +1551,16 @@
   white-space: nowrap;
 }
 
+.bottom-navigation-items {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.bottom-navigation-items > button {
+  flex: 1 1 0;
+}
+
 .team-lead-card {
   overflow: hidden;
   border: 1px solid #dce8d8;
@@ -3031,6 +3041,14 @@ button.history-entry-trigger:focus-visible,
     -webkit-overflow-scrolling: touch;
   }
 
+  .bottom-navigation-items {
+    width: max-content;
+    min-width: max-content;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 16px;
+  }
+
   .bottom-navigation::-webkit-scrollbar {
     display: none;
   }
@@ -3044,5 +3062,61 @@ button.history-entry-trigger:focus-visible,
   .bottom-navigation button span {
     max-width: none;
     overflow: visible;
+  }
+}
+
+@media (min-width: 1024px) {
+  .bottom-navigation {
+    right: auto;
+    left: 50%;
+    width: 100vw;
+    max-width: 100vw;
+    transform: translateX(-50%);
+  }
+}
+
+@media (min-width: 1024px) {
+  .weather-metrics > div > span {
+    font-size: 18px;
+  }
+
+  .weather-metrics strong {
+    font-size: 22px;
+  }
+
+  .weather-metrics strong small {
+    font-size: 16px;
+  }
+
+  .weather-location p,
+  .weather-condition small,
+  .heat-alert small,
+  .notice-copy p {
+    font-size: 16px;
+  }
+
+  .dose-calculator-trigger {
+    font-size: 20px;
+  }
+
+  .dose-helper h4 {
+    font-size: 21px;
+  }
+
+  .dose-helper > p,
+  .dose-inputs label {
+    font-size: 18px;
+  }
+
+  .dose-inputs input {
+    font-size: 18px;
+  }
+
+  .dose-calculate-button {
+    font-size: 20px;
+  }
+
+  .dose-calculation {
+    font-size: 22px;
   }
 }

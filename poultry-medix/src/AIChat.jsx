@@ -42,14 +42,11 @@ function VetDoctorChatImage({ className, alt = 'PoultryMedix AI Diagnostic', siz
     />
   )
 }
-export default function AIChat() {
+export default function AIChat({ isWideDesktop = false }) {
   const { t, language } = useLanguage()
   const [userRole, setUserRole] = useState('farmer')
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState(() => ({
-    x: typeof window === 'undefined' ? 0 : Math.max(8, window.innerWidth - 88),
-    y: typeof window === 'undefined' ? 0 : Math.max(8, window.innerHeight - 180),
-  }))
+  const [position, setPosition] = useState({ x: null, y: 0 })
   const [files, setFiles] = useState([])
   const [message, setMessage] = useState('')
   const [messages, setMessages] = useState([])
@@ -134,11 +131,14 @@ export default function AIChat() {
       const fab = fabRef.current
       if (!fab) return
       window.requestAnimationFrame(() => {
+        const container = fab.closest('.dashboard-content')
+        const containerBounds = container?.getBoundingClientRect()
+        if (!containerBounds) return
         const width = fab.offsetWidth || 70
         const height = fab.offsetHeight || 90
-        setPosition((current) => ({
-          x: Math.max(8, Math.min(window.innerWidth - width - 8, current.x)),
-          y: Math.max(8, Math.min(window.innerHeight - height - 8, current.y)),
+        setPosition((current) => current.x === null ? current : ({
+          x: Math.max(8, Math.min(containerBounds.width - width - 8, current.x)),
+          y: Math.max(8, Math.min(containerBounds.height - height - 8, current.y)),
         }))
       })
     }
@@ -205,11 +205,14 @@ export default function AIChat() {
     event.preventDefault()
     const fab = fabRef.current
     const bounds = fab?.getBoundingClientRect()
+    const containerBounds = fab?.closest('.dashboard-content')?.getBoundingClientRect()
     const drag = {
       startX: point.clientX,
       startY: point.clientY,
-      originX: bounds?.left ?? position.x,
-      originY: bounds?.top ?? position.y,
+      originX: bounds && containerBounds ? bounds.left - containerBounds.left : (position.x ?? 0),
+      originY: bounds && containerBounds ? bounds.top - containerBounds.top : position.y,
+      containerWidth: containerBounds?.width || window.innerWidth,
+      containerHeight: containerBounds?.height || window.innerHeight,
       moved: false,
       rafId: 0,
       moveMouse: null,
@@ -229,8 +232,8 @@ export default function AIChat() {
         const width = fabRef.current?.offsetWidth || 70
         const height = fabRef.current?.offsetHeight || 90
         setPosition({
-          x: Math.max(8, Math.min(window.innerWidth - width - 8, drag.originX + deltaX)),
-          y: Math.max(8, Math.min(window.innerHeight - height - 8, drag.originY + deltaY)),
+          x: Math.max(8, Math.min(drag.containerWidth - width - 8, drag.originX + deltaX)),
+          y: Math.max(8, Math.min(drag.containerHeight - height - 8, drag.originY + deltaY)),
         })
       })
     }
@@ -561,9 +564,11 @@ export default function AIChat() {
         onTouchStart={(event) => startDrag(event, 'touch')}
         onClick={activateFab}
         style={{
-          position: 'fixed',
-          left: `${position.x}px`,
-          top: `${position.y}px`,
+          position: 'absolute',
+          left: position.x === null ? 'auto' : `${position.x}px`,
+          right: position.x === null ? '0px' : 'auto',
+          top: position.x === null ? `${isWideDesktop ? 36 : 20}px` : `${position.y}px`,
+          bottom: 'auto',
           zIndex: 999999,
           display: 'flex',
           flexDirection: 'column',
