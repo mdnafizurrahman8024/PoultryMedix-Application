@@ -2379,6 +2379,32 @@
   border-radius: 9px;
 }
 
+.prescription-rag-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  color: #41654d;
+  background: #eef7ed;
+  font-size: 13px;
+}
+
+.prescription-rag-source {
+  margin-top: 10px;
+  padding: 11px;
+  border-left: 3px solid #78a99b;
+  border-radius: 7px;
+  background: #f4f8f3;
+  line-height: 1.55;
+}
+
+.prescription-rag-source p,
+.prescription-rag-transcription p {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+
 .drug-info-accordion-content .withdrawal-guidelines article.withdrawal-local {
   border: 1px solid #c9dfc1;
   background: #eff8ec;

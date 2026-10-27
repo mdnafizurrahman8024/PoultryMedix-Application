@@ -1,19 +1,15 @@
 import { useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
-import { runMultimodalDiagnosis } from './lib/ai.js'
+import { analyzeSmartDiagnosis, scanPrescription } from './lib/ai.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
 import PrescriptionLookup from './veterinary/PrescriptionLookup.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
-import { saveHistoryEntry, saveUnifiedLog } from './veterinary/historyStore.js'
+import { saveHistoryEntry, saveLocalPrescriptionAttachment, saveUnifiedLog } from './veterinary/historyStore.js'
 import useSpeechToText from './hooks/useSpeechToText.js'
 
 const maxFileSize = 8 * 1024 * 1024
-const withdrawalDetails = [
-  { name: 'Enrofloxacin 10%', className: 'Fluoroquinolone • Used for CRD, colibacillosis', status: 'Antibiotic', localMeat: '7 days', localEggs: 'Not for layers', intlMeat: '8-10 days', intlEggs: 'Not permitted' },
-  { name: 'Colistin', className: 'Polymyxin (Banned)', status: 'Antibiotic • Banned', localMeat: 'Banned', localEggs: 'Banned', intlMeat: 'Banned', intlEggs: 'Banned' },
-]
 
 export default function DiagnosisHub() {
   const { t, language } = useLanguage()
@@ -31,15 +27,96 @@ export default function DiagnosisHub() {
   const [error, setError] = useState('')
   const [historyWarning, setHistoryWarning] = useState('')
   const [modelWarning, setModelWarning] = useState('')
+  const [, setClinicalLogs] = useState([])
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false)
-  const [clinicalLogs, setClinicalLogs] = useState([])
+  const [prescriptionLoading, setPrescriptionLoading] = useState(false)
+  const [prescriptionError, setPrescriptionError] = useState('')
+  const [prescriptionResult, setPrescriptionResult] = useState(null)
   const [saveMessage, setSaveMessage] = useState('')
   const speech = useSpeechToText({ language, value: symptoms, onChange: setSymptoms, onError: (key) => setError(t(key)) })
 
-  function handlePrescriptionFile(file) {
+  async function savePrescriptionAnalysis(file, result) {
+    const recordId = crypto.randomUUID()
+    const medicines = Array.isArray(result.medicines) ? result.medicines : []
+    const summary = medicines.map((medicine) => medicine.tradeName || medicine.genericNames?.join(', ')).filter(Boolean).join(', ') || 'Prescription scan: no medicine identified'
+    let imageUrl = ''
+    try {
+      imageUrl = await saveLocalPrescriptionAttachment(file, recordId)
+    } catch (attachmentError) {
+      console.error('Unable to save prescription attachment to device history.', attachmentError)
+    }
+
+    let databaseSaved = false
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+      const user = data.session?.user
+      if (user) {
+        const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+        const storagePath = `${user.id}/prescription-scans/${recordId}-${safeFileName}`
+        const { error: uploadError } = await supabase.storage.from('clinical-submissions').upload(storagePath, file, { contentType: file.type, upsert: false })
+        if (uploadError) throw uploadError
+        const { data: signedImage, error: signedUrlError } = await supabase.storage.from('clinical-submissions').createSignedUrl(storagePath, 60 * 60 * 24 * 365)
+        if (signedUrlError) console.error('Unable to create prescription attachment URL.', signedUrlError)
+        const { error: insertError } = await supabase.from('prescription_analysis_logs').insert({
+          id: recordId,
+          user_id: user.id,
+          file_name: file.name,
+          image_path: storagePath,
+          image_url: signedImage?.signedUrl || null,
+          transcription: result.transcription || '',
+          medicines,
+          sources: result.sources || [],
+        })
+        if (insertError) {
+          await supabase.storage.from('clinical-submissions').remove([storagePath])
+          throw insertError
+        }
+        imageUrl = storagePath
+        databaseSaved = true
+      }
+    } catch (databaseError) {
+      console.error('Unable to save prescription scan to Supabase Clinical Log.', databaseError)
+    }
+
+    saveUnifiedLog('PRESCRIPTION_SCAN', {
+      summary,
+      fileName: file.name,
+      imageUrl,
+      transcription: result.transcription || '',
+      drugs: medicines.map((medicine) => ({
+        name: medicine.tradeName,
+        genericNames: medicine.genericNames || [],
+        withdrawalPeriod: medicine.withdrawalPeriod || 'Data not found in current guidelines.',
+        sources: (medicine.sources || []).map(({ label, url, provider }) => ({ label, url, provider })),
+      })),
+      sources: (result.sources || []).map(({ label, url, provider }) => ({ label, url, provider })),
+      databaseSaved,
+    }, recordId)
+    setSaveMessage(databaseSaved ? 'Prescription analysis saved to Clinical Log.' : 'Prescription analysis saved to this device’s Clinical Log.')
+  }
+
+  async function handlePrescriptionFile(file) {
     const acceptedFile = acceptFile(file, 'prescription')
     setPrescription(acceptedFile)
-    if (acceptedFile) setWithdrawalModalOpen(true)
+    setPrescriptionResult(null)
+    setPrescriptionError('')
+    setSaveMessage('')
+    if (!acceptedFile) return
+    setWithdrawalModalOpen(false)
+    setPrescriptionLoading(true)
+    try {
+      const result = await scanPrescription(acceptedFile)
+      setPrescriptionResult(result)
+      await savePrescriptionAnalysis(acceptedFile, result)
+      setWithdrawalModalOpen(true)
+    } catch (scanError) {
+      setPrescriptionError(scanError.message || 'Prescription analysis could not be completed.')
+      setError(scanError.message || 'Prescription analysis could not be completed.')
+      setWithdrawalModalOpen(true)
+    } finally {
+      setPrescriptionLoading(false)
+    }
   }
 
   function handlePrescriptionCapture(event) {
@@ -70,8 +147,8 @@ export default function DiagnosisHub() {
   async function submitDiagnosis(event) {
     event.preventDefault()
     speech.stop()
-    const files = [image, audio, prescription].filter(Boolean)
-    if (!symptoms.trim() && !files.length) {
+    const files = [image, audio].filter(Boolean)
+    if (!symptoms.trim() && !image && !audio) {
       setError(t('aiInputRequired'))
       return
     }
@@ -82,12 +159,15 @@ export default function DiagnosisHub() {
     try {
       const { data, error: sessionError } = await supabase.auth.getSession()
       if (sessionError) throw sessionError
-      if (!data.session?.access_token) throw new Error(t('aiSignInRequired'))
-      const result = await runMultimodalDiagnosis({
+      const accessToken = data.session?.access_token
+      if (!accessToken && !import.meta.env.DEV) throw new Error(t('aiSignInRequired'))
+      const result = await analyzeSmartDiagnosis({
         text: symptoms.trim(),
-        files,
-        accessToken: data.session.access_token,
-        onModelWarning: () => setModelWarning(t('visualModelUnavailable')),
+        imageFile: image,
+        audioFile: audio,
+        accessToken,
+        appLanguage: language,
+        onModelWarning: (modelError) => setModelWarning(`${t('visualModelUnavailable')} ${modelError.message}`),
       })
       setAnswer(result)
       setClinicalLogs((logs) => [...logs, {
@@ -99,6 +179,8 @@ export default function DiagnosisHub() {
         symptoms: symptoms.trim(),
         summary: symptoms.trim() || result.answer.slice(0, 140),
         answer: result.answer,
+        predictions: result.predictions,
+        differential_diagnosis: result.differential_diagnosis,
         files: files.map(({ name }) => name),
       })
       setSaveMessage(t('antibiotics.savedToClinicalLog'))
@@ -108,6 +190,8 @@ export default function DiagnosisHub() {
           createdAt: new Date().toISOString(),
           summary: symptoms.trim().slice(0, 140) || result.answer.slice(0, 140),
           answer: result.answer,
+          predictions: result.predictions,
+          differential_diagnosis: result.differential_diagnosis,
           sources: result.sources || [],
           visualResult: result.visualResult || null,
           files: files.map(({ name }) => name),
@@ -129,6 +213,9 @@ export default function DiagnosisHub() {
     setImage(null)
     setAudio(null)
     setPrescription(null)
+    setPrescriptionResult(null)
+    setPrescriptionError('')
+    setWithdrawalModalOpen(false)
     setAnswer(null)
     setError('')
     setModelWarning('')
@@ -224,13 +311,13 @@ export default function DiagnosisHub() {
           <div><span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionTwo')}</span><h3 id="prescription-info-title" className="dark:text-gray-100">{t('prescriptionWithdrawal')}</h3><p className="dark:text-gray-300">{t('prescriptionWithdrawalDescription')}</p></div>
           <span className="diagnosis-section-icon"><Icon name="pill" size={20} /></span>
         </div>
-        <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => handlePrescriptionFile(event.target.files?.[0])} />
+        <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => { handlePrescriptionFile(event.target.files?.[0]); event.target.value = '' }} />
         <input ref={prescriptionCameraInput} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} aria-label={t('useLiveCamera')} onChange={handlePrescriptionCapture} />
         <div className="diagnosis-prescription-actions">
           <button className="diagnosis-glass-button diagnosis-glass-button--primary dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" onClick={() => prescriptionCameraInput.current?.click()}><Icon name="camera" size={17} />{t('takePhotoScan')}</button>
           <button className="diagnosis-glass-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" onClick={() => prescriptionInput.current?.click()}><Icon name="upload" size={17} />{t('uploadPrescriptionPhoto')}</button>
         </div>
-        {prescription && <div className="diagnosis-selected-file"><Icon name="pdf" size={15} />{prescription.name}<button type="button" onClick={() => { setPrescription(null); if (prescriptionInput.current) prescriptionInput.current.value = ''; if (prescriptionCameraInput.current) prescriptionCameraInput.current.value = '' }} aria-label={t('removePrescription')}><Icon name="remove" size={14} /></button></div>}
+        {prescriptionLoading && <div className="prescription-rag-loading" role="status"><span className="ai-spinner" /> Reading prescription and searching medical references…</div>}
       </section>
 
       <section className="diagnosis-tool-card diagnosis-dose-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="dose-calculator-title">
@@ -244,19 +331,21 @@ export default function DiagnosisHub() {
       {withdrawalModalOpen && <div className="diagnosis-withdrawal-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setWithdrawalModalOpen(false) }}>
         <section className="diagnosis-withdrawal-modal dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="withdrawal-modal-title">
           <div className="diagnosis-modal-heading dark:text-gray-100"><div><span className="diagnosis-section-kicker dark:text-gray-300">{t('antibiotics.extractedResult')}</span><h3 id="withdrawal-modal-title">{t('antibiotics.drugWithdrawalInfo')}</h3></div><button className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" onClick={() => setWithdrawalModalOpen(false)} aria-label={t('antibiotics.closeWithdrawalInfo')}><Icon name="close" size={18} /></button></div>
-          <p className="drug-info-source dark:text-gray-300">{t('antibiotics.mockAnalysisNotice')}</p>
-          {withdrawalDetails.map((drug) => <article className="diagnosis-modal-drug dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700" key={drug.name}>
-            <div className="drug-info-title-row"><h4>{drug.name}</h4><span className="drug-class-badge">{drug.status}</span></div>
-            <p>{drug.className}</p>
-            <div className="withdrawal-guidelines"><article className="withdrawal-local"><strong>LOCAL GUIDELINES (BD DLS)</strong><p>Meat: {drug.localMeat}, Eggs: {drug.localEggs}</p></article><article className="withdrawal-international"><strong>INTERNATIONAL GUIDELINES (WHO/WOAH)</strong><p>Meat: {drug.intlMeat}, Eggs: {drug.intlEggs}</p></article></div>
-          </article>)}
-          <button className="diagnosis-save-log-button" type="button" onClick={() => {
-            const summary = withdrawalDetails.map(({ name }) => name).join(', ')
-            setClinicalLogs((logs) => [...logs, { type: 'Prescription Scan', summary, createdAt: new Date().toISOString() }])
-            saveUnifiedLog('PRESCRIPTION_SCAN', { drugs: withdrawalDetails, summary })
-            setWithdrawalModalOpen(false)
-            setSaveMessage(t('antibiotics.prescriptionSavedToHistory'))
-          }}>{t('saveClinicalLog')}</button>
+          {prescriptionResult && <>
+            {prescriptionResult.transcription && <details className="prescription-rag-transcription"><summary>Extracted prescription text</summary><p>{prescriptionResult.transcription}</p></details>}
+            {!prescriptionResult.medicines?.length && <p>Medicine names could not be reliably identified from this upload.</p>}
+            {prescriptionResult.medicines?.map((drug, index) => <article className="diagnosis-modal-drug dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700" key={`${drug.tradeName}-${index}`}>
+              <div className="drug-info-title-row"><h4>{drug.tradeName || 'Unidentified medicine'}</h4><span className="drug-class-badge">Trade name</span></div>
+              <p>Generic name(s): {drug.genericNames?.length ? drug.genericNames.join(', ') : 'Not resolved confidently.'}</p>
+              <div className="prescription-rag-source"><strong>Withdrawal Period</strong><p>{drug.withdrawalPeriod || 'Data not found in current guidelines.'}</p></div>
+              {drug.sources?.map((source, sourceIndex) => <div className="prescription-rag-source" key={`${source.label}-${sourceIndex}`}><strong>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.label}</a> : source.label}</strong><p>{source.content}</p></div>)}
+            </article>)}
+            <section className="prescription-rag-references" aria-labelledby="prescription-rag-references-title">
+              <h4 id="prescription-rag-references-title">Medical References / Sources</h4>
+              {prescriptionResult.sources?.length ? <ul>{prescriptionResult.sources.map((source) => <li key={source.label}>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.label}</a> : source.label} <span>({source.provider || source.metadata?.provider || 'Supabase documents'})</span></li>)}</ul> : <p>Source: Supabase documents returned no matching withdrawal-period reference.</p>}
+            </section>
+          </>}
+          {prescriptionError && <p className="diagnosis-error" role="alert">{prescriptionError}</p>}
         </section>
       </div>}
 
@@ -264,6 +353,18 @@ export default function DiagnosisHub() {
       {answer && <div className="ai-answer-card" aria-live="polite">
         <div className="ai-answer-heading"><span><Icon name="spark" size={17} />{t('aiTriageSummary')}</span><span className="ai-safety-label">{t('informationalOnly')}</span></div>
         {answer.visualResult && <p className="visual-classification"><Icon name="image" size={15} />{t('visualClassification')}: <strong>{answer.visualResult.label}</strong> ({Math.round(answer.visualResult.confidence * 100)}%)</p>}
+        {answer.predictions?.length > 0 && <section className="diagnosis-prediction-results" aria-labelledby="diagnosis-prediction-title">
+          <h3 id="diagnosis-prediction-title">Prediction breakdown</h3>
+          <p className="diagnosis-prediction-note">Percentages are supporting model/sign-match scores, not calibrated disease probabilities.</p>
+          {answer.predictions.map((prediction) => <article className="diagnosis-prediction-card" key={prediction.disease}>
+            <div className="diagnosis-prediction-heading"><strong>{prediction.disease}</strong><span>{prediction.overall_probability}</span></div>
+            <div className="diagnosis-prediction-breakdown">
+              <div><span>Clinical Signs</span><strong>{prediction.breakdown.clinical_sign_match}</strong></div>
+              <div><span>Image</span><strong>{prediction.breakdown.image_match}</strong></div>
+              <div><span>Audio</span><strong>{prediction.breakdown.audio_match}</strong></div>
+            </div>
+          </article>)}
+        </section>}
         <p className="ai-answer-text">{answer.answer}</p>
         <div className="ai-source-row"><span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>{answer.sources.map((source) => <span className="ai-source-name" key={source}>{source}</span>)}</div>
         <section className="reference-video-section" aria-labelledby="reference-video-title">

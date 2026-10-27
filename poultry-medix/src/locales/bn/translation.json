@@ -219,7 +219,7 @@
   "aiFileTooLarge": "প্রতিটি ফাইল ৮ MB বা তার কম হতে হবে।",
   "aiInputRequired": "রোগ নির্ণয় শুরু করতে লক্ষণ বা অন্তত একটি সংযুক্তি দিন।",
   "aiSignInRequired": "AI সরঞ্জাম ব্যবহারের জন্য আবার সাইন ইন করুন।",
-  "visualModelUnavailable": "ছবি শনাক্তকরণ মডেলটি পাওয়া যায়নি। Gemini তবুও ছবি ও অন্যান্য ইনপুট পর্যালোচনা করতে পারে।",
+  "visualModelUnavailable": "Teachable Machine ছবি শনাক্ত করতে পারেনি। ছবিটি Gemini-তে পাঠানো হয়নি।",
   "aiRequestFailed": "AI ট্রায়াজ সম্পন্ন হয়নি। আবার চেষ্টা করুন।",
   "analyzing": "পালের তথ্য বিশ্লেষণ হচ্ছে…",
   "analyzeFlock": "পাল বিশ্লেষণ করুন",

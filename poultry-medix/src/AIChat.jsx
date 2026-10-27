@@ -350,7 +350,7 @@ export default function AIChat() {
         accessToken,
         userRole,
         appLanguage: language,
-        onModelWarning: () => setModelWarning(t('visualModelUnavailable')),
+        onModelWarning: (modelError) => setModelWarning(`${t('visualModelUnavailable')} ${modelError.message}`),
       })
       const assistantMessage = {
         role: 'assistant',

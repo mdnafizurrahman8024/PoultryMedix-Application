@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useLanguage } from '../context/useLanguage.js'
 import { readHistory, readPrescriptionHistory } from './historyStore.js'
+import { supabase } from '../lib/supabase.js'
 
 const historyTabs = [
   { id: 'unified', labelKey: 'historyAllClinicalLogsTab' },
@@ -135,18 +136,60 @@ export default function ClinicalLog() {
   const { diagnoses, chats, prescriptions, appointments } = history
 
   useEffect(() => {
-    function loadUnifiedLogs() {
+    let active = true
+    async function loadUnifiedLogs() {
+      let localLogs = []
       try {
         const existingLogs = JSON.parse(localStorage.getItem('poultryMedixLogs') || '[]')
-        setUnifiedLogs(Array.isArray(existingLogs) ? existingLogs : [])
+        localLogs = Array.isArray(existingLogs) ? existingLogs : []
       } catch (loadError) {
         console.error('Unable to load unified clinical logs.', loadError)
-        setUnifiedLogs([])
+      }
+      if (active) setUnifiedLogs(localLogs)
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+        if (!sessionData.session?.user) return
+        const { data: scans, error: scansError } = await supabase
+          .from('prescription_analysis_logs')
+          .select('id,file_name,image_path,image_url,transcription,medicines,sources,created_at')
+          .order('created_at', { ascending: false })
+          .limit(100)
+        if (scansError) throw scansError
+        const storedScans = (scans || []).map((scan) => ({
+          id: scan.id,
+          date: new Date(scan.created_at).toLocaleString(),
+          type: 'PRESCRIPTION_SCAN',
+          payload: {
+            summary: (scan.medicines || []).map((medicine) => medicine.tradeName).filter(Boolean).join(', ') || 'Prescription scan',
+            fileName: scan.file_name,
+            imageUrl: scan.image_url || scan.image_path,
+            transcription: scan.transcription,
+            drugs: (scan.medicines || []).map((medicine) => ({
+              name: medicine.tradeName,
+              genericNames: medicine.genericNames || [],
+              withdrawalPeriod: medicine.withdrawalPeriod || 'Data not found in current guidelines.',
+              sources: medicine.sources || [],
+            })),
+            sources: scan.sources || [],
+            databaseSaved: true,
+          },
+        }))
+        if (active) {
+          const logsById = new Map(storedScans.map((log) => [String(log.id), log]))
+          for (const log of localLogs) logsById.set(String(log.id), { ...logsById.get(String(log.id)), ...log })
+          setUnifiedLogs([...logsById.values()].sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime()))
+        }
+      } catch (loadError) {
+        console.error('Unable to load saved prescription scans from Supabase.', loadError)
       }
     }
     loadUnifiedLogs()
     window.addEventListener('storage', loadUnifiedLogs)
-    return () => window.removeEventListener('storage', loadUnifiedLogs)
+    return () => {
+      active = false
+      window.removeEventListener('storage', loadUnifiedLogs)
+    }
   }, [])
 
   useEffect(() => {
@@ -230,7 +273,12 @@ export default function ClinicalLog() {
                   </div>
                   <div className="history-entry-details dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700">
                     {record.type === 'SMART_DIAGNOSIS' && <p>{safeText(payload.symptoms, payload.answer)}</p>}
-                    {record.type === 'PRESCRIPTION_SCAN' && <p>Scanned medicines: {Array.isArray(payload.drugs) ? payload.drugs.map(({ name }) => name).join(', ') : summary}</p>}
+                    {record.type === 'PRESCRIPTION_SCAN' && <>
+                      <p>Scanned medicines: {Array.isArray(payload.drugs) ? payload.drugs.map(({ name }) => name).filter(Boolean).join(', ') || summary : summary}</p>
+                      {Array.isArray(payload.drugs) && payload.drugs.map((drug, index) => <p key={`${drug.name}-${index}`}><strong>{drug.name}</strong>{drug.genericNames?.length ? ` (${drug.genericNames.join(', ')})` : ''} — Withdrawal: {drug.withdrawalPeriod || 'Data not found in current guidelines.'}</p>)}
+                      {payload.fileName && <p>Attachment: {payload.fileName}{payload.imageUrl && (payload.imageUrl.startsWith('https://') ? <> · <a href={payload.imageUrl} target="_blank" rel="noreferrer">Open saved image</a></> : ` · ${payload.imageUrl}`)}</p>}
+                      {Array.isArray(payload.sources) && payload.sources.length > 0 && <p>Sources: {payload.sources.map((source) => source.label).filter(Boolean).join('; ')}</p>}
+                    </>}
                     {record.type === 'FARMER_PRESCRIPTION' && <p>Farmer prescription for {safeText(payload.farmerName, 'an unassigned farmer')}.</p>}
                   </div>
                 </article>

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv'
 import express from 'express'
+import axios from 'axios'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import process from 'node:process'
@@ -13,8 +14,10 @@ const app = express()
 const port = Number(process.env.PORT || 8787)
 const geminiKey = process.env.GEMINI_API_KEY
 const openAiKey = process.env.OPENAI_API_KEY
-const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+const geminiVisionModel = 'gemini-3.8-flash'
+const geminiEmbeddingModel = process.env.GEMINI_EMBEDDING_MODEL || 'gemini-embedding-001'
 const maxFileBytes = 8 * 1024 * 1024
 const maxRequestBytes = 15 * 1024 * 1024
 const allowedMimeTypes = new Set([
@@ -58,6 +61,8 @@ app.get('/api/health', (_request, response) => {
   response.json({
     configured: Boolean(geminiKey && supabaseUrl && supabaseAnonKey),
     visualModelConfigured: Boolean(process.env.VITE_TEACHABLE_MACHINE_MODEL_URL),
+    prescriptionModel: geminiVisionModel,
+    prescriptionProvider: 'axios-rest',
   })
 })
 
@@ -112,11 +117,12 @@ function validateRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return 'A valid diagnosis request is required.'
   const text = typeof body.text === 'string' ? body.text.trim() : ''
   const attachments = Array.isArray(body.attachments) ? body.attachments : []
-  if (!text && attachments.length === 0) return 'Add symptoms or at least one file before submitting.'
+  if (!text && attachments.length === 0 && !body.visualResult) return 'Add symptoms or at least one file before submitting.'
   if (text.length > 12_000) return 'Text is too long. Please keep it under 12,000 characters.'
   if (attachments.length > 4) return 'Attach no more than four files at a time.'
   if (body.userRole !== undefined && !supportedUserRoles.has(body.userRole)) return 'The selected AI access role is invalid.'
   if (body.appLanguage !== undefined && (typeof body.appLanguage !== 'string' || body.appLanguage.length > 12)) return 'The selected app language is invalid.'
+  if (body.structuredMode !== undefined && typeof body.structuredMode !== 'boolean') return 'The selected diagnosis response mode is invalid.'
 
   let totalBytes = 0
   for (const attachment of attachments) {
@@ -208,6 +214,84 @@ async function createOpenAiEmbedding(input) {
   return embedding
 }
 
+async function createGeminiEmbedding(input) {
+  const embeddingResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiEmbeddingModel}:embedContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey },
+    body: JSON.stringify({
+      content: { parts: [{ text: input }] },
+      taskType: 'RETRIEVAL_QUERY',
+      outputDimensionality: 768,
+    }),
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!embeddingResponse.ok) {
+    const detail = await embeddingResponse.text()
+    console.error('Gemini prescription embedding failed.', embeddingResponse.status, detail)
+    throw new Error(`Gemini embedding request failed (${embeddingResponse.status}).`)
+  }
+  const result = await embeddingResponse.json()
+  const embedding = result.embedding?.values
+  if (!Array.isArray(embedding) || embedding.length !== 768 || embedding.some((value) => !Number.isFinite(value))) {
+    throw new Error('Gemini returned an embedding that does not match the 768-dimension documents corpus.')
+  }
+  return embedding
+}
+
+async function searchPrescriptionDocs(query) {
+  const embedding = await createGeminiEmbedding(query)
+  const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/match_veterinary_docs`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey,
+      authorization: `Bearer ${supabaseAnonKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ query_embedding: embedding, match_threshold: 0.5, match_count: 8 }),
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!rpcResponse.ok) {
+    const detail = await rpcResponse.text()
+    console.error('Supabase prescription vector search failed.', rpcResponse.status, detail)
+    throw new Error(`Supabase vector search failed (${rpcResponse.status}). Apply the prescription vector-search migration and verify documents access.`)
+  }
+  const matches = await rpcResponse.json()
+  return Array.isArray(matches) ? matches : []
+}
+
+async function geminiGenerateContent(parts, generationConfig) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${encodeURIComponent(geminiKey)}`
+  try {
+    const result = await axios.post(endpoint, {
+      contents: [{ role: 'user', parts }],
+      generationConfig,
+    }, {
+      headers: {
+        'content-type': 'application/json',
+      },
+      timeout: 90_000,
+    })
+    const text = result.data?.candidates?.[0]?.content?.parts
+      ?.filter((part) => typeof part.text === 'string')
+      .map((part) => part.text)
+      .join('\n')
+      .trim()
+    if (!text) throw new Error('Gemini returned an empty response.')
+    return text
+  } catch (error) {
+    const status = error.response?.status || error.status || null
+    const apiMessage = error.response?.data?.error?.message
+    console.error('[prescription-rag] Gemini REST diagnostics', {
+      model: geminiVisionModel,
+      message: apiMessage || error.message,
+      status,
+      code: error.code || null,
+      response: error.response?.data?.error || null,
+    })
+    throw new Error(`Gemini prescription analysis failed${status ? ` (${status})` : ''}: ${apiMessage || error.message || 'Check the server network connection, model, API key, and image.'}`)
+  }
+}
+
 async function matchVeterinaryDocs(embedding, authorization) {
   const rpcResponse = await fetch(`${supabaseUrl}/rest/v1/rpc/match_veterinary_docs`, {
     method: 'POST',
@@ -297,6 +381,112 @@ async function searchExternalVeterinarySource(keyword) {
     url,
   }
 }
+
+app.post('/api/prescription-scan', async (request, response) => {
+  const { name, mimeType } = request.body || {}
+  const submittedData = request.body?.data
+  const data = typeof submittedData === 'string'
+    ? submittedData.replace(/^data:[^;,]+;base64,/i, '')
+    : submittedData
+  if (!['application/pdf', 'image/jpeg', 'image/png'].includes(mimeType) || typeof data !== 'string' || !data || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+    return response.status(400).json({ error: 'Upload a readable PDF, JPG, or PNG prescription.' })
+  }
+  if (Math.floor(data.length * 3 / 4) > maxFileBytes) return response.status(413).json({ error: 'The prescription must be 8 MB or smaller.' })
+  const guestKey = `prescription-guest:${request.ip}`
+  const now = Date.now()
+  const recent = (requestsByUser.get(guestKey) || []).filter((time) => now - time < 60_000)
+  if (recent.length >= 8) return response.status(429).json({ error: 'Please wait a minute before scanning another prescription.' })
+  recent.push(now)
+  requestsByUser.set(guestKey, recent)
+  console.info('[prescription-rag] Scan accepted', { fileName: name, mimeType, sizeBytes: Math.floor(data.length * 3 / 4), visionModel: geminiVisionModel, embeddingModel: geminiEmbeddingModel })
+  if (!geminiKey) {
+    return response.status(503).json({ error: 'Prescription scanning is not configured: GEMINI_API_KEY is missing on the server.' })
+  }
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return response.status(503).json({ error: 'Prescription search is not configured: Supabase URL and anon key are missing on the server.' })
+  }
+
+  try {
+    const mime = mimeType === 'application/pdf' ? 'application/pdf' : mimeType
+    const visionText = await geminiGenerateContent([
+      { text: 'Read this poultry veterinary prescription. Transcribe the medicine lines and identify only Trade Names/brand names that are clearly visible. Return JSON only: {"transcription":"...","medicines":[{"tradeName":"...","strength":"..."}]}. Do not guess unreadable text.' },
+      { inlineData: { mimeType: mime, data } },
+    ], { responseMimeType: 'application/json', temperature: 0 })
+    let extracted
+    try { extracted = JSON.parse(visionText.replace(/^```(?:json)?\s*|\s*```$/gi, '')) } catch { throw new Error('Gemini returned invalid OCR data. Please try a clearer prescription image or PDF.') }
+    const tradeNames = [...new Set((Array.isArray(extracted.medicines) ? extracted.medicines : [])
+      .map((item) => typeof item.tradeName === 'string' ? item.tradeName.trim() : '').filter(Boolean))].slice(0, 12)
+    console.info('[prescription-rag] OCR completed', { fileName: name, extractedMedicineCount: extracted.medicines?.length || 0, tradeNames })
+    if (!tradeNames.length) return response.json({ fileName: name, transcription: extracted.transcription || '', medicines: [], message: 'No medicine trade names could be reliably identified.', sources: [] })
+    const resolutionText = await geminiGenerateContent([{ text: [
+      'Resolve these poultry medicine trade names to their active generic/INN names using standard pharmacology knowledge.',
+      'Do not guess ambiguous brands. Return JSON only in this shape: {"medicines":[{"tradeName":"...","genericNames":["..."],"confidence":"high|medium|low"}]}.',
+      'If uncertain, return an empty genericNames array for that trade name.',
+      JSON.stringify({ medicines: extracted.medicines, tradeNames }),
+    ].join('\n') }], { responseMimeType: 'application/json', temperature: 0 })
+    let resolved
+    try { resolved = JSON.parse(resolutionText.replace(/^```(?:json)?\s*|\s*```$/gi, '')).medicines } catch { throw new Error('Gemini returned invalid generic-name resolution data.') }
+    console.info('[prescription-rag] Generic-name resolution completed', { resolvedMedicineCount: Array.isArray(resolved) ? resolved.length : 0 })
+    const resolvedByTradeName = new Map((Array.isArray(resolved) ? resolved : []).map((item) => [
+      typeof item.tradeName === 'string' ? item.tradeName.trim().toLocaleLowerCase() : '',
+      item,
+    ]))
+    const normalizedMedicines = (Array.isArray(extracted.medicines) ? extracted.medicines : []).map((medicine) => {
+      const tradeName = typeof medicine.tradeName === 'string' ? medicine.tradeName.trim() : ''
+      const match = resolvedByTradeName.get(tradeName.toLocaleLowerCase())
+      return { ...match, tradeName, genericNames: match?.genericNames || [], confidence: match?.confidence || 'low' }
+    })
+    const medicines = []
+    for (const item of normalizedMedicines) {
+      const generics = [...new Set((Array.isArray(item.genericNames) ? item.genericNames : []).filter((value) => typeof value === 'string' && value.trim()))].slice(0, 3)
+      const sources = []
+      const matches = []
+      for (const genericName of generics) {
+        console.info('[prescription-rag] Querying Supabase documents vector index', { tradeName: item.tradeName, genericName })
+        try {
+          const found = await searchPrescriptionDocs(`${genericName} poultry chicken drug withdrawal period meat eggs`)
+          console.info('[prescription-rag] Supabase documents returned', { genericName, count: found.length, sample: found.slice(0, 3).map(({ id, content, metadata }) => ({ id, content, metadata })) })
+          matches.push(...found)
+        } catch (searchError) {
+          console.error('[prescription-rag] Supabase vector search threw an exception:', searchError)
+          console.error('[prescription-rag] Supabase query failed', { genericName, message: searchError.message })
+          throw searchError
+        }
+      }
+      for (const row of matches) {
+        const metadata = row.metadata && typeof row.metadata === 'object' ? row.metadata : {}
+        if (typeof row.content !== 'string' || !row.content.trim()) continue
+        const evidence = row.content.split(/\r?\n|(?<=[.!?])\s+/u)
+          .map((part) => part.trim())
+          .filter((part) => /(withdrawal|withholding|withdraw|withhold|meat|egg)/i.test(part)
+            && /(\d+(?:\.\d+)?\s*(?:hours?|days?|weeks?)|zero\s+days?|not\s+permitted|prohibited|not\s+for\s+layers)/i.test(part))
+          .slice(0, 5)
+        if (!evidence.length) continue
+        const label = metadata.source || metadata.title || metadata.source_file || metadata.file_name || metadata.filename || metadata.book_name || metadata.document || `Supabase documents${row.id ? ` (${row.id})` : ''}`
+        if (!sources.some((source) => source.label === label)) sources.push({ label, content: row.content.trim(), withdrawalPeriod: evidence.join('\n'), metadata, provider: 'Supabase documents' })
+      }
+      if (!sources.length && generics.length) {
+        try {
+          const external = await searchExternalVeterinarySource(`${generics.join(' OR ')} AND (withdrawal period OR residue)`)
+          if (external) sources.push({ label: external.source, content: external.content, url: external.url, withdrawalPeriod: 'Data not found in current guidelines.', metadata: { provider: 'Europe PMC / PubMed' }, provider: 'Europe PMC / PubMed' })
+        } catch (fallbackError) {
+          console.error('[prescription-rag] External reference fallback threw an exception:', fallbackError)
+          console.warn('[prescription-rag] External reference fallback failed', fallbackError.message)
+        }
+      }
+      const withdrawalEvidence = sources.find((source) => source.withdrawalPeriod && source.withdrawalPeriod !== 'Data not found in current guidelines.')?.withdrawalPeriod
+      console.info('[prescription-rag] Drug retrieval completed', { tradeName: item.tradeName, genericNames: generics, sourceCount: sources.length, withdrawalFound: Boolean(withdrawalEvidence) })
+      medicines.push({ tradeName: item.tradeName || '', genericNames: generics, confidence: item.confidence || 'low', withdrawalPeriod: withdrawalEvidence || 'Data not found in current guidelines.', sources })
+    }
+    console.info('[prescription-rag] Scan completed', { fileName: name, medicineCount: medicines.length })
+    return response.json({ fileName: name, transcription: extracted.transcription || '', medicines, sources: [...new Map(medicines.flatMap((medicine) => medicine.sources).map((source) => [source.label, source])).values()] })
+  } catch (error) {
+    console.error('[prescription-rag] Scan failed:', error)
+    const message = error instanceof Error ? error.message : String(error || 'Unknown prescription analysis error.')
+    if (response.headersSent) return
+    return response.status(502).type('application/json').json({ error: message || 'Prescription analysis could not be completed.' })
+  }
+})
 
 app.post('/api/chat', requireAiUser, async (request, response) => {
   const validationError = validateChatRequest(request.body)
@@ -420,6 +610,7 @@ app.post('/api/diagnose', requireAiUser, async (request, response) => {
     visualResult = null,
     userRole = 'farmer',
     appLanguage = 'en',
+    structuredMode = false,
   } = request.body
   const role = supportedUserRoles.has(userRole) ? userRole : 'farmer'
   const roleInstructions = role === 'farmer'
@@ -438,6 +629,9 @@ app.post('/api/diagnose', requireAiUser, async (request, response) => {
         : 'Do not claim certainty when evidence is incomplete. Provide clinically responsible treatment information and state when examination, culture, sensitivity testing, or local regulations change the recommendation.',
       'If signs suggest severe distress, sudden deaths, neurological signs, or a fast-spreading outbreak, advise immediate contact with a licensed poultry veterinarian or local animal-health authority.',
       'Clearly note that AI/image classifications can be wrong and veterinary assessment is required.',
+      structuredMode
+        ? 'This is text-only symptom analysis. Return JSON only in this exact shape: {"predictions":[{"disease":"name","clinical_sign_match":0}],"differential_diagnosis":"brief cautious summary"}. Include up to three differential possibilities supported by the supplied reference context and symptoms. clinical_sign_match is an approximate symptom-to-reference match score from 0 to 100, not a calibrated probability. If evidence is insufficient, return an empty predictions array and say so. Do not include markdown fences.'
+        : '',
       'When a prescription is attached, transcribe and summarize only what is legible; do not validate, alter, or recommend the prescription.',
       'Understand full natural-language sentences, spelling variations, and conversational Banglish; do not rely on keyword matching. Use short sections: What I notice, Possible concerns, Recommended next steps, Urgency.',
       `Farmer observations and question:\n${text || '(No additional typed symptoms.)'}`,
@@ -449,8 +643,8 @@ app.post('/api/diagnose', requireAiUser, async (request, response) => {
 
   for (const attachment of attachments) {
     parts.push({
-      inline_data: {
-        mime_type: attachment.mimeType,
+      inlineData: {
+        mimeType: attachment.mimeType,
         data: attachment.data,
       },
     })
@@ -473,6 +667,7 @@ app.post('/api/diagnose', requireAiUser, async (request, response) => {
       ? null
       : await searchExternalVeterinarySource(retrievalQuery)
     if (!localReferences.length && !externalReference) {
+      if (structuredMode) return response.json({ predictions: [], differential_diagnosis: 'No matching verified veterinary reference was found; a sourced symptom analysis is unavailable. Please consult a registered veterinarian.', sources: ['No matching source found in the local veterinary database or PubMed.'] })
       return response.json({
         answer: 'I could not find a matching verified veterinary reference, so I cannot provide a sourced answer. Please consult a registered veterinarian.\n\nReferences/Sources\n- No matching source found in the local veterinary database or PubMed.',
         sources: ['No matching source found in the local veterinary database or PubMed.'],
@@ -488,10 +683,10 @@ app.post('/api/diagnose', requireAiUser, async (request, response) => {
     parts[0].text += `\n\nVerified veterinary reference context (local Supabase search runs first):\n${retrievedContext}`
 
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${geminiVisionModel}:generateContent`,
       {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': geminiKey },
         body: JSON.stringify({
           contents: [{ role: 'user', parts }],
           generationConfig: { temperature: 0.25, maxOutputTokens: 1200 },
@@ -519,6 +714,27 @@ app.post('/api/diagnose', requireAiUser, async (request, response) => {
       return response.status(502).json({ error: 'The AI service returned an empty response. Please try again.' })
     }
 
+    if (structuredMode) {
+      let structured
+      try {
+        const jsonText = answer.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
+        structured = JSON.parse(jsonText)
+      } catch (parseError) {
+        console.error('Gemini structured diagnosis response was not valid JSON.', parseError)
+        return response.status(502).json({ error: 'The AI service returned an unreadable structured diagnosis. Please try again.' })
+      }
+      const predictions = Array.isArray(structured.predictions) ? structured.predictions.slice(0, 3).flatMap((item) => {
+        if (typeof item?.disease !== 'string' || !item.disease.trim()) return []
+        const score = Number(item.clinical_sign_match)
+        if (!Number.isFinite(score) || score < 0 || score > 100) return []
+        return [{ disease: item.disease.trim().slice(0, 120), clinical_sign_match: score }]
+      }) : []
+      const sources = localReferences.length
+        ? localReferences.map(({ bookName, pageNumber }) => `Source: ${bookName}, Page: ${pageNumber}`)
+        : [`Source: ${externalReference.source}, URL: ${externalReference.url}`]
+      return response.json({ predictions, differential_diagnosis: typeof structured.differential_diagnosis === 'string' ? structured.differential_diagnosis.slice(0, 3000) : '', sources })
+    }
+
     const sources = localReferences.length
       ? localReferences.map(({ bookName, pageNumber }) => `Source: ${bookName}, Page: ${pageNumber}`)
       : externalReference
@@ -540,18 +756,6 @@ app.use('/api', (_request, response) => {
   response.status(404).json({ error: 'API route not found.' })
 })
 
-app.use((error, _request, response, _next) => {
-  void _next
-  if (error.type === 'entity.too.large') {
-    return response.status(413).json({ error: 'The request is too large. Keep each file under 8 MB and total attachments under 15 MB.' })
-  }
-  if (error instanceof SyntaxError && 'body' in error) {
-    return response.status(400).json({ error: 'The diagnosis request is not valid JSON.' })
-  }
-  console.error('PoultryMedix request failed.', error.message)
-  return response.status(500).json({ error: 'The request could not be completed.' })
-})
-
 app.use(express.static(path.join(projectRoot, 'dist')))
 app.use((request, response, next) => {
   if (request.method !== 'GET') return next()
@@ -560,6 +764,23 @@ app.use((request, response, next) => {
   })
 })
 
+app.use((error, request, response, next) => {
+  console.error('[api] Unhandled request error:', error)
+  if (response.headersSent) return next(error)
+
+  if (error.type === 'entity.too.large') {
+    return response.status(413).type('application/json').json({ error: 'The request is too large. Keep each file under 8 MB and total attachments under 15 MB.' })
+  }
+  if (error instanceof SyntaxError && 'body' in error) {
+    return response.status(400).type('application/json').json({ error: 'The request is not valid JSON.' })
+  }
+  const status = Number.isInteger(error.status) && error.status >= 400 && error.status < 600 ? error.status : 500
+  const message = error instanceof Error && error.message ? error.message : 'The request could not be completed.'
+  const isApiRequest = request.path.startsWith('/api/')
+  return response.status(status).type('application/json').json({ error: isApiRequest ? message : 'The request could not be completed.' })
+})
+
 app.listen(port, () => {
   console.log(`PoultryMedix API listening on port ${port}`)
+  console.log(`Prescription OCR provider: Axios REST (${geminiVisionModel})`)
 })

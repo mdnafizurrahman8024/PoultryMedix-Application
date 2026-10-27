@@ -12,17 +12,41 @@ export function readUnifiedLogs() {
   return existingLogs
 }
 
-export function saveUnifiedLog(type, payload) {
+export function saveUnifiedLog(type, payload, id = Date.now()) {
   const existingLogs = JSON.parse(localStorage.getItem('poultryMedixLogs') || '[]')
   if (!Array.isArray(existingLogs)) throw new Error('Saved unified clinical logs are invalid.')
   const newEntry = {
-    id: Date.now(),
+    id,
     date: new Date().toLocaleString(),
     type,
     payload,
   }
   localStorage.setItem(unifiedLogKey, JSON.stringify([newEntry, ...existingLogs].slice(0, 100)))
   return newEntry
+}
+
+export function saveLocalPrescriptionAttachment(file, id) {
+  if (!globalThis.indexedDB) return Promise.reject(new Error('Local attachment storage is unavailable in this browser.'))
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('poultrymedix-clinical-attachments', 1)
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('prescriptions')) request.result.createObjectStore('prescriptions')
+    }
+    request.onerror = () => reject(request.error || new Error('Could not open local clinical attachment storage.'))
+    request.onsuccess = () => {
+      const database = request.result
+      const transaction = database.transaction('prescriptions', 'readwrite')
+      transaction.objectStore('prescriptions').put(file, id)
+      transaction.oncomplete = () => {
+        database.close()
+        resolve(`indexeddb://prescriptions/${id}`)
+      }
+      transaction.onerror = () => {
+        database.close()
+        reject(transaction.error || new Error('Could not save the prescription image locally.'))
+      }
+    }
+  })
 }
 
 export function readHistory(type) {
