@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription, canonicalDiseaseName } from './lib/ai.js'
+import { BANGLADESH_POULTRY_DRUG_DATABASE } from './lib/prescriptionRAG.js'
 import { generateDiagnosticExplanation, REPORT_AI_FALLBACK_NOTE } from './lib/aiServiceAdapter.js'
 import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
@@ -72,13 +73,14 @@ export default function DiagnosisHub() {
   const [historyWarning, setHistoryWarning] = useState('')
   const [modelWarning, setModelWarning] = useState('')
   const [, setClinicalLogs] = useState([])
-  const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false)
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [currentReport, setCurrentReport] = useState(null)
   const modalOpenedAtRef = useRef(0)
   const [prescriptionLoading, setPrescriptionLoading] = useState(false)
   const [prescriptionError, setPrescriptionError] = useState('')
   const [prescriptionResult, setPrescriptionResult] = useState(null)
+  const [prescriptionPreview, setPrescriptionPreview] = useState(null)
+  const [showDrugFormulary, setShowDrugFormulary] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
   const speech = useSpeechToText({ language, value: symptoms, onChange: setSymptoms, onError: (key) => setError(t(key)) })
 
@@ -143,32 +145,48 @@ export default function DiagnosisHub() {
     setSaveMessage(databaseSaved ? 'Prescription analysis saved to Clinical Log.' : 'Prescription analysis saved to this device’s Clinical Log.')
   }
 
-  async function handlePrescriptionFile(file) {
+  function handlePrescriptionSelect(file) {
     const acceptedFile = acceptFile(file, 'prescription')
+    if (prescriptionPreview) {
+      URL.revokeObjectURL(prescriptionPreview)
+    }
     setPrescription(acceptedFile)
     setPrescriptionResult(null)
     setPrescriptionError('')
     setSaveMessage('')
-    if (!acceptedFile) return
-    setWithdrawalModalOpen(false)
-    setPrescriptionLoading(true)
-    try {
-      const result = await scanPrescription(acceptedFile)
-      setPrescriptionResult(result)
-      await savePrescriptionAnalysis(acceptedFile, result)
-      setWithdrawalModalOpen(true)
-    } catch (scanError) {
-      setPrescriptionError(scanError.message || 'Prescription analysis could not be completed.')
-      setError(scanError.message || 'Prescription analysis could not be completed.')
-      setWithdrawalModalOpen(true)
-    } finally {
-      setPrescriptionLoading(false)
+    if (acceptedFile && acceptedFile.type.startsWith('image/')) {
+      const url = URL.createObjectURL(acceptedFile)
+      setPrescriptionPreview(url)
+    } else {
+      setPrescriptionPreview(null)
     }
   }
 
-  function handlePrescriptionCapture(event) {
-    handlePrescriptionFile(event.target.files?.[0])
-    event.target.value = ''
+  function removePrescription() {
+    if (prescriptionPreview) {
+      URL.revokeObjectURL(prescriptionPreview)
+    }
+    setPrescription(null)
+    setPrescriptionPreview(null)
+    setPrescriptionResult(null)
+    setPrescriptionError('')
+    if (prescriptionInput.current) prescriptionInput.current.value = ''
+    if (prescriptionCameraInput.current) prescriptionCameraInput.current.value = ''
+  }
+
+  async function runPrescriptionAnalysis() {
+    if (!prescription) return
+    setPrescriptionLoading(true)
+    setPrescriptionError('')
+    try {
+      const result = await scanPrescription(prescription, language)
+      setPrescriptionResult(result)
+      await savePrescriptionAnalysis(prescription, result)
+    } catch (scanError) {
+      setPrescriptionError(scanError?.message || (language === 'bn' ? 'প্রেসক্রিপশন বিশ্লেষণ সম্পন্ন করা যায়নি।' : 'Prescription analysis could not be completed.'))
+    } finally {
+      setPrescriptionLoading(false)
+    }
   }
 
   function acceptFile(file, expected) {
@@ -406,10 +424,13 @@ export default function DiagnosisHub() {
     setSymptoms('')
     setImage(null)
     setAudio(null)
+    if (prescriptionPreview) {
+      URL.revokeObjectURL(prescriptionPreview)
+    }
     setPrescription(null)
+    setPrescriptionPreview(null)
     setPrescriptionResult(null)
     setPrescriptionError('')
-    setWithdrawalModalOpen(false)
     setReportModalOpen(false)
     setCurrentReport(null)
     setAnswer(null)
@@ -527,16 +548,296 @@ export default function DiagnosisHub() {
 
       <section className="diagnosis-tool-card diagnosis-prescription-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="prescription-info-title">
         <div className="diagnosis-section-heading dark:text-gray-100">
-          <div><span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionTwo')}</span><h3 id="prescription-info-title" className="dark:text-gray-100">{t('prescriptionWithdrawal')}</h3><p className="dark:text-gray-300">{t('prescriptionWithdrawalDescription')}</p></div>
+          <div>
+            <span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionTwo')}</span>
+            <h3 id="prescription-info-title" className="dark:text-gray-100">{t('prescriptionWithdrawal')}</h3>
+            <p className="dark:text-gray-300">{t('prescriptionWithdrawalDescription')}</p>
+          </div>
           <span className="diagnosis-section-icon"><Icon name="pill" size={20} /></span>
         </div>
-        <input ref={prescriptionInput} className="visually-hidden-input" type="file" accept="application/pdf,.pdf,image/jpeg,image/png" aria-label={t('uploadPrescription')} onChange={(event) => { handlePrescriptionFile(event.target.files?.[0]); event.target.value = '' }} />
-        <input ref={prescriptionCameraInput} type="file" accept="image/*" capture="environment" style={{ display: 'none' }} aria-label={t('useLiveCamera')} onChange={handlePrescriptionCapture} />
-        <div className="diagnosis-prescription-actions">
-          <button className="diagnosis-glass-button diagnosis-glass-button--primary dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" onClick={() => prescriptionCameraInput.current?.click()}><Icon name="camera" size={17} />{t('takePhotoScan')}</button>
-          <button className="diagnosis-glass-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700" type="button" onClick={() => prescriptionInput.current?.click()}><Icon name="upload" size={17} />{t('uploadPrescriptionPhoto')}</button>
-        </div>
-        {prescriptionLoading && <div className="prescription-rag-loading" role="status"><span className="ai-spinner" /> Reading prescription and searching medical references…</div>}
+
+        <input
+          ref={prescriptionInput}
+          className="visually-hidden-input"
+          type="file"
+          accept="application/pdf,.pdf,image/jpeg,image/png,image/webp"
+          aria-label={t('uploadPrescription')}
+          onChange={(event) => {
+            handlePrescriptionSelect(event.target.files?.[0])
+            event.target.value = ''
+          }}
+        />
+        <input
+          ref={prescriptionCameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          style={{ display: 'none' }}
+          aria-label={t('useLiveCamera')}
+          onChange={(event) => {
+            handlePrescriptionSelect(event.target.files?.[0])
+            event.target.value = ''
+          }}
+        />
+
+        {!prescription && (
+          <div className="diagnosis-prescription-actions">
+            <button
+              className="diagnosis-glass-button diagnosis-glass-button--primary dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+              type="button"
+              onClick={() => prescriptionCameraInput.current?.click()}
+            >
+              <Icon name="camera" size={17} />
+              {t('takePhotoScan')}
+            </button>
+            <button
+              className="diagnosis-glass-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+              type="button"
+              onClick={() => prescriptionInput.current?.click()}
+            >
+              <Icon name="upload" size={17} />
+              {t('uploadPrescriptionPhoto')}
+            </button>
+          </div>
+        )}
+
+        {prescription && (
+          <div className="prescription-staged-box dark:bg-gray-900/60 dark:border-gray-700">
+            <div className="prescription-preview-row">
+              <div className="prescription-preview-thumb">
+                {prescriptionPreview ? (
+                  <img src={prescriptionPreview} alt={prescription.name} className="prescription-preview-img" />
+                ) : (
+                  <div className="prescription-preview-doc-icon">
+                    <Icon name="pdf" size={24} />
+                  </div>
+                )}
+              </div>
+              <div className="prescription-preview-meta">
+                <span className="prescription-preview-filename" title={prescription.name}>
+                  {prescription.name}
+                </span>
+                <span className="prescription-preview-filesize">
+                  {(prescription.size / 1024).toFixed(1)} KB • {prescription.type.startsWith('image/') ? (language === 'bn' ? 'প্রেসক্রিপশন ছবি' : 'Prescription Image') : 'PDF Document'}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="prescription-remove-btn"
+                onClick={removePrescription}
+                aria-label={language === 'bn' ? 'ছবি সরিয়ে ফেলুন' : 'Remove prescription image'}
+                title={language === 'bn' ? 'ছবি সরিয়ে ফেলুন' : 'Remove image'}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="prescription-action-row">
+              <button
+                type="button"
+                className="diagnosis-submit prescription-analyze-btn"
+                onClick={runPrescriptionAnalysis}
+                disabled={prescriptionLoading}
+              >
+                {prescriptionLoading ? (
+                  <>
+                    <span className="ai-spinner" />
+                    <span>{language === 'bn' ? 'প্রেসক্রিপশন বিশ্লেষণ হচ্ছে…' : 'Analyzing Prescription…'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="stethoscope" size={17} />
+                    <span>{language === 'bn' ? 'প্রেসক্রিপশন বিশ্লেষণ করুন' : 'Analyze Prescription'}</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                className="diagnosis-reset"
+                onClick={() => prescriptionInput.current?.click()}
+                disabled={prescriptionLoading}
+                style={{ fontSize: '13px', padding: '8px 14px' }}
+              >
+                {language === 'bn' ? 'অন্য ছবি দিন' : 'Change Image'}
+              </button>
+            </div>
+
+            {prescriptionLoading && (
+              <div className="prescription-rag-loading" role="status" style={{ marginTop: '10px' }}>
+                <span className="ai-spinner" />
+                <span>
+                  {language === 'bn'
+                    ? 'AI ভিশন মডেল ও স্থানীয় ড্রাগ উইথড্রয়াল ডাটাবেস যাচাই করা হচ্ছে…'
+                    : 'Reading prescription and extracting drug withdrawal periods…'}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {prescriptionError && (
+          <p className="diagnosis-error" role="alert" style={{ marginTop: '12px' }}>
+            {prescriptionError}
+          </p>
+        )}
+
+        {prescriptionResult && (
+          <div className="prescription-inline-card dark:bg-gray-900/90 dark:border-gray-700">
+            <div className="prescription-inline-header">
+              <div>
+                <span className="prescription-kicker">
+                  {prescriptionResult.isFallback
+                    ? (language === 'bn' ? 'ভেটেরিনারি ফর্মুলারি ব্যাকআপ' : 'Veterinary Formulary Fallback')
+                    : (language === 'bn' ? 'AI ভিশন বিশ্লেষণ' : 'AI Vision Extracted')}
+                </span>
+                <h4 className="prescription-inline-title dark:text-white">
+                  {language === 'bn' ? 'ওষুধের উইথড্রয়াল ও প্রত্যাহার তথ্য' : 'Drug Withdrawal & Residue Safety'}
+                </h4>
+              </div>
+              <button
+                type="button"
+                className="prescription-clear-btn"
+                onClick={removePrescription}
+              >
+                ✕ {language === 'bn' ? 'নতুন স্ক্যান / সাফ করুন' : 'Clear / New Scan'}
+              </button>
+            </div>
+
+            {prescriptionResult.transcription && (
+              <p className="prescription-transcription-note dark:text-gray-300 dark:bg-gray-800/80">
+                <Icon name="book" size={14} />
+                <span>{prescriptionResult.transcription}</span>
+              </p>
+            )}
+
+            <div className="prescription-medicines-list">
+              {prescriptionResult.medicines?.map((drug, index) => {
+                const isBanned = drug.regulatoryStatus === 'BANNED'
+                const isRestricted = drug.regulatoryStatus === 'RESTRICTED'
+                return (
+                  <article
+                    className="prescription-medicine-item dark:bg-gray-800/90 dark:border-gray-700"
+                    key={`${drug.tradeName}-${drug.genericName}-${index}`}
+                  >
+                    <div className="prescription-item-top">
+                      <div>
+                        <h5 className="prescription-item-tradename dark:text-white">
+                          {drug.tradeName || drug.genericName}
+                        </h5>
+                        <p className="prescription-item-generic dark:text-gray-300">
+                          <strong>{language === 'bn' ? 'জেনেরিক:' : 'Generic:'}</strong>{' '}
+                          {language === 'bn' && drug.genericNameBn ? drug.genericNameBn : drug.genericName}
+                        </p>
+                      </div>
+                      <span className={`prescription-status-pill ${isBanned ? 'is-banned' : isRestricted ? 'is-restricted' : 'is-approved'}`}>
+                        {language === 'bn' && drug.regulatoryStatusBn ? drug.regulatoryStatusBn : drug.regulatoryStatus}
+                      </span>
+                    </div>
+
+                    <div className="prescription-detail-grid">
+                      <div className="prescription-detail-cell">
+                        <span className="prescription-cell-label">{language === 'bn' ? 'অ্যান্টিবায়োটিক শ্রেণী' : 'Antibiotic Class'}</span>
+                        <strong className="prescription-cell-value dark:text-gray-200">
+                          {language === 'bn' && drug.antibioticClassBn ? drug.antibioticClassBn : drug.antibioticClass}
+                        </strong>
+                      </div>
+                      <div className="prescription-detail-cell">
+                        <span className="prescription-cell-label">{language === 'bn' ? 'নির্ধারিত মাত্রা / ডোজ' : 'Prescribed / Label Dose'}</span>
+                        <strong className="prescription-cell-value dark:text-gray-200">
+                          {language === 'bn' && drug.dosageBn ? drug.dosageBn : drug.dosage}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div className="prescription-withdrawal-strip">
+                      <div className="prescription-withdrawal-badge meat">
+                        <span className="badge-title">{language === 'bn' ? 'মাংসের উইথড্রয়াল' : 'Meat Withdrawal'}</span>
+                        <strong className="badge-val">
+                          {language === 'bn' && drug.meatWithdrawalDaysBn ? drug.meatWithdrawalDaysBn : (drug.meatWithdrawalDays || drug.withdrawalPeriod || '—')}
+                        </strong>
+                      </div>
+                      <div className="prescription-withdrawal-badge eggs">
+                        <span className="badge-title">{language === 'bn' ? 'ডিমের উইথড্রয়াল' : 'Egg Withdrawal'}</span>
+                        <strong className="badge-val">
+                          {language === 'bn' && drug.eggWithdrawalDaysBn ? drug.eggWithdrawalDaysBn : (drug.eggWithdrawalDays || 'Not for layers')}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {drug.indications && (
+                      <p className="prescription-item-indications dark:text-gray-300">
+                        <strong>{language === 'bn' ? 'কার্যকারিতা:' : 'Indications:'}</strong>{' '}
+                        {language === 'bn' && drug.indicationsBn ? drug.indicationsBn : drug.indications}
+                      </p>
+                    )}
+
+                    <footer className="prescription-item-footer dark:text-gray-400">
+                      <span>{drug.authorities || 'DGDA & DLS Bangladesh'}</span>
+                    </footer>
+                  </article>
+                )
+              })}
+            </div>
+
+            <div className="prescription-formulary-drawer dark:border-gray-700">
+              <button
+                type="button"
+                className="prescription-formulary-toggle dark:text-gray-200 dark:hover:bg-gray-800"
+                onClick={() => setShowDrugFormulary((v) => !v)}
+              >
+                <span>
+                  {language === 'bn'
+                    ? 'বাংলাদেশে প্রচলিত সাধারণ পোল্ট্রি অ্যান্টিবায়োটিকের উইথড্রয়াল তালিকা'
+                    : 'Browse Common Bangladesh Poultry Antibiotics Reference (Doxycycline, Enrofloxacin, Ciprofloxacin...)'}
+                </span>
+                <Icon name={showDrugFormulary ? 'chevron-up' : 'chevron-down'} size={15} />
+              </button>
+
+              {showDrugFormulary && (
+                <div className="prescription-formulary-table-wrap">
+                  <table className="prescription-formulary-table dark:text-gray-200">
+                    <thead>
+                      <tr>
+                        <th>{language === 'bn' ? 'ওষুধ ও ব্র্যান্ড' : 'Medicine (Generic & Brands)'}</th>
+                        <th>{language === 'bn' ? 'মাংসের উইথড্রয়াল' : 'Meat'}</th>
+                        <th>{language === 'bn' ? 'ডিমের উইথড্রয়াল' : 'Eggs'}</th>
+                        <th>{language === 'bn' ? 'নিয়ম ও স্ট্যাটাস' : 'Status'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {BANGLADESH_POULTRY_DRUG_DATABASE.map((item) => (
+                        <tr key={item.id} className={item.regulatoryStatus === 'BANNED' ? 'row-banned' : ''}>
+                          <td>
+                            <strong>{language === 'bn' ? item.genericNameBn : item.genericName}</strong>
+                            <small className="block text-gray-500 dark:text-gray-400">
+                              {item.tradeNames.slice(0, 3).join(', ')}
+                            </small>
+                          </td>
+                          <td><span className="badge-pill meat">{language === 'bn' ? item.meatWithdrawalDaysBn : item.meatWithdrawalDays}</span></td>
+                          <td><span className="badge-pill egg">{language === 'bn' ? item.eggWithdrawalDaysBn : item.eggWithdrawalDays}</span></td>
+                          <td>
+                            <small className={item.regulatoryStatus === 'BANNED' ? 'text-red-600 font-bold' : ''}>
+                              {language === 'bn' ? item.regulatoryStatusBn : item.regulatoryStatus}
+                            </small>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="prescription-inline-safety-notice dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-200">
+              <Icon name="alert-triangle" size={16} />
+              <span>
+                {language === 'bn'
+                  ? 'সতর্কতা: অ্যান্টিবায়োটিকের অবশিষ্টাংশ মানবদেহে প্রবেশ রোধে উইথড্রয়াল সময়সীমা মেনে চলা বাধ্যতামূলক। কোনো অবস্থাতেই নিবন্ধিত ভেটেরিনারি চিকিৎসকের প্রেসক্রিপশন ছাড়া অ্যান্টিবায়োটিক ব্যবহার করবেন না।'
+                  : 'Notice: Strictly adhere to withdrawal periods to prevent chemical and antimicrobial residues in human food chains. Never self-prescribe antibiotics without a registered veterinarian’s direct examination.'}
+              </span>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="diagnosis-tool-card diagnosis-dose-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="dose-calculator-title">
@@ -740,26 +1041,7 @@ export default function DiagnosisHub() {
         </div>
       )}
 
-      {withdrawalModalOpen && <div className="diagnosis-withdrawal-modal-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setWithdrawalModalOpen(false) }}>
-        <section className="diagnosis-withdrawal-modal dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="withdrawal-modal-title">
-          <div className="diagnosis-modal-heading dark:text-gray-100"><div><span className="diagnosis-section-kicker dark:text-gray-300">{t('antibiotics.extractedResult')}</span><h3 id="withdrawal-modal-title">{t('antibiotics.drugWithdrawalInfo')}</h3></div><button className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" onClick={() => setWithdrawalModalOpen(false)} aria-label={t('antibiotics.closeWithdrawalInfo')}><Icon name="close" size={18} /></button></div>
-          {prescriptionResult && <>
-            {prescriptionResult.transcription && <details className="prescription-rag-transcription"><summary>Extracted prescription text</summary><p>{prescriptionResult.transcription}</p></details>}
-            {!prescriptionResult.medicines?.length && <p>Medicine names could not be reliably identified from this upload.</p>}
-            {prescriptionResult.medicines?.map((drug, index) => <article className="diagnosis-modal-drug dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700" key={`${drug.tradeName}-${index}`}>
-              <div className="drug-info-title-row"><h4>{drug.tradeName || 'Unidentified medicine'}</h4><span className="drug-class-badge">Trade name</span></div>
-              <p>Generic name(s): {drug.genericNames?.length ? drug.genericNames.join(', ') : 'Not resolved confidently.'}</p>
-              <div className="prescription-rag-source"><strong>Withdrawal Period</strong><p>{drug.withdrawalPeriod || 'Data not found in current guidelines.'}</p></div>
-              {drug.sources?.map((source, sourceIndex) => <div className="prescription-rag-source" key={`${source.label}-${sourceIndex}`}><strong>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.label}</a> : source.label}</strong><p>{source.content}</p></div>)}
-            </article>)}
-            <section className="prescription-rag-references" aria-labelledby="prescription-rag-references-title">
-              <h4 id="prescription-rag-references-title">Medical References / Sources</h4>
-              {prescriptionResult.sources?.length ? <ul>{prescriptionResult.sources.map((source) => <li key={source.label}>{source.url ? <a href={source.url} target="_blank" rel="noreferrer">{source.label}</a> : source.label} <span>({source.provider || source.metadata?.provider || 'Supabase documents'})</span></li>)}</ul> : <p>Source: Supabase documents returned no matching withdrawal-period reference.</p>}
-            </section>
-          </>}
-          {prescriptionError && <p className="diagnosis-error" role="alert">{prescriptionError}</p>}
-        </section>
-      </div>}
+
 
       {saveMessage && <p className="diagnosis-save-message" role="status">{saveMessage}</p>}
     </section>

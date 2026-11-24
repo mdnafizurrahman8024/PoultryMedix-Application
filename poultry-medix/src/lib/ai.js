@@ -224,26 +224,8 @@ export async function runMultimodalDiagnosis({ text, files, visualFile, accessTo
   return { ...result, visualResult }
 }
 
-export async function scanPrescription(file) {
-  const data = await readFileAsBase64(file)
-  try {
-    const response = await axios.post('/api/prescription-scan', {
-      name: file.name,
-      mimeType: file.type,
-      data,
-    }, {
-      headers: { 'content-type': 'application/json' },
-    })
-    return response.data
-  } catch (error) {
-    const message = error.response?.data?.error || error.response?.data?.message
-    console.error('[prescription-rag] Local prescription API request failed', {
-      status: error.response?.status || null,
-      message: message || error.message,
-      code: error.code || null,
-    })
-    if (message) throw new Error(message)
-    if (error.response) throw new Error(`Prescription analysis failed (HTTP ${error.response.status}).`)
-    throw new Error(`Could not connect to the local prescription analysis API: ${error.message}`)
-  }
+import { analyzePrescriptionImage } from './prescriptionRAG.js'
+
+export async function scanPrescription(file, language = 'en') {
+  return await analyzePrescriptionImage(file, language)
 }
