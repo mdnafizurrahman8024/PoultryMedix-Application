@@ -1,5 +1,5 @@
 import React, { Suspense, useEffect, useRef, useState } from 'react'
-import { Globe, Menu, X } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, Globe, Menu, X } from 'lucide-react'
 import AIChat from './AIChat.jsx'
 import DiagnosisHub from './DiagnosisHub.jsx'
 import { supabase } from './lib/supabase.js'
@@ -125,8 +125,50 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [settingsMessage, setSettingsMessage] = useState('')
   const [shareMessage, setShareMessage] = useState('')
   const [guidelinesExpanded, setGuidelinesExpanded] = useState(false)
+  const [openSections, setOpenSections] = useState({
+    diagnosis: true,
+    prescription: false,
+    sheds: false,
+    vaccines: false,
+  })
   const [activeView, setActiveView] = useState('home')
   const [sheds, setSheds] = useState(() => getSheds())
+
+  const allHomeExpanded = openSections.diagnosis
+    && openSections.prescription
+    && openSections.sheds
+    && openSections.vaccines
+    && guidelinesExpanded
+
+  const openSectionCount = [
+    openSections.diagnosis,
+    openSections.prescription,
+    openSections.sheds,
+    openSections.vaccines,
+    guidelinesExpanded,
+  ].filter(Boolean).length
+
+  function toggleSection(sectionKey) {
+    setOpenSections((prev) => ({ ...prev, [sectionKey]: !prev[sectionKey] }))
+  }
+
+  function toggleAllHomeSections() {
+    const next = !allHomeExpanded
+    setOpenSections({
+      diagnosis: next,
+      prescription: next,
+      sheds: next,
+      vaccines: next,
+    })
+    setGuidelinesExpanded(next)
+  }
+
+  function openHeatStressSection() {
+    setOpenSections((prev) => ({ ...prev, sheds: true }))
+    requestAnimationFrame(() => {
+      document.getElementById('shed-flock-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
 
   useEffect(() => {
     function syncSheds() {
@@ -674,7 +716,19 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
                 <div><Icon name="wind" size={17} /><span>{t('wind')}</span><strong>{weather.wind} <small>km/h</small></strong></div>
                 <div><Icon name="sun" size={17} /><span>{t('uvIndex')}</span><strong>{weather.uv === null ? '—' : weather.uv}</strong></div>
               </div>
-              <div className={`heat-alert${heatStress ? ' heat-alert--high' : ''}`}>
+              <div
+                className={`heat-alert heat-alert--clickable${heatStress ? ' heat-alert--high' : ''}`}
+                role="button"
+                tabIndex={0}
+                onClick={openHeatStressSection}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openHeatStressSection()
+                  }
+                }}
+                title={language === 'bn' ? 'শেড হিট-স্ট্রেস রিপোর্ট দেখতে ক্লিক করুন' : 'Click to open Shed Heat-Stress Report'}
+              >
                 <Icon name={heatStress ? 'alert' : 'thermometer'} size={17} />
                 {shedThermalSummary ? (
                   <>
@@ -721,11 +775,44 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           )}
         </section>
 
-        <DiagnosisHub />
+        <div className="home-accordion-toolbar" role="region" aria-label={language === 'bn' ? 'হোম সেকশন নিয়ন্ত্রণ' : 'Home sections controls'}>
+          <div className="home-accordion-toolbar-meta">
+            <span>{language === 'bn' ? 'হোম সেকশনসমূহ' : 'Home Sections'}</span>
+            <span className="home-open-count-pill">
+              {language === 'bn' ? `${openSectionCount}/৫ খোলা` : `${openSectionCount}/5 Open`}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="home-expand-all-btn"
+            onClick={toggleAllHomeSections}
+          >
+            {allHomeExpanded ? <ChevronsDownUp size={15} aria-hidden="true" /> : <ChevronsUpDown size={15} aria-hidden="true" />}
+            <span>
+              {allHomeExpanded
+                ? (language === 'bn' ? 'সবগুলো বন্ধ করুন' : 'Collapse All')
+                : (language === 'bn' ? 'সবগুলো খুলুন' : 'Expand All')}
+            </span>
+          </button>
+        </div>
 
-        <ShedFlockManager weather={weather} />
+        <DiagnosisHub
+          smartOpen={openSections.diagnosis}
+          onToggleSmart={() => toggleSection('diagnosis')}
+          prescriptionOpen={openSections.prescription}
+          onTogglePrescription={() => toggleSection('prescription')}
+        />
 
-        <VaccineScheduleTracker />
+        <ShedFlockManager
+          weather={weather}
+          isOpen={openSections.sheds}
+          onToggle={() => toggleSection('sheds')}
+        />
+
+        <VaccineScheduleTracker
+          isOpen={openSections.vaccines}
+          onToggle={() => toggleSection('vaccines')}
+        />
 
         <section className="guidelines-section bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="guidelines-heading">
           <button

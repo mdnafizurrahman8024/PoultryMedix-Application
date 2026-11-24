@@ -56,8 +56,22 @@ function mergeSources(...sourceArrays) {
   return result
 }
 
-export default function DiagnosisHub() {
+export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpen, onTogglePrescription }) {
   const { t, language } = useLanguage()
+  const [internalSmartOpen, setInternalSmartOpen] = useState(true)
+  const [internalRxOpen, setInternalRxOpen] = useState(false)
+  const isSmartOpen = typeof smartOpen === 'boolean' ? smartOpen : internalSmartOpen
+  const isRxOpen = typeof prescriptionOpen === 'boolean' ? prescriptionOpen : internalRxOpen
+
+  function handleToggleSmart() {
+    if (onToggleSmart) onToggleSmart()
+    else setInternalSmartOpen((prev) => !prev)
+  }
+
+  function handleToggleRx() {
+    if (onTogglePrescription) onTogglePrescription()
+    else setInternalRxOpen((prev) => !prev)
+  }
   const imageInput = useRef(null)
   const imageCameraInput = useRef(null)
   const audioInput = useRef(null)
@@ -487,12 +501,52 @@ export default function DiagnosisHub() {
       </div>
 
       <form onSubmit={submitDiagnosis}>
-        <section className="diagnosis-tool-card diagnosis-smart-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="smart-diagnosis-title">
-          <div className="diagnosis-section-heading dark:text-white">
-            <div><span className="diagnosis-section-kicker dark:text-gray-200 dark:font-semibold">{t('sectionOne')}</span><h3 id="smart-diagnosis-title" className="dark:text-white dark:font-bold">{t('smartDiagnosis')}</h3><p className="dark:text-gray-200">{t('smartDiagnosisDescription')}</p></div>
-            <span className="diagnosis-section-icon"><Icon name="spark" size={20} /></span>
-          </div>
-          <label className="diagnosis-symptom-label dark:text-gray-100 dark:font-semibold" htmlFor="diagnosis-symptoms">{t('symptomsLabel')}</label>
+        <section
+          className={`diagnosis-tool-card diagnosis-smart-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700${isSmartOpen ? '' : ' is-collapsed'}`}
+          aria-labelledby="smart-diagnosis-title"
+        >
+          <button
+            type="button"
+            className="diagnosis-accordion-trigger dark:text-white"
+            aria-expanded={isSmartOpen}
+            aria-controls="smart-diagnosis-panel"
+            onClick={handleToggleSmart}
+          >
+            <div className="diagnosis-accordion-lead">
+              <span className="diagnosis-section-icon"><Icon name="spark" size={18} /></span>
+              <div className="diagnosis-accordion-copy">
+                <span className="diagnosis-section-kicker dark:text-gray-200 dark:font-semibold">{t('sectionOne')}</span>
+                <h3 id="smart-diagnosis-title" className="dark:text-white dark:font-bold">{t('smartDiagnosis')}</h3>
+                <p className="dark:text-gray-200">{t('smartDiagnosisDescription')}</p>
+              </div>
+            </div>
+            <div className="home-accordion-meta">
+              <span
+                className={`home-status-pill ${
+                  loading
+                    ? 'home-status-pill--warn'
+                    : currentReport
+                    ? 'home-status-pill--ok'
+                    : (symptoms.trim() || image || audio)
+                    ? 'home-status-pill--warn'
+                    : 'home-status-pill--ok'
+                }`}
+              >
+                {loading
+                  ? (language === 'bn' ? 'বিশ্লেষণ চলছে...' : 'Analyzing...')
+                  : currentReport
+                  ? `${currentReport.topDisease} (${currentReport.topConfidence})`
+                  : (symptoms.trim() || image || audio)
+                  ? (language === 'bn' ? 'তথ্য প্রস্তুত' : 'Input Ready')
+                  : (language === 'bn' ? 'এআই প্রস্তুত' : 'AI Ready')}
+              </span>
+              <Icon className={`home-accordion-chevron${isSmartOpen ? ' is-open' : ''}`} name="chevron" size={17} />
+            </div>
+          </button>
+
+          {isSmartOpen && (
+            <div id="smart-diagnosis-panel" className="diagnosis-accordion-panel">
+              <label className="diagnosis-symptom-label dark:text-gray-100 dark:font-semibold" htmlFor="diagnosis-symptoms">{t('symptomsLabel')}</label>
           <div className="diagnosis-textarea-wrap">
             <textarea
               id="diagnosis-symptoms"
@@ -538,54 +592,92 @@ export default function DiagnosisHub() {
             </div>
           </section>
           </div>
-        </section>
 
-        <p className="diagnosis-accuracy-note"><Icon name="spark" size={15} />{t('accuracyTip')}</p>
-        {error && <p className="diagnosis-error" role="alert">{error}</p>}
-        {modelWarning && <p className="diagnosis-warning" role="status">{modelWarning}</p>}
-        {historyWarning && <p className="diagnosis-warning" role="status">{historyWarning}</p>}
+          <p className="diagnosis-accuracy-note"><Icon name="spark" size={15} />{t('accuracyTip')}</p>
+          {error && <p className="diagnosis-error" role="alert">{error}</p>}
+          {modelWarning && <p className="diagnosis-warning" role="status">{modelWarning}</p>}
+          {historyWarning && <p className="diagnosis-warning" role="status">{historyWarning}</p>}
 
-        <div className="diagnosis-actions">
-          <button className="diagnosis-submit" type="submit" disabled={loading || !Boolean(symptoms.trim() || image || audio)}>
-            {loading ? <span className="ai-spinner" /> : <Icon name="stethoscope" size={17} />}
-            {loading ? t('analyzing') : t('analyzeFlock')}
-          </button>
-          {(image || audio || prescription || symptoms || answer || currentReport) && <button className="diagnosis-reset" type="button" onClick={resetForm}>{t('clearForm')}</button>}
-        </div>
-
-        {currentReport && (
-          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Icon name="spark" size={16} />
-              <span style={{ fontSize: '12px', fontWeight: 600, color: '#166534' }}>
-                {language === 'bn' ? 'সর্বশেষ স্ক্রীনিং রিপোর্ট:' : 'Latest Screening Report:'} <strong>{currentReport.topDisease}</strong> ({currentReport.topConfidence})
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                modalOpenedAtRef.current = Date.now()
-                setReportModalOpen(true)
-              }}
-              className="diagnosis-glass-button"
-              style={{ padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#15803d', borderColor: '#86efac', background: '#ffffff', cursor: 'pointer' }}
-            >
-              <Icon name="spark" size={13} />
-              <span>{language === 'bn' ? 'রিপোর্ট উইন্ডো খুলুন' : 'Open Report Window'}</span>
+          <div className="diagnosis-actions">
+            <button className="diagnosis-submit" type="submit" disabled={loading || !Boolean(symptoms.trim() || image || audio)}>
+              {loading ? <span className="ai-spinner" /> : <Icon name="stethoscope" size={17} />}
+              {loading ? t('analyzing') : t('analyzeFlock')}
             </button>
+            {(image || audio || prescription || symptoms || answer || currentReport) && <button className="diagnosis-reset" type="button" onClick={resetForm}>{t('clearForm')}</button>}
           </div>
-        )}
+
+          {currentReport && (
+            <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Icon name="spark" size={16} />
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#166534' }}>
+                  {language === 'bn' ? 'সর্বশেষ স্ক্রীনিং রিপোর্ট:' : 'Latest Screening Report:'} <strong>{currentReport.topDisease}</strong> ({currentReport.topConfidence})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  modalOpenedAtRef.current = Date.now()
+                  setReportModalOpen(true)
+                }}
+                className="diagnosis-glass-button"
+                style={{ padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#15803d', borderColor: '#86efac', background: '#ffffff', cursor: 'pointer' }}
+              >
+                <Icon name="spark" size={13} />
+                <span>{language === 'bn' ? 'রিপোর্ট উইন্ডো খুলুন' : 'Open Report Window'}</span>
+              </button>
+            </div>
+          )}
+            </div>
+          )}
+        </section>
       </form>
 
-      <section className="diagnosis-tool-card diagnosis-prescription-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="prescription-info-title">
-        <div className="diagnosis-section-heading dark:text-gray-100">
-          <div>
-            <span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionTwo')}</span>
-            <h3 id="prescription-info-title" className="dark:text-gray-100">{t('prescriptionWithdrawal')}</h3>
-            <p className="dark:text-gray-300">{t('prescriptionWithdrawalDescription')}</p>
+      <section
+        className={`diagnosis-tool-card diagnosis-prescription-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700${isRxOpen ? '' : ' is-collapsed'}`}
+        aria-labelledby="prescription-info-title"
+      >
+        <button
+          type="button"
+          className="diagnosis-accordion-trigger dark:text-gray-100"
+          aria-expanded={isRxOpen}
+          aria-controls="prescription-analyzer-panel"
+          onClick={handleToggleRx}
+        >
+          <div className="diagnosis-accordion-lead">
+            <span className="diagnosis-section-icon"><Icon name="pill" size={18} /></span>
+            <div className="diagnosis-accordion-copy">
+              <span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionTwo')}</span>
+              <h3 id="prescription-info-title" className="dark:text-gray-100">{t('prescriptionWithdrawal')}</h3>
+              <p className="dark:text-gray-300">{t('prescriptionWithdrawalDescription')}</p>
+            </div>
           </div>
-          <span className="diagnosis-section-icon"><Icon name="pill" size={20} /></span>
-        </div>
+          <div className="home-accordion-meta">
+            <span
+              className={`home-status-pill ${
+                prescriptionLoading
+                  ? 'home-status-pill--warn'
+                  : prescriptionResult?.medicines?.length > 0
+                  ? 'home-status-pill--ok'
+                  : prescription
+                  ? 'home-status-pill--warn'
+                  : ''
+              }`}
+            >
+              {prescriptionLoading
+                ? (language === 'bn' ? 'স্ক্যান চলছে...' : 'Scanning...')
+                : prescriptionResult?.medicines?.length > 0
+                ? (language === 'bn' ? `${prescriptionResult.medicines.length}টি ওষুধ বিশ্লেষিত` : `${prescriptionResult.medicines.length} Medicine${prescriptionResult.medicines.length > 1 ? 's' : ''} Analyzed`)
+                : prescription
+                ? (language === 'bn' ? 'ফাইল প্রস্তুত' : 'File Ready')
+                : (language === 'bn' ? 'ওষুধ ও উইথড্রয়াল' : 'Rx & Withdrawal')}
+            </span>
+            <Icon className={`home-accordion-chevron${isRxOpen ? ' is-open' : ''}`} name="chevron" size={17} />
+          </div>
+        </button>
+
+        {isRxOpen && (
+          <div id="prescription-analyzer-panel" className="diagnosis-accordion-panel">
 
         <input
           ref={prescriptionInput}
@@ -867,6 +959,8 @@ export default function DiagnosisHub() {
                   : 'Notice: Strictly adhere to withdrawal periods to prevent chemical and antimicrobial residues in human food chains. Never self-prescribe antibiotics without a registered veterinarian’s direct examination.'}
               </span>
             </div>
+          </div>
+        )}
           </div>
         )}
       </section>

@@ -4,6 +4,7 @@ import {
   Building2,
   Calendar,
   CheckCircle2,
+  ChevronRight,
   Droplets,
   Pencil,
   Plus,
@@ -46,9 +47,18 @@ function severityBadgeStyles(severity, coldWarning) {
   return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
 }
 
-export default function ShedFlockManager({ weather }) {
+export default function ShedFlockManager({ weather, isOpen, onToggle }) {
   const { language } = useLanguage()
   const isBn = language === 'bn'
+
+  const [internalOpen, setInternalOpen] = useState(false)
+  const [quickSimOpen, setQuickSimOpen] = useState(false)
+  const expanded = typeof isOpen === 'boolean' ? isOpen : internalOpen
+
+  function handleAccordionToggle() {
+    if (onToggle) onToggle()
+    else setInternalOpen((prev) => !prev)
+  }
 
   const [sheds, setSheds] = useState(() => getSheds())
   const [formOpen, setFormOpen] = useState(false)
@@ -162,53 +172,111 @@ export default function ShedFlockManager({ weather }) {
     setSheds(deleteShed(id))
   }
 
+  const activeTempC = activeWeather ? Math.round(activeWeather.temperature) : null
+  const activeTempF = activeWeather ? Math.round((activeWeather.temperature * 9) / 5 + 32) : null
+  const weatherReadout = activeTempC !== null ? `${activeTempC}°C (${activeTempF}°F)` : null
+  const shedCountLabel = sheds.length === 0
+    ? (isBn ? '০টি শেড' : '0 Sheds')
+    : (isBn ? `${sheds.length}টি শেড` : `${sheds.length} Shed${sheds.length === 1 ? '' : 's'}`)
+
+  const heatAlertCount = evaluation.activeAlerts.length
+  const broodingNeedCount = evaluation.broodingHeatAlerts.length
+  const hasHighHeat = evaluation.activeAlerts.some((report) => report.severity === 'high')
+
+  let headerPillTone = 'home-status-pill--ok'
+  let headerStatusText = isBn ? 'স্বাভাবিক' : 'Normal'
+  if (sheds.length === 0) {
+    headerPillTone = ''
+    headerStatusText = isBn ? 'শেড যোগ করুন' : 'Add Shed'
+  } else if (heatAlertCount > 0) {
+    headerPillTone = hasHighHeat ? 'home-status-pill--danger' : 'home-status-pill--warn'
+    headerStatusText = isBn
+      ? (hasHighHeat ? `${heatAlertCount}টি উচ্চ তাপ-সতর্কতা` : `${heatAlertCount}টি তাপ-সতর্কতা`)
+      : (hasHighHeat ? `${heatAlertCount} High Heat Alert${heatAlertCount > 1 ? 's' : ''}` : `${heatAlertCount} Heat Alert${heatAlertCount > 1 ? 's' : ''}`)
+  } else if (broodingNeedCount > 0) {
+    headerPillTone = 'home-status-pill--cold'
+    headerStatusText = isBn ? `${broodingNeedCount}টি শেডে ব্রুডিং তাপ প্রয়োজন` : `${broodingNeedCount} Need Brooding Heat`
+  } else if (!weatherReadout) {
+    headerPillTone = ''
+    headerStatusText = isBn ? 'আদর্শ তাপমাত্রা সক্রিয়' : 'Targets Ready'
+  }
+
+  const shedHeaderPillText = [shedCountLabel, weatherReadout, headerStatusText].filter(Boolean).join(' · ')
+
   return (
     <section
       id="shed-flock-manager"
-      className="shed-manager-card"
+      className={`shed-manager-card${expanded ? '' : ' is-collapsed'}`}
       aria-labelledby="shed-flock-manager-heading"
     >
-      {/* Header Row */}
-      <div className="shed-manager-header">
-        <div className="shed-manager-heading">
-          <div className="shed-manager-kicker">
-            <Building2 size={14} aria-hidden="true" />
-            <span>{isBn ? 'মাল্টি-শেড ও ব্রুডিং আবহাওয়া ইঞ্জিন' : 'Multi-Shed & Thermal Stress Engine'}</span>
-          </div>
-          <h2 id="shed-flock-manager-heading">
-            {isBn ? 'শেড ও ব্যাচ ফ্লক ম্যানেজার' : 'Flock Sheds & Age-Specific Heat-Stress Report'}
-          </h2>
-          <p>
-            {isBn
-              ? 'প্রতিটি শেডের প্রজাতি ও বয়স অনুযায়ী আদর্শ তাপমাত্রা, আর্দ্রতা ও হিট-স্ট্রেস ঝুঁকি পর্যবেক্ষণ করুন।'
-              : 'Track unlimited poultry sheds with daily auto-advancing bird ages and USDA-ARS temperature + humidity alerts.'}
-          </p>
-        </div>
-
-        <div className="shed-header-actions">
-          <button
-            type="button"
-            onClick={() => setUseSimulatedWeather((prev) => !prev)}
-            className={`shed-btn${useSimulatedWeather ? ' shed-btn--sim-active' : ''}`}
-          >
-            <SlidersHorizontal size={14} aria-hidden="true" />
-            <span>
-              {useSimulatedWeather
-                ? (isBn ? 'সিমুলেশন সক্রিয়' : 'Weather Sim: On')
-                : (isBn ? 'আবহাওয়া টেস্ট করুন' : 'Test Ambient Temp')}
+      <button
+        type="button"
+        className="shed-accordion-trigger"
+        aria-expanded={expanded}
+        aria-controls="shed-flock-manager-body"
+        onClick={handleAccordionToggle}
+      >
+        <div className="shed-accordion-lead">
+          <span className="shed-accordion-icon"><Building2 size={18} aria-hidden="true" /></span>
+          <div className="shed-accordion-copy">
+            <span className="shed-manager-kicker">
+              {isBn ? 'সেকশন ৩ · মাল্টি-শেড ও তাপ-পীড়ন রিপোর্ট' : 'Section 3 · Multi-Shed & Thermal Stress Engine'}
             </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => (formOpen ? setFormOpen(false) : openAddForm())}
-            className="shed-btn shed-btn--primary"
-          >
-            <Plus size={15} aria-hidden="true" />
-            <span>{formOpen ? (isBn ? 'ফর্ম বন্ধ করুন' : 'Close Form') : (isBn ? 'নতুন শেড যোগ করুন' : 'Add Shed / Batch')}</span>
-          </button>
+            <h2 id="shed-flock-manager-heading">
+              {isBn ? 'শেড ও ব্যাচ ফ্লক ম্যানেজার' : 'Flock Sheds & Age-Specific Heat-Stress Report'}
+            </h2>
+            <p>
+              {isBn
+                ? 'প্রতিটি শেডের প্রজাতি ও বয়স অনুযায়ী আদর্শ তাপমাত্রা, আর্দ্রতা ও হিট-স্ট্রেস ঝুঁকি পর্যবেক্ষণ করুন।'
+                : 'Track unlimited poultry sheds with daily auto-advancing bird ages and USDA-ARS temperature + humidity alerts.'}
+            </p>
+          </div>
         </div>
-      </div>
+
+        <div className="home-accordion-meta">
+          <span className={`home-status-pill ${headerPillTone}`}>
+            {heatAlertCount > 0 ? (
+              <AlertTriangle size={12} aria-hidden="true" />
+            ) : sheds.length > 0 && broodingNeedCount === 0 ? (
+              <CheckCircle2 size={12} aria-hidden="true" />
+            ) : (
+              <Thermometer size={12} aria-hidden="true" />
+            )}
+            <span>{shedHeaderPillText}</span>
+          </span>
+          <ChevronRight
+            size={18}
+            className={`shed-accordion-chevron${expanded ? ' is-open' : ''}`}
+            aria-hidden="true"
+          />
+        </div>
+      </button>
+
+      {expanded && (
+        <div id="shed-flock-manager-body" className="shed-accordion-body">
+          <div className="shed-header-actions shed-body-actions">
+            <button
+              type="button"
+              onClick={() => setUseSimulatedWeather((prev) => !prev)}
+              className={`shed-btn${useSimulatedWeather ? ' shed-btn--sim-active' : ''}`}
+            >
+              <SlidersHorizontal size={14} aria-hidden="true" />
+              <span>
+                {useSimulatedWeather
+                  ? (isBn ? 'সিমুলেশন সক্রিয়' : 'Weather Sim: On')
+                  : (isBn ? 'আবহাওয়া টেস্ট করুন' : 'Test Ambient Temp')}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => (formOpen ? setFormOpen(false) : openAddForm())}
+              className="shed-btn shed-btn--primary"
+            >
+              <Plus size={15} aria-hidden="true" />
+              <span>{formOpen ? (isBn ? 'ফর্ম বন্ধ করুন' : 'Close Form') : (isBn ? 'নতুন শেড যোগ করুন' : 'Add Shed / Batch')}</span>
+            </button>
+          </div>
 
       {/* Summary Metrics Strip */}
       <div className="shed-summary-strip">
@@ -507,92 +575,119 @@ export default function ShedFlockManager({ weather }) {
         </div>
       )}
 
-      {/* Quick Check Any Age Simulator */}
-      <div className="shed-simulator-panel">
-        <h3>
-          {isBn ? 'যেকোনো বয়সের তাৎক্ষণিক তাপমাত্রা ও আর্দ্রতা যাচাই (Simulator)' : 'Quick Check Any Age (On-the-Fly Simulator)'}
-        </h3>
-        <p>
-          {isBn
-            ? 'সংরক্ষিত শেড পরিবর্তন না করেই যেকোনো প্রজাতি ও বয়সের আদর্শ তাপমাত্রা এবং তাপ-পীড়ন পরীক্ষা করুন।'
-            : 'Test ideal brooding/housing targets and thermal stress risk for any bird age without changing your saved sheds.'}
-        </p>
-
-        <div className="shed-form-grid">
-          <label className="shed-field">
-            <span>{isBn ? 'প্রজাতি' : 'Species'}</span>
-            <select value={quickSpecies} onChange={(e) => setQuickSpecies(e.target.value)}>
-              {SHED_SPECIES.map((s) => (
-                <option key={s.id} value={s.id}>{isBn ? s.labelBn : s.labelEn}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="shed-field">
-            <span>{isBn ? 'বয়স (দিন)' : 'Age (Days)'}</span>
-            <input
-              type="number"
-              min="1"
-              max="1000"
-              value={quickAge}
-              onChange={(e) => setQuickAge(e.target.value)}
+      {/* Quick Check Any Age Simulator Collapsible Sub-Drawer */}
+      <div className={`shed-simulator-panel${quickSimOpen ? '' : ' is-collapsed'}`}>
+        <button
+          type="button"
+          className="shed-sim-drawer-trigger"
+          aria-expanded={quickSimOpen}
+          aria-controls="shed-quick-sim-body"
+          onClick={() => setQuickSimOpen((prev) => !prev)}
+        >
+          <span className="shed-sim-drawer-lead">
+            <ChevronRight
+              size={16}
+              className={`shed-accordion-chevron${quickSimOpen ? ' is-open' : ''}`}
+              aria-hidden="true"
             />
-          </label>
+            <span>
+              {isBn ? 'যেকোনো বয়সের তাৎক্ষণিক যাচাই (সিমুলেটর)' : 'Quick Check Any Age (Simulator)'}
+            </span>
+          </span>
+          <span className="shed-sim-drawer-badge">
+            {isBn
+              ? `${quickSpecies} · ${quickAge} দিন · ${quickCheckEval.targets.minTempC}–${quickCheckEval.targets.maxTempC}°C`
+              : `${quickSpecies} · Day ${quickAge} · ${quickCheckEval.targets.minTempC}–${quickCheckEval.targets.maxTempC}°C`}
+          </span>
+        </button>
 
-          <label className="shed-field">
-            <span>{isBn ? 'টেস্ট তাপমাত্রা (°C)' : 'Test Temp (°C)'}</span>
-            <input
-              type="number"
-              step="0.5"
-              placeholder={activeWeather ? String(activeWeather.temperature) : 'e.g. 31'}
-              value={quickTempC}
-              onChange={(e) => setQuickTempC(e.target.value)}
-            />
-          </label>
+        {quickSimOpen && (
+          <div id="shed-quick-sim-body" className="shed-sim-drawer-body">
+            <p>
+              {isBn
+                ? 'সংরক্ষিত শেড পরিবর্তন না করেই যেকোনো প্রজাতি ও বয়সের আদর্শ তাপমাত্রা এবং তাপ-পীড়ন পরীক্ষা করুন।'
+                : 'Test ideal brooding/housing targets and thermal stress risk for any bird age without changing your saved sheds.'}
+            </p>
 
-          <label className="shed-field">
-            <span>{isBn ? 'টেস্ট আর্দ্রতা (%)' : 'Test RH (%)'}</span>
-            <input
-              type="number"
-              min="10"
-              max="100"
-              placeholder={activeWeather ? String(activeWeather.humidity) : 'e.g. 72'}
-              value={quickHumidity}
-              onChange={(e) => setQuickHumidity(e.target.value)}
-            />
-          </label>
-        </div>
+            <div className="shed-form-grid">
+              <label className="shed-field">
+                <span>{isBn ? 'প্রজাতি' : 'Species'}</span>
+                <select value={quickSpecies} onChange={(e) => setQuickSpecies(e.target.value)}>
+                  {SHED_SPECIES.map((s) => (
+                    <option key={s.id} value={s.id}>{isBn ? s.labelBn : s.labelEn}</option>
+                  ))}
+                </select>
+              </label>
 
-        <div className="shed-simulator-result">
-          <div className="shed-simulator-result-top">
-            <div>
-              <span>{isBn ? quickCheckEval.targets.stageLabelBn : quickCheckEval.targets.stageLabel}: </span>
-              <span style={{ color: '#15803d' }}>
-                {quickCheckEval.targets.minTempC}°C–{quickCheckEval.targets.maxTempC}°C ({quickCheckEval.targets.minTempF}°F–{quickCheckEval.targets.maxTempF}°F)
-              </span>
-              <span> · RH {quickCheckEval.targets.minRh}%–{quickCheckEval.targets.maxRh}%</span>
+              <label className="shed-field">
+                <span>{isBn ? 'বয়স (দিন)' : 'Age (Days)'}</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={quickAge}
+                  onChange={(e) => setQuickAge(e.target.value)}
+                />
+              </label>
+
+              <label className="shed-field">
+                <span>{isBn ? 'টেস্ট তাপমাত্রা (°C)' : 'Test Temp (°C)'}</span>
+                <input
+                  type="number"
+                  step="0.5"
+                  placeholder={activeWeather ? String(activeWeather.temperature) : 'e.g. 31'}
+                  value={quickTempC}
+                  onChange={(e) => setQuickTempC(e.target.value)}
+                />
+              </label>
+
+              <label className="shed-field">
+                <span>{isBn ? 'টেস্ট আর্দ্রতা (%)' : 'Test RH (%)'}</span>
+                <input
+                  type="number"
+                  min="10"
+                  max="100"
+                  placeholder={activeWeather ? String(activeWeather.humidity) : 'e.g. 72'}
+                  value={quickHumidity}
+                  onChange={(e) => setQuickHumidity(e.target.value)}
+                />
+              </label>
             </div>
 
-            {(() => {
-              const simBadge = severityBadgeStyles(quickCheckEval.severity, quickCheckEval.coldWarning)
-              return (
-                <span
-                  className="shed-alert-pill"
-                  style={{ backgroundColor: simBadge.bg, color: simBadge.color, borderColor: simBadge.border }}
-                >
-                  {isBn ? quickCheckEval.severityLabelBn : quickCheckEval.severityLabelEn}
-                </span>
-              )
-            })()}
+            <div className="shed-simulator-result">
+              <div className="shed-simulator-result-top">
+                <div>
+                  <span>{isBn ? quickCheckEval.targets.stageLabelBn : quickCheckEval.targets.stageLabel}: </span>
+                  <span style={{ color: '#15803d' }}>
+                    {quickCheckEval.targets.minTempC}°C–{quickCheckEval.targets.maxTempC}°C ({quickCheckEval.targets.minTempF}°F–{quickCheckEval.targets.maxTempF}°F)
+                  </span>
+                  <span> · RH {quickCheckEval.targets.minRh}%–{quickCheckEval.targets.maxRh}%</span>
+                </div>
+
+                {(() => {
+                  const simBadge = severityBadgeStyles(quickCheckEval.severity, quickCheckEval.coldWarning)
+                  return (
+                    <span
+                      className="shed-alert-pill"
+                      style={{ backgroundColor: simBadge.bg, color: simBadge.color, borderColor: simBadge.border }}
+                    >
+                      {isBn ? quickCheckEval.severityLabelBn : quickCheckEval.severityLabelEn}
+                    </span>
+                  )
+                })()}
+              </div>
+              <p className="shed-advice-text">
+                {isBn ? quickCheckEval.adviceBn : quickCheckEval.adviceEn}
+              </p>
+              <p className="shed-citation">
+                {MANAGEMENT_STANDARDS_CITATION} · {THI_GUIDELINES_CITATION}.
+              </p>
+            </div>
           </div>
-          <p className="shed-advice-text">
-            {isBn ? quickCheckEval.adviceBn : quickCheckEval.adviceEn}
-          </p>
-          <p className="shed-citation">
-            {MANAGEMENT_STANDARDS_CITATION} · {THI_GUIDELINES_CITATION}.
-          </p>
-        </div>
+        )}
       </div>
+        </div>
+      )}
     </section>
   )
 }

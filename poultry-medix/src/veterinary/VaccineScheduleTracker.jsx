@@ -75,9 +75,18 @@ function statusMeta(status, isBn) {
   }
 }
 
-export default function VaccineScheduleTracker() {
+export default function VaccineScheduleTracker({ isOpen, onToggle }) {
   const { language } = useLanguage()
   const isBn = language === 'bn'
+
+  const [internalOpen, setInternalOpen] = useState(false)
+  const [prepChecklistOpen, setPrepChecklistOpen] = useState(false)
+  const expanded = typeof isOpen === 'boolean' ? isOpen : internalOpen
+
+  function handleAccordionToggle() {
+    if (onToggle) onToggle()
+    else setInternalOpen((prev) => !prev)
+  }
 
   const [sheds, setSheds] = useState(() => getSheds())
   const [completedMap, setCompletedMap] = useState(() => getCompletedVaccinesMap())
@@ -144,60 +153,108 @@ export default function VaccineScheduleTracker() {
   }
 
   const hasUrgentAlarm = alarms.some((a) => a.status === 'due_today' || a.status === 'overdue')
+  const dueTodayOrOverdueCount = alarms.filter((a) => a.status === 'due_today' || a.status === 'overdue').length
+  const dueTomorrowCount = alarms.filter((a) => a.status === 'due_tomorrow').length
+
+  let vaccinePillTone = 'home-status-pill--ok'
+  let vaccinePillText = isBn ? 'সব টিকা হালনাগাদ' : 'Up to Date'
+  if (sheds.length === 0) {
+    vaccinePillTone = ''
+    vaccinePillText = isBn ? '০টি শেড' : '0 Sheds'
+  } else if (dueTodayOrOverdueCount > 0) {
+    vaccinePillTone = 'home-status-pill--danger'
+    vaccinePillText = isBn
+      ? `${dueTodayOrOverdueCount}টি আজই/বকেয়া`
+      : `${dueTodayOrOverdueCount} Due Today`
+  } else if (dueTomorrowCount > 0) {
+    vaccinePillTone = 'home-status-pill--warn'
+    vaccinePillText = isBn
+      ? `${dueTomorrowCount}টি আগামীকাল`
+      : `${dueTomorrowCount} Tomorrow (1d)`
+  }
 
   return (
     <section
       id="vaccine-schedule-tracker"
-      className="vaccine-tracker-card"
+      className={`vaccine-tracker-card${expanded ? '' : ' is-collapsed'}`}
       aria-labelledby="vaccine-tracker-heading"
     >
-      {/* Header Row */}
-      <div className="vaccine-tracker-header">
-        <div className="vaccine-tracker-heading">
-          <div className="vaccine-tracker-kicker">
-            <Syringe size={14} aria-hidden="true" />
-            <span>{isBn ? 'প্রজাতি-ভিত্তিক টিকা সময়সূচি ও ১-দিন পূর্বের অ্যালার্ম' : 'Species-Specific Immunization & 1-Day Alarms'}</span>
+      <button
+        type="button"
+        className="vaccine-accordion-trigger"
+        aria-expanded={expanded}
+        aria-controls="vaccine-schedule-body"
+        onClick={handleAccordionToggle}
+      >
+        <div className="vaccine-accordion-lead">
+          <span className="vaccine-accordion-icon"><Syringe size={18} aria-hidden="true" /></span>
+          <div className="vaccine-accordion-copy">
+            <span className="vaccine-tracker-kicker">
+              {isBn ? 'সেকশন ৪ · প্রজাতি-ভিত্তিক টিকা সময়সূচি ও অ্যালার্ম' : 'Section 4 · Species-Specific Immunization & 1-Day Alarms'}
+            </span>
+            <h2 id="vaccine-tracker-heading">
+              {isBn ? 'পোল্ট্রি ভ্যাকসিন শিডিউল ট্র্যাকার ও ক্যালেন্ডার' : 'Vaccine Schedule Tracker & Interactive Calendar'}
+            </h2>
+            <p>
+              {isBn
+                ? 'প্রতিটি শেডের পাখির ধরন অনুযায়ী আলাদা DLS/BLRI টিকা তালিকা, ১ দিন আগে সতর্কতা এবং ক্যালেন্ডার দেখুন।'
+                : 'Automatically filtered by each shed’s exact species (Broiler, Layer, Sonali, Desi, Duck, Pigeon) with 1-day advance reminders.'}
+            </p>
           </div>
-          <h2 id="vaccine-tracker-heading">
-            {isBn ? 'পোল্ট্রি ভ্যাকসিন শিডিউল ট্র্যাকার ও ক্যালেন্ডার' : 'Vaccine Schedule Tracker & Interactive Calendar'}
-          </h2>
-          <p>
-            {isBn
-              ? 'প্রতিটি শেডের পাখির ধরন অনুযায়ী আলাদা DLS/BLRI টিকা তালিকা, ১ দিন আগে সতর্কতা এবং ক্যালেন্ডার দেখুন।'
-              : 'Automatically filtered by each shed’s exact species (Broiler, Layer, Sonali, Desi, Duck, Pigeon) with 1-day advance reminders.'}
-          </p>
         </div>
 
-        <div className="vaccine-header-actions">
-          {notifPermission !== 'unsupported' && (
+        <div className="home-accordion-meta">
+          <span className={`home-status-pill ${vaccinePillTone}`}>
+            {dueTodayOrOverdueCount > 0 ? (
+              <BellRing size={12} aria-hidden="true" />
+            ) : dueTomorrowCount > 0 ? (
+              <Bell size={12} aria-hidden="true" />
+            ) : sheds.length > 0 ? (
+              <Check size={12} aria-hidden="true" />
+            ) : (
+              <Syringe size={12} aria-hidden="true" />
+            )}
+            <span>{vaccinePillText}</span>
+          </span>
+          <ChevronRight
+            size={18}
+            className={`vaccine-accordion-chevron${expanded ? ' is-open' : ''}`}
+            aria-hidden="true"
+          />
+        </div>
+      </button>
+
+      {expanded && (
+        <div id="vaccine-schedule-body" className="vaccine-accordion-body">
+          <div className="vaccine-header-actions vaccine-body-actions">
+            {notifPermission !== 'unsupported' && (
+              <button
+                type="button"
+                onClick={requestAlarmPermission}
+                className="vaccine-btn"
+                title={isBn ? 'ব্রাউজার অ্যালার্ম চালু করুন' : 'Enable browser 1-day vaccine alerts'}
+              >
+                {notifPermission === 'granted' ? <BellRing size={14} color="#15803d" /> : <Bell size={14} />}
+                <span>
+                  {notifPermission === 'granted'
+                    ? (isBn ? 'পুশ অ্যালার্ম চালু' : 'Push Alerts: On')
+                    : (isBn ? 'অ্যালার্ম চালু করুন' : 'Enable Alerts')}
+                </span>
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={requestAlarmPermission}
-              className="vaccine-btn"
-              title={isBn ? 'ব্রাউজার অ্যালার্ম চালু করুন' : 'Enable browser 1-day vaccine alerts'}
+              onClick={() => {
+                setCalendarShedFilter(selectedShedFilter)
+                setCalendarOpen(true)
+              }}
+              className="vaccine-btn vaccine-btn--primary"
             >
-              {notifPermission === 'granted' ? <BellRing size={14} color="#15803d" /> : <Bell size={14} />}
-              <span>
-                {notifPermission === 'granted'
-                  ? (isBn ? 'পুশ অ্যালার্ম চালু' : 'Push Alerts: On')
-                  : (isBn ? 'অ্যালার্ম চালু করুন' : 'Enable Alerts')}
-              </span>
+              <CalendarIcon size={15} aria-hidden="true" />
+              <span>{isBn ? 'টিকা ক্যালেন্ডার দেখুন' : 'See Vaccine Schedule Calendar'}</span>
             </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              setCalendarShedFilter(selectedShedFilter)
-              setCalendarOpen(true)
-            }}
-            className="vaccine-btn vaccine-btn--primary"
-          >
-            <CalendarIcon size={15} aria-hidden="true" />
-            <span>{isBn ? 'টিকা ক্যালেন্ডার দেখুন' : 'See Vaccine Schedule Calendar'}</span>
-          </button>
-        </div>
-      </div>
+          </div>
 
       {/* Consolidated Multi-Shed 1-Day Advance & Same-Day Alarm Banner */}
       {alarms.length > 0 && (
@@ -245,21 +302,44 @@ export default function VaccineScheduleTracker() {
         </div>
       )}
 
-      {/* Official Vaccination Preparation Checklist Card */}
-      <div className="vaccine-prep-card">
-        <h3 className="vaccine-prep-title">
-          <ClipboardCheck size={16} aria-hidden="true" />
-          <span>{isBn ? 'ভ্যাকসিন প্রস্তুতির সরকারি নির্দেশিকা (চেকলিস্ট)' : 'Official Vaccination Preparation Checklist'}</span>
-        </h3>
-        <div className="vaccine-prep-grid">
-          {VACCINE_PREPARATION_CHECKLIST.map((step) => (
-            <div className="vaccine-prep-item" key={step.id}>
-              <strong>{isBn ? step.titleBn : step.titleEn}</strong>
-              <p>{isBn ? step.detailBn : step.detailEn}</p>
+      {/* Official Vaccination Preparation Checklist Collapsible Bar */}
+      <div className={`vaccine-prep-card${prepChecklistOpen ? '' : ' is-collapsed'}`}>
+        <button
+          type="button"
+          className="vaccine-prep-drawer-trigger"
+          aria-expanded={prepChecklistOpen}
+          aria-controls="vaccine-prep-body"
+          onClick={() => setPrepChecklistOpen((prev) => !prev)}
+        >
+          <span className="vaccine-prep-drawer-lead">
+            <ChevronRight
+              size={15}
+              className={`vaccine-accordion-chevron${prepChecklistOpen ? ' is-open' : ''}`}
+              aria-hidden="true"
+            />
+            <ClipboardCheck size={16} aria-hidden="true" />
+            <span>{isBn ? 'ভ্যাকসিন প্রস্তুতির সরকারি চেকলিস্ট দেখুন' : 'View Preparation Checklist'}</span>
+          </span>
+          <span className="vaccine-prep-count-badge">
+            {isBn
+              ? `${VACCINE_PREPARATION_CHECKLIST.length}টি ধাপ · FAO/WOAH`
+              : `${VACCINE_PREPARATION_CHECKLIST.length} Steps · FAO/WOAH`}
+          </span>
+        </button>
+
+        {prepChecklistOpen && (
+          <div id="vaccine-prep-body" className="vaccine-prep-body">
+            <div className="vaccine-prep-grid">
+              {VACCINE_PREPARATION_CHECKLIST.map((step) => (
+                <div className="vaccine-prep-item" key={step.id}>
+                  <strong>{isBn ? step.titleBn : step.titleEn}</strong>
+                  <p>{isBn ? step.detailBn : step.detailEn}</p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <p className="vaccine-prep-citation">{FAO_WOAH_PREP_CITATION}</p>
+            <p className="vaccine-prep-citation">{FAO_WOAH_PREP_CITATION}</p>
+          </div>
+        )}
       </div>
 
       {/* Shed Filter Bar */}
@@ -381,6 +461,8 @@ export default function VaccineScheduleTracker() {
               </article>
             )
           })}
+        </div>
+      )}
         </div>
       )}
 
