@@ -720,9 +720,9 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           )}
         </section>
 
-        <ShedFlockManager weather={weather} />
-
         <DiagnosisHub />
+
+        <ShedFlockManager weather={weather} />
 
         <section className="guidelines-section bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="guidelines-heading">
           <button
