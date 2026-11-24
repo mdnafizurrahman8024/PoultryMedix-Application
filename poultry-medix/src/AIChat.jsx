@@ -47,6 +47,9 @@ function VetDoctorChatImage({ className, alt = 'PoultryMedix AI Diagnostic', siz
 }
 export default function AIChat() {
   const { t, language } = useLanguage()
+  const [chatPosition, setChatPosition] = useState({ x: null, y: null })
+  const chatWindowRef = useRef(null)
+  const chatDragRef = useRef(null)
   const [userRole, setUserRole] = useState('farmer')
   const [open, setOpen] = useState(false)
   const [position, setPosition] = useState(() => ({
@@ -131,15 +134,26 @@ export default function AIChat() {
   useEffect(() => {
     function constrainPosition() {
       const fab = fabRef.current
-      if (!fab) return
-      window.requestAnimationFrame(() => {
-        const width = fab.offsetWidth || 70
-        const height = fab.offsetHeight || 90
-        setPosition((current) => current.x === null ? current : ({
-          x: Math.max(8, Math.min(window.innerWidth - width - 8, current.x)),
-          y: Math.max(72, Math.min(window.innerHeight - height - 8, current.y)),
-        }))
-      })
+      if (fab) {
+        window.requestAnimationFrame(() => {
+          const width = fab.offsetWidth || 70
+          const height = fab.offsetHeight || 90
+          setPosition((current) => current.x === null ? current : ({
+            x: Math.max(8, Math.min(window.innerWidth - width - 8, current.x)),
+            y: Math.max(72, Math.min(window.innerHeight - height - 8, current.y)),
+          }))
+        })
+      }
+      const card = chatWindowRef.current
+      if (card) {
+        window.requestAnimationFrame(() => {
+          const cWidth = card.offsetWidth || 380
+          setChatPosition((current) => (current.x === null || current.y === null ? current : ({
+            x: Math.max(8, Math.min(window.innerWidth - cWidth - 8, current.x)),
+            y: Math.max(16, Math.min(window.innerHeight - 80, current.y)),
+          })))
+        })
+      }
     }
 
     window.addEventListener('resize', constrainPosition)
@@ -178,7 +192,83 @@ export default function AIChat() {
       window.removeEventListener('touchend', drag.endTouch)
       window.removeEventListener('touchcancel', drag.endTouch)
     }
+    const cDrag = chatDragRef.current
+    if (cDrag) {
+      if (cDrag.rafId) window.cancelAnimationFrame(cDrag.rafId)
+      window.removeEventListener('mousemove', cDrag.move)
+      window.removeEventListener('mouseup', cDrag.end)
+      window.removeEventListener('touchmove', cDrag.move)
+      window.removeEventListener('touchend', cDrag.end)
+      window.removeEventListener('touchcancel', cDrag.end)
+    }
   }, [])
+
+  function startChatDrag(event, inputType) {
+    if (expanded) return
+    if (inputType === 'mouse' && event.button !== 0) return
+    if (event.target.closest('button') || event.target.closest('a') || event.target.closest('input')) return
+
+    const point = inputType === 'touch' ? event.touches[0] : event
+    if (!point) return
+
+    const card = chatWindowRef.current
+    const bounds = card?.getBoundingClientRect()
+    const cardWidth = card?.offsetWidth || Math.min(380, window.innerWidth - 24)
+    const cardHeight = card?.offsetHeight || Math.min(560, window.innerHeight - 80)
+    const defaultX = Math.max(12, window.innerWidth - cardWidth - 20)
+    const defaultY = Math.max(70, window.innerHeight - cardHeight - 20)
+    const currentLeft = bounds?.left ?? (chatPosition.x ?? defaultX)
+    const currentTop = bounds?.top ?? (chatPosition.y ?? defaultY)
+
+    const drag = {
+      startX: point.clientX,
+      startY: point.clientY,
+      originX: currentLeft,
+      originY: currentTop,
+      moved: false,
+      rafId: 0,
+      move: null,
+      end: null,
+    }
+
+    drag.move = (moveEvent) => {
+      const movePoint = inputType === 'touch' ? moveEvent.touches[0] : moveEvent
+      if (!movePoint) return
+      const deltaX = movePoint.clientX - drag.startX
+      const deltaY = movePoint.clientY - drag.startY
+      if (Math.hypot(deltaX, deltaY) > 4) drag.moved = true
+      if (!drag.moved || drag.rafId) return
+
+      drag.rafId = window.requestAnimationFrame(() => {
+        drag.rafId = 0
+        const cWidth = chatWindowRef.current?.offsetWidth || 380
+        setChatPosition({
+          x: Math.max(8, Math.min(window.innerWidth - cWidth - 8, drag.originX + deltaX)),
+          y: Math.max(16, Math.min(window.innerHeight - 80, drag.originY + deltaY)),
+        })
+      })
+    }
+
+    drag.end = () => {
+      if (drag.rafId) window.cancelAnimationFrame(drag.rafId)
+      window.removeEventListener('mousemove', drag.move)
+      window.removeEventListener('mouseup', drag.end)
+      window.removeEventListener('touchmove', drag.move)
+      window.removeEventListener('touchend', drag.end)
+      window.removeEventListener('touchcancel', drag.end)
+      chatDragRef.current = null
+    }
+
+    chatDragRef.current = drag
+    if (inputType === 'touch') {
+      window.addEventListener('touchmove', drag.move, { passive: false })
+      window.addEventListener('touchend', drag.end)
+      window.addEventListener('touchcancel', drag.end)
+    } else {
+      window.addEventListener('mousemove', drag.move)
+      window.addEventListener('mouseup', drag.end)
+    }
+  }
 
   function finishDrag() {
     const drag = dragRef.current
@@ -429,25 +519,30 @@ export default function AIChat() {
   return (
     <div className="ai-chat-widget bg-white dark:bg-gray-900 text-gray-900 dark:text-white">
       {open && <section
-        className={`ai-chat-panel fixed bottom-0 left-0 z-50 w-full max-h-[90vh] overflow-y-auto rounded-t-2xl shadow-lg lg:bottom-[94px] lg:left-auto lg:right-[25px] lg:z-30 lg:w-[min(390px,calc(100vw-36px))] lg:max-h-none lg:overflow-hidden lg:rounded-[15px] lg:shadow-[0_15px_48px_rgba(29,54,32,0.2)] dark:text-gray-100${open && expanded ? ' ai-chat-panel--expanded' : ''}`}
+        ref={chatWindowRef}
+        className={`ai-chat-panel fixed z-50 rounded-2xl shadow-2xl dark:text-gray-100${open && expanded ? ' ai-chat-panel--expanded' : ''}`}
         aria-label={t('aiChatTitle')}
         style={open && expanded ? {
           position: 'fixed',
           inset: 0,
-          width: '100%',
-          height: '100%',
+          width: '100vw',
+          height: '100vh',
           zIndex: 999999,
           borderRadius: 0,
           right: 'auto',
           bottom: 'auto',
         } : {
           position: 'fixed',
-          bottom: '185px',
-          right: '24px',
+          left: chatPosition.x !== null
+            ? `${Math.max(8, Math.min(window.innerWidth - Math.min(390, window.innerWidth - 24) - 8, chatPosition.x))}px`
+            : `${Math.max(12, window.innerWidth - Math.min(390, window.innerWidth - 24) - 20)}px`,
+          top: chatPosition.y !== null
+            ? `${Math.max(16, Math.min(window.innerHeight - 80, chatPosition.y))}px`
+            : `${Math.max(70, window.innerHeight - Math.min(560, window.innerHeight - 80) - 20)}px`,
+          width: `${Math.min(390, window.innerWidth - 24)}px`,
+          height: `${Math.min(560, window.innerHeight - 80)}px`,
+          maxHeight: 'calc(100vh - 40px)',
           zIndex: 999999,
-          width: '380px',
-          height: '560px',
-          maxHeight: 'calc(100vh - 200px)',
           borderRadius: '16px',
           boxShadow: '0 20px 40px rgba(0,0,0,0.25)',
           overflow: 'hidden',
@@ -455,22 +550,22 @@ export default function AIChat() {
           flexDirection: 'column',
         }}
       >
-        <AiSafetyBanner />
         <header
           className="ai-chat-header dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
-          role="button"
-          tabIndex="0"
-          aria-label={t('aiToggleLabel')}
-          onClick={() => setOpen((value) => !value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              setOpen((value) => !value)
-            }
+          onMouseDown={(event) => startChatDrag(event, 'mouse')}
+          onTouchStart={(event) => startChatDrag(event, 'touch')}
+          style={{
+            cursor: expanded ? 'default' : 'grab',
+            userSelect: 'none',
+            touchAction: 'none',
           }}
+          title={expanded ? '' : (language === 'bn' ? 'উইন্ডোটি ড্র্যাগ করে যেকোনো জায়গায় সরান' : 'Click and drag to move chat window')}
         >
           <span className="chat-avatar"><VetDoctorChatImage className="w-10 h-10 rounded-full object-cover border border-emerald-400/50" size={40} /></span>
-          <span className="chat-title"><strong>PoultryMedix AI</strong><small><span className="chat-online-dot" />{t('aiDiagnosticOnline')}</small></span>
+          <span className="chat-title" style={{ pointerEvents: 'none' }}>
+            <strong>PoultryMedix AI</strong>
+            <small><span className="chat-online-dot" />{t('aiDiagnosticOnline')}</small>
+          </span>
           <span className="chat-header-actions">
             <button
               className="chat-header-action"
@@ -494,11 +589,20 @@ export default function AIChat() {
                 setOpen(false)
                 setExpanded(false)
               }}
+              style={{
+                width: '32px',
+                height: '32px',
+                fontSize: '15px',
+                fontWeight: 700,
+                display: 'grid',
+                placeItems: 'center',
+              }}
             >
               <span aria-hidden="true">✕</span>
             </button>
           </span>
         </header>
+        <AiSafetyBanner />
         <div className="ai-chat-messages dark:bg-gray-900 dark:text-gray-100" ref={listRef} aria-live="polite">
           {!messages.length && <div className="chat-welcome dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"><span className="chat-welcome-icon"><Icon name="bird" size={23} /></span><strong>{t('chatWelcomeTitle')}</strong><p>{t('chatWelcomeDescription')}</p><span className="chat-source-note dark:text-gray-300"><Icon name="book" size={12} />{t('aiInformationalNotice')}</span></div>}
           {messages.map((item) => <article className={`chat-message chat-message--${item.role}`} key={item.id}>
