@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
-import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription } from './lib/ai.js'
+import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription, canonicalDiseaseName } from './lib/ai.js'
 import { generateDiagnosticExplanation, REPORT_AI_FALLBACK_NOTE } from './lib/aiServiceAdapter.js'
 import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
@@ -12,6 +12,31 @@ import { saveHistoryEntry, saveLocalPrescriptionAttachment, saveUnifiedLog } fro
 import useSpeechToText from './hooks/useSpeechToText.js'
 
 const maxFileSize = 8 * 1024 * 1024
+
+function deduplicatePredictions(preds) {
+  if (!Array.isArray(preds)) return []
+  const map = new Map()
+  for (const item of preds) {
+    const rawName = item?.disease || item?.className || item?.label || ''
+    if (!rawName) continue
+    const norm = (typeof canonicalDiseaseName === 'function' ? canonicalDiseaseName(rawName) : rawName) || rawName
+    const key = norm.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const conf = typeof item.confidence === 'number'
+      ? item.confidence
+      : parseFloat(item.percentage) / 100 || 0
+    const existing = map.get(key)
+    if (!existing || conf > existing.confidence) {
+      map.set(key, {
+        ...item,
+        disease: norm,
+        confidence: conf,
+        percentage: item.percentage || `${(conf * 100).toFixed(1)}%`,
+        score: conf,
+      })
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.confidence - a.confidence)
+}
 
 function mergeSources(...sourceArrays) {
   const seen = new Set()
@@ -206,22 +231,22 @@ export default function DiagnosisHub() {
       let topConfidence = 'Screened'
 
       if (visualResult?.predictions?.length) {
-        rankedPredictions = visualResult.predictions.map((p) => ({
+        rankedPredictions = deduplicatePredictions(visualResult.predictions.map((p) => ({
           disease: p.disease,
           confidence: p.confidence,
           percentage: `${(p.confidence * 100).toFixed(1)}%`,
           score: p.confidence,
-        }))
+        })))
         topDisease = visualResult.label || rankedPredictions[0].disease
-        topConfidence = `${(visualResult.confidence * 100).toFixed(1)}%`
+        topConfidence = `${(rankedPredictions[0]?.confidence ? (rankedPredictions[0].confidence * 100).toFixed(1) : (visualResult.confidence * 100).toFixed(1))}%`
       } else if (localMatches.length) {
-        rankedPredictions = localMatches.map((m) => ({
+        rankedPredictions = deduplicatePredictions(localMatches.map((m) => ({
           disease: m.disease,
           confidence: m.score,
           percentage: `${Math.round(m.score * 100)}%`,
           matchedSigns: m.matchedSigns,
           score: m.score,
-        }))
+        })))
         topDisease = rankedPredictions[0].disease
         topConfidence = rankedPredictions[0].percentage
       } else if (audio) {
@@ -265,6 +290,7 @@ export default function DiagnosisHub() {
       setLoading(false)
 
       const initialAnswer = {
+        topDisease,
         answer: `${topDisease}: Initial screening complete (${topConfidence}). Review the full breakdown in the open report window.`,
         predictions: rankedPredictions.map((p) => ({
           disease: p.disease,
@@ -306,6 +332,7 @@ export default function DiagnosisHub() {
           })
 
           const fullAnswer = {
+            topDisease,
             answer: explanationText,
             predictions: rankedPredictions.map((p) => ({
               disease: p.disease,
@@ -473,6 +500,29 @@ export default function DiagnosisHub() {
           </button>
           {(image || audio || prescription || symptoms || answer || currentReport) && <button className="diagnosis-reset" type="button" onClick={resetForm}>{t('clearForm')}</button>}
         </div>
+
+        {currentReport && (
+          <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Icon name="spark" size={16} />
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#166534' }}>
+                {language === 'bn' ? 'সর্বশেষ স্ক্রীনিং রিপোর্ট:' : 'Latest Screening Report:'} <strong>{currentReport.topDisease}</strong> ({currentReport.topConfidence})
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                modalOpenedAtRef.current = Date.now()
+                setReportModalOpen(true)
+              }}
+              className="diagnosis-glass-button"
+              style={{ padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#15803d', borderColor: '#86efac', background: '#ffffff', cursor: 'pointer' }}
+            >
+              <Icon name="spark" size={13} />
+              <span>{language === 'bn' ? 'রিপোর্ট উইন্ডো খুলুন' : 'Open Report Window'}</span>
+            </button>
+          </div>
+        )}
       </form>
 
       <section className="diagnosis-tool-card diagnosis-prescription-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="prescription-info-title">
@@ -499,7 +549,7 @@ export default function DiagnosisHub() {
 
       {reportModalOpen && currentReport && (
         <div
-          className="diagnosis-withdrawal-modal-backdrop"
+          className="diagnosis-report-modal-backdrop"
           role="presentation"
           onClick={(event) => {
             if (event.target === event.currentTarget && Date.now() - modalOpenedAtRef.current > 400) {
@@ -515,149 +565,175 @@ export default function DiagnosisHub() {
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="diagnosis-modal-heading dark:text-gray-100">
+            {/* Fixed Header */}
+            <div className="diagnosis-report-header dark:bg-gray-800 dark:border-gray-700">
               <div>
-                <span className="diagnosis-section-kicker dark:text-gray-300">CLINICAL TRIAGE REPORT</span>
-                <h3 id="report-modal-title" className="dark:text-white">Flock Health Screening</h3>
+                <span className="diagnosis-section-kicker dark:text-gray-300">
+                  {language === 'bn' ? 'ক্লিনিকাল ট্রায়াজ রিপোর্ট' : 'CLINICAL TRIAGE REPORT'}
+                </span>
+                <h3 id="report-modal-title" className="dark:text-white" style={{ margin: '2px 0 0', fontSize: '15px', fontWeight: 800 }}>
+                  {language === 'bn' ? 'ফ্লক স্বাস্থ্য স্ক্রীনিং ফলাফল' : 'Flock Health Screening'}
+                </h3>
               </div>
-              <button className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" onClick={() => setReportModalOpen(false)} aria-label="Close diagnostic report">
+              <button
+                className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700"
+                type="button"
+                onClick={() => setReportModalOpen(false)}
+                aria-label={language === 'bn' ? 'রিপোর্ট উইন্ডো বন্ধ করুন' : 'Close diagnostic report'}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+              >
                 <Icon name="close" size={18} />
               </button>
             </div>
 
-            <div className="diagnosis-report-badge-list">
-              {currentReport.hasImage && (
-                <span className="diagnosis-report-badge">
-                  <Icon name="image" size={13} />
-                  <span>{currentReport.imageName || 'Flock Image'}</span>
-                </span>
-              )}
-              {currentReport.hasAudio && (
-                <span className="diagnosis-report-badge">
-                  <Icon name="mic" size={13} />
-                  <span>{currentReport.audioName || 'Flock Audio'}</span>
-                </span>
-              )}
-              {currentReport.hasText && (
-                <span className="diagnosis-report-badge">
-                  <Icon name="spark" size={13} />
-                  <span>Symptoms Noted</span>
-                </span>
-              )}
-            </div>
-
-            <div className="diagnosis-report-top-card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#166534' }}>
-                  Primary Condition Detected
-                </span>
-                <span style={{ fontSize: '13px', fontWeight: 800, color: '#15803d' }}>
-                  {currentReport.topConfidence}
-                </span>
+            {/* Scrollable Body */}
+            <div className="diagnosis-report-body">
+              <div className="diagnosis-report-badge-list">
+                {currentReport.hasImage && (
+                  <span className="diagnosis-report-badge">
+                    <Icon name="image" size={12} />
+                    <span>{currentReport.imageName || (language === 'bn' ? 'ফ্লকের ছবি' : 'Flock Image')}</span>
+                  </span>
+                )}
+                {currentReport.hasAudio && (
+                  <span className="diagnosis-report-badge">
+                    <Icon name="mic" size={12} />
+                    <span>{currentReport.audioName || (language === 'bn' ? 'ফ্লকের অডিও' : 'Flock Audio')}</span>
+                  </span>
+                )}
+                {currentReport.hasText && (
+                  <span className="diagnosis-report-badge">
+                    <Icon name="spark" size={12} />
+                    <span>{language === 'bn' ? 'বর্ণিত লক্ষণ' : 'Symptoms Noted'}</span>
+                  </span>
+                )}
               </div>
-              <h4 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#0f172a' }}>
-                {currentReport.topDisease}
-              </h4>
-              <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#475569' }}>
-                {currentReport.hasImage
-                  ? 'Calculated client-side via Google Teachable Machine edge vision model (i4VE4hlCa).'
-                  : 'Screened against local clinical poultry pathogen and symptom indices.'}
-              </p>
-            </div>
 
-            {currentReport.predictions?.length > 0 && (
-              <div className="diagnosis-report-breakdown">
-                <h5 style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
-                  Confidence Breakdown (% Score)
-                </h5>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {currentReport.predictions.slice(0, 5).map((pred) => {
-                    const pct = typeof pred.confidence === 'number'
-                      ? Math.min(100, Math.max(0, Math.round(pred.confidence * 100)))
-                      : parseInt(pred.percentage, 10) || 0
-                    return (
-                      <div key={pred.disease} className="diagnosis-report-breakdown-row">
-                        <span style={{ minWidth: '120px', fontWeight: 600 }}>{pred.disease}</span>
-                        <div className="diagnosis-report-progress-bar-bg">
-                          <div className="diagnosis-report-progress-bar-fill" style={{ width: `${pct}%` }} />
+              {/* 1. Primary Diagnosis Card */}
+              <div className="diagnosis-report-top-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#166534' }}>
+                    {language === 'bn' ? 'শনাক্তকৃত প্রধান রোগ' : 'Primary Condition Detected'}
+                  </span>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#15803d' }}>
+                    {currentReport.topConfidence}
+                  </span>
+                </div>
+                <h4 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#0f172a' }}>
+                  {currentReport.topDisease}
+                </h4>
+                <p style={{ margin: '3px 0 0', fontSize: '10px', color: '#475569' }}>
+                  {currentReport.hasImage
+                    ? (language === 'bn' ? 'অন-ডিভাইস এজ ভিশন মডেল (i4VE4hlCa) দ্বারা বিশ্লেষিত।' : 'Calculated client-side via Google Teachable Machine edge vision model (i4VE4hlCa).')
+                    : (language === 'bn' ? 'লোকাল পোল্ট্রি প্যাথোজেন এবং লক্ষণ সূচকের সাথে যাচাইকৃত।' : 'Screened against local clinical poultry pathogen and symptom indices.')}
+                </p>
+              </div>
+
+              {/* 2. Confidence Breakdown (micro-scrollable list) */}
+              {currentReport.predictions?.length > 0 && (
+                <div className="diagnosis-report-breakdown">
+                  <h5 style={{ margin: '0 0 8px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+                    {language === 'bn' ? 'সম্ভাব্য রোগের শতকরা হার (% স্কোর)' : 'Confidence Breakdown (% Score)'}
+                  </h5>
+                  <div className="diagnosis-report-breakdown-list">
+                    {deduplicatePredictions(currentReport.predictions).map((pred) => {
+                      const pct = typeof pred.confidence === 'number'
+                        ? Math.min(100, Math.max(0, Math.round(pred.confidence * 100)))
+                        : parseInt(pred.percentage, 10) || 0
+                      return (
+                        <div key={pred.disease} className="diagnosis-report-breakdown-row">
+                          <span style={{ minWidth: '110px', fontWeight: 600, fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={pred.disease}>
+                            {pred.disease}
+                          </span>
+                          <div className="diagnosis-report-progress-bar-bg">
+                            <div className="diagnosis-report-progress-bar-fill" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span style={{ minWidth: '45px', textAlign: 'right', fontWeight: 700, fontSize: '11px' }}>
+                            {pred.percentage || `${pct}%`}
+                          </span>
                         </div>
-                        <span style={{ minWidth: '50px', textAlign: 'right', fontWeight: 700 }}>
-                          {pred.percentage || `${pct}%`}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="diagnosis-report-ai-card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <Icon name="spark" size={16} />
-                <h5 style={{ margin: 0, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Veterinary Guidance & Farm Biosecurity Advice
-                </h5>
-              </div>
-
-              {currentReport.explanationLoading ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0', fontSize: '13px', color: '#64748b' }}>
-                  <span className="ai-spinner" />
-                  <span>Analyzing flock findings and preparing biosecurity guidance…</span>
-                </div>
-              ) : (
-                <div style={{ fontSize: '12px', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
-                  <p style={{ margin: '0 0 8px' }}>{currentReport.explanation}</p>
-                  {currentReport.explanationFallback && (
-                    <p style={{ margin: '6px 0 0', fontWeight: 600, color: '#b45309' }}>
-                      {REPORT_AI_FALLBACK_NOTE}
-                    </p>
-                  )}
-                  {currentReport.sources?.length > 0 && (
-                    <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
-                        Verified Clinical & Scientific Sources:
-                      </span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {currentReport.sources.map((source, sIdx) => {
-                          const isObj = typeof source === 'object' && source !== null
-                          const title = isObj ? source.title : source
-                          const url = isObj ? source.url : null
-                          const provider = isObj ? source.provider : null
-                          if (url) {
-                            return (
-                              <a
-                                key={url || sIdx}
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#047857', fontWeight: 600, textDecoration: 'underline' }}
-                              >
-                                <span>{title} {provider ? `(${provider})` : ''}</span>
-                                <Icon name="arrow" size={10} />
-                              </a>
-                            )
-                          }
-                          return <span key={sIdx} style={{ fontSize: '11px', color: '#64748b' }}>{title}</span>
-                        })}
-                      </div>
-                    </div>
-                  )}
+                      )
+                    })}
+                  </div>
                 </div>
               )}
+
+              {/* 3. AI Clinical Guidance & Biosecurity Advice */}
+              <div className="diagnosis-report-ai-card">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '6px' }}>
+                  <Icon name="spark" size={15} />
+                  <h5 style={{ margin: 0, fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {language === 'bn' ? 'ভেটেরিনারি গাইডলাইন ও খামার জৈবনিরাপত্তা পরামর্শ' : 'Veterinary Guidance & Farm Biosecurity Advice'}
+                  </h5>
+                </div>
+
+                {currentReport.explanationLoading ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 0', fontSize: '12px', color: '#64748b' }}>
+                    <span className="ai-spinner" />
+                    <span>{language === 'bn' ? 'ফ্লকের তথ্য পর্যালোচনা করা হচ্ছে এবং জৈবনিরাপত্তা পরামর্শ প্রস্তুত করা হচ্ছে…' : 'Analyzing flock findings and preparing biosecurity guidance…'}</span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '11.5px', lineHeight: 1.55, whiteSpace: 'pre-line' }}>
+                    <p style={{ margin: 0 }}>{currentReport.explanation}</p>
+                    {currentReport.explanationFallback && (
+                      <p style={{ margin: '6px 0 0', fontWeight: 600, color: '#b45309' }}>
+                        {REPORT_AI_FALLBACK_NOTE}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. Verified Reference Sources (Authentic peer-reviewed literature & portals only; NO YouTube) */}
+              {currentReport.sources?.length > 0 && (
+                <div className="diagnosis-report-sources-card">
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    {language === 'bn' ? 'যাচাইকৃত ভেটেরিনারি রেফারেন্স সোর্স:' : 'Verified Veterinary Reference Sources:'}
+                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {currentReport.sources.map((source, sIdx) => {
+                      const isObj = typeof source === 'object' && source !== null
+                      const title = isObj ? source.title : source
+                      const url = isObj ? source.url : null
+                      const provider = isObj ? source.provider : null
+                      if (url) {
+                        return (
+                          <a
+                            key={url || sIdx}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#047857', fontWeight: 600, textDecoration: 'underline' }}
+                          >
+                            <span>{title} {provider ? `(${provider})` : ''}</span>
+                            <Icon name="arrow" size={9} />
+                          </a>
+                        )
+                      }
+                      return <span key={sIdx} style={{ fontSize: '11px', color: '#64748b' }}>{title}</span>
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 5. Veterinary Safety Notice */}
+              <div className="diagnosis-report-disclaimer">
+                <strong>{language === 'bn' ? 'জরুরি ভেটেরিনারি নোটিশ:' : 'Veterinary Safety Notice:'}</strong>{' '}
+                {language === 'bn'
+                  ? 'এটি একটি প্রাথমিক স্ক্রীনিং এইড, কোনো চিকিৎসা প্রেসক্রিপশন নয়। এএমআর (AMR) নীতি অনুসারে কোনো অ্যান্টিবায়োটিক প্রয়োগ করবেন না। সঠিক পরীক্ষা ও ব্যবস্থাপনার জন্য রেজিস্টার্ড ভেটেরিনারি চিকিৎসকের পরামর্শ নিন।'
+                  : 'This diagnostic screening aid is designed for early flock triage only. Automated AI does NOT provide antibiotic prescriptions or treatment dosages under AMR stewardship guidelines. Please consult a registered veterinarian or local livestock officer for clinical examination and prescription.'}
+              </div>
             </div>
 
-            <div className="diagnosis-report-disclaimer">
-              <strong>Veterinary Safety Notice:</strong> This diagnostic tool is an initial screening aid and does not prescribe antibiotics or treatment dosages under AMR stewardship guidelines. Always verify with a licensed veterinarian before administering treatment.
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+            {/* Fixed Footer */}
+            <div className="diagnosis-report-footer dark:bg-gray-900 dark:border-gray-700">
               <button
                 type="button"
                 className="diagnosis-glass-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
-                style={{ padding: '8px 18px', fontSize: '12px' }}
+                style={{ padding: '6px 14px', fontSize: '11px', fontWeight: 600 }}
                 onClick={() => setReportModalOpen(false)}
               >
-                Close Report
+                {language === 'bn' ? 'রিপোর্ট বন্ধ করুন' : 'Close Report'}
               </button>
             </div>
           </section>
@@ -686,69 +762,6 @@ export default function DiagnosisHub() {
       </div>}
 
       {saveMessage && <p className="diagnosis-save-message" role="status">{saveMessage}</p>}
-      {answer && <div className="ai-answer-card" aria-live="polite">
-        <div className="ai-answer-heading">
-          <span><Icon name="spark" size={17} />{t('aiTriageSummary')}</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {currentReport && (
-              <button
-                type="button"
-                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #10b981', background: 'rgba(16, 185, 129, 0.1)', color: '#047857', cursor: 'pointer' }}
-                onClick={() => setReportModalOpen(true)}
-              >
-                View Diagnostic Report Window
-              </button>
-            )}
-            <span className="ai-safety-label">{t('informationalOnly')}</span>
-          </div>
-        </div>
-        {answer.visualResult && <p className="visual-classification"><Icon name="image" size={15} />{t('visualClassification')}: <strong>{answer.visualResult.label}</strong> ({Math.round(answer.visualResult.confidence * 100)}%)</p>}
-        {answer.predictions?.length > 0 && <section className="diagnosis-prediction-results" aria-labelledby="diagnosis-prediction-title">
-          <h3 id="diagnosis-prediction-title">Prediction breakdown</h3>
-          <p className="diagnosis-prediction-note">Percentages are supporting model/sign-match scores, not calibrated disease probabilities.</p>
-          {answer.predictions.map((prediction) => <article className="diagnosis-prediction-card" key={prediction.disease}>
-            <div className="diagnosis-prediction-heading"><strong>{prediction.disease}</strong><span>{prediction.overall_probability}</span></div>
-            <div className="diagnosis-prediction-breakdown">
-              <div><span>Clinical Signs</span><strong>{prediction.breakdown.clinical_sign_match}</strong></div>
-              <div><span>Image</span><strong>{prediction.breakdown.image_match}</strong></div>
-              <div><span>Audio</span><strong>{prediction.breakdown.audio_match}</strong></div>
-            </div>
-          </article>)}
-        </section>}
-        <p className="ai-answer-text">{answer.answer}</p>
-        <div className="ai-source-row">
-          <span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>
-          {answer.sources?.map((source, sIdx) => {
-            const isObj = typeof source === 'object' && source !== null
-            const title = isObj ? source.title : source
-            const url = isObj ? source.url : null
-            const provider = isObj ? source.provider : null
-            if (url) {
-              return (
-                <a
-                  key={url || sIdx}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="ai-source-name"
-                  style={{ textDecoration: 'underline', color: '#047857', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <span>{title} {provider ? `(${provider})` : ''}</span>
-                  <Icon name="arrow" size={10} />
-                </a>
-              )
-            }
-            return <span className="ai-source-name" key={title || sIdx}>{title}</span>
-          })}
-        </div>
-        <section className="reference-video-section" aria-labelledby="reference-video-title">
-          <h3 id="reference-video-title"><Icon name="video" size={16} />{t('referenceVideoTitle')}</h3>
-          <p>{t('referenceVideoDescription')}</p>
-          <a href="https://www.youtube.com/results?search_query=Bangladesh+Department+of+Livestock+Services+poultry+health+biosecurity" target="_blank" rel="noreferrer">
-            {t('findDlsVideos')}<Icon name="arrow" size={14} />
-          </a>
-        </section>
-      </div>}
     </section>
   )
 }

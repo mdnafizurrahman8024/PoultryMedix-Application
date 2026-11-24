@@ -338,8 +338,7 @@ async function executeProxyWithSilentRotation({ messages, contextPrompt, visualR
  */
 export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '', language = 'en' }) {
   const normalizedQuery = (query + ' ' + topDisease).toLowerCase().trim()
-  const isBengali = language === 'bn' || /[\u0980-\u09FF]/.test(normalizedQuery) ||
-    /\b(murgi|rokto|amashoy|paykhana|ranikhet|gumboro|thanda|sordi|kashi|bap|ulo|khabar|pani)\b/i.test(normalizedQuery)
+  const isBengali = language === 'bn'
 
   let matchedDisease = 'coccidiosis'
   if (topDisease) {
@@ -483,6 +482,26 @@ export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '
         sources: getVerifiedVeterinarySources('crd'),
       }
     }
+    if (matchedDisease === 'bumblefoot') {
+      return {
+        answer: `ক্লিনিকাল মূল্যায়ন: বাম্বলফুট বা পায়ের পাতার সংক্রমণ (Bumblefoot / Pododermatitis)
+
+সম্ভাব্য রোগ ও পূর্বাভাস (Predicted Condition):
+• প্রধান ঝুঁকি: বাম্বলফুট (Staphylococcus ব্যাকটেরিয়াজনিত পায়ের পাতার ক্ষত ও আলসার)
+• প্রধান লক্ষণ: পায়ের পাতায় ফোলা ভাব, কালো শক্ত ঘা বা স্ক্যাব (Scab), খুঁড়িয়ে হাঁটা এবং দাঁড়াতে কষ্ট হওয়া।
+• সেকেন্ডারি ঝুঁকি (Differential / Minimum Risk): গেটে বাত (Articular Gout) বা আঘাতজনিত ক্ষত।
+
+জরুরি সহায়ক পরিচর্যা প্রোটোকল (Detailed Supportive Protocols):
+১. নরম ও পরিষ্কার লিটার: আক্রান্ত পাখিকে অবিলম্বে আলাদা করে নরম, পরিষ্কার ও শুষ্ক লিটারে (যেমন পরিষ্কার তুঁষ বা খড়) রাখুন যাতে পায়ের পাতায় চাপ না পড়ে।
+২. ফুট সোক (Foot Soak): কুসুম গরম পানির সাথে সামান্য ইপসম সল্ট বা মৃদু পভিডন-আয়োডিন মিশিয়ে দিনে ৫-১০ মিনিট পা ভিজিয়ে আলতোভাবে ময়লা পরিষ্কার করুন। শক্ত ঘা টেনে তুলবেন না।
+৩. বাসস্থান ও মেঝে সংস্কার: শেডের মেঝেতে ধারালো তার, শক্ত নেট বা স্প্লিন্টার থাকলে অবিলম্বে তা মেরামত বা অপসারণ করুন।
+৪. পুষ্টি ও বায়োসেকিউরিটি: খাবারে পর্যাপ্ত ভিটামিন-এ ও বায়োটিন নিশ্চিত করুন যা ত্বকের স্বাভাবিক নিরাময়ে সহায়ক।
+
+⚠️ জরুরি ভেটেরিনারি রেফারাল ও এএমআর (AMR) নোটিশ:
+নিজে থেকে পায়ে কোনো অপারেশন বা অননুমোদিত অ্যান্টিবায়োটিক প্রয়োগ করবেন না। ক্ষত পরিষ্কার ও সঠিক চিকিৎসার জন্য রেজিস্টার্ড ভেটেরিনারি চিকিৎসকের শরণাপন্ন হোন।`,
+        sources: getVerifiedVeterinarySources('bumblefoot'),
+      }
+    }
     return {
       answer: `ক্লিনিকাল মূল্যায়ন ও ফ্লক স্বাস্থ্য পরামর্শ
 
@@ -569,6 +588,27 @@ Viral disease. Antibiotics have zero antiviral efficacy. Consult a licensed vete
     }
   }
 
+  if (matchedDisease === 'bumblefoot') {
+    return {
+      answer: `Clinical Assessment: Bumblefoot (Ulcerative Pododermatitis)
+
+Predicted Condition & Screening Profile:
+• Primary Risk: Bumblefoot (Ulcerative Pododermatitis / Staphylococcal infection)
+• Clinical Signs: Swollen footpad, dark necrotic scab/lesion, localized heat, limping, and reluctance to walk or roost.
+• Secondary / Differential Conditions: Articular Gout, footpad burn, and mechanical trauma.
+
+Detailed Supportive Management Protocols:
+1. Strict Bedding & Separation: Immediately isolate the affected bird in a recovery area with thick, soft, dry litter (wood shavings or straw) to eliminate pressure on the inflamed footpad.
+2. Warm Antiseptic Soak: Gently soak the affected foot in warm water mixed with mild povidone-iodine or Epsom salts for 5–10 minutes to soften external crusts and cleanse debris without picking at the scab.
+3. Coop Flooring Audit: Inspect roosting perches, ramp edges, and wire flooring; remove sharp splinters, coarse wire, and rough edges that cause repetitive footpad trauma.
+4. Nutritional & Biosecurity Support: Supplement flock drinking water with vitamins A and E to accelerate epithelial tissue recovery and protect healthy birds.
+
+⚠️ Veterinary Referral & AMR Notice:
+Invasive surgical lancing or random antibiotic dosing without a licensed veterinarian is dangerous and violates AMR rules. Please consult a registered poultry veterinarian for clinical dressing and proper medical management.`,
+      sources: getVerifiedVeterinarySources('bumblefoot'),
+    }
+  }
+
   return {
     answer: `Clinical Health Guidance: Avian Flock Assessment
 
@@ -599,27 +639,46 @@ export async function generateDiagnosticExplanation({
   symptoms = '',
   language = 'en',
 }) {
+  const isBangla = language === 'bn'
+  const activeLanguage = isBangla ? 'bn' : 'en'
+
   const predictionsList = predictions.length > 0
     ? predictions.map((p) => `${p.disease}: ${p.percentage || (Math.round((p.confidence || 0) * 100) + '%')}`).join(', ')
     : `${topDisease} (${confidence})`
 
-  const prompt = [
-    `Avian Diagnostic Screening Results:`,
-    `- Primary Detected Condition: ${topDisease} (${confidence} confidence score)`,
-    `- Full Predicted Disease Breakdown (%): ${predictionsList}`,
-    `- Farmer Symptoms Observation: ${symptoms || 'Visual flock screening only'}`,
-    ``,
-    `Provide a structured, farmer-friendly clinical report in ${language === 'bn' ? 'Bengali' : language === 'hi' ? 'Hindi' : language === 'ur' ? 'Urdu' : 'English'}:`,
-    `1. PREDICTED SCREENING BREAKDOWN: State the primary condition (${topDisease} at ${confidence}) and note the secondary/minimum-risk conditions detected (${predictionsList}).`,
-    `2. DETAILED SUPPORTIVE PROTOCOLS FOR ALL DETECTED CONDITIONS: Detail the step-by-step non-pharmaceutical management (Strict Isolation/Quarantine, Hydration & ORS/Electrolytes, Dry Litter & Ammonia Ventilation, and Farm Biosecurity/Footbaths) so the farmer understands how to protect the flock.`,
-    `3. STRICT AMR RESTRICTION: Do NOT suggest or prescribe any antibiotic drug names or medication dosages under any circumstances.`,
-    `4. MANDATORY VETERINARY NOTICE: End with a clear, prominent notice instructing the farmer to consult a registered veterinarian for clinical confirmation and legal prescription.`,
-  ].join('\n')
+  const prompt = isBangla
+    ? [
+        `CRITICAL LANGUAGE REQUIREMENT: The application is strictly set to BENGALI (বাংলা) mode. You MUST generate the entire clinical advice strictly in natural, clear, fluent BENGALI (বাংলা). Do NOT output English explanations.`,
+        `পোল্ট্রি স্ক্রীনিং ফলাফল (Avian Diagnostic Screening Results):`,
+        `- প্রধান শনাক্তকৃত রোগ (Primary Condition): ${topDisease} (কনফিডেন্স: ${confidence})`,
+        `- সম্ভাব্য রোগের শতকরা বিভাজন (Predictions Breakdown): ${predictionsList}`,
+        `- খামারির লক্ষণ পর্যবেক্ষণ (Symptoms): ${symptoms || 'ফ্লকের ছবি বা অডিওর ভিত্তিতে স্ক্রীনিং'}`,
+        ``,
+        `নির্দেশনা: গ্রামীণ বাংলাদেশি পোল্ট্রি খামারিদের বোঝার সুবিধার্থে সম্পূর্ণ প্রতিবেদনটি সহজ, প্রাঞ্জল বাংলায় (Bengali) লিখুন:`,
+        `১. রোগের পূর্বাভাস ও শতকরা হার: প্রধান শনাক্তকৃত রোগ (${topDisease} - ${confidence}) এবং অন্যান্য ন্যূনতম ঝুঁকির রোগগুলোর তালিকা পরিষ্কারভাবে উল্লেখ করুন।`,
+        `২. জরুরি সাপোর্টিভ পরিচর্যা প্রোটোকল: ফ্লক বাঁচাতে তাৎক্ষণিক করণীয় (অসুস্থ পাখি খাঁচা/শেড থেকে আলাদা করা, বিশুদ্ধ খাবার পানির সাথে ওরাল রিহাইড্রেশন স্যালাইন/ইলেকট্রোলাইট দেওয়া, ভেজা লিটার সরানো এবং শেডে বাতাস চলাচল স্বাভাবিক রাখা)। কোনো জটিল ইংরেজি ডাক্তারি পরিভাষা ব্যবহার করবেন না।`,
+        `৩. খামারের জৈবনিরাপত্তা: ফুটবাথ, জীবাণুনাশক স্প্রে ও বুনো পাখি নিয়ন্ত্রণ।`,
+        `৪. এএমআর (AMR) ও ওষুধ নিষেধাজ্ঞা: খামারিদের জন্য কোনো ধরনের অ্যান্টিবায়োটিক বা ওষুধের নাম এবং ডোজ উল্লেখ করা সম্পূর্ণ নিষিদ্ধ।`,
+        `৫. জরুরি ভেটেরিনারি নোটিশ: সঠিক নিশ্চিতকরণ ও অনুমোদিত প্রেসক্রিপশনের জন্য একজন রেজিস্টার্ড ভেটেরিনারি চিকিৎসকের পরামর্শ নেওয়ার নির্দেশ দিয়ে শেষ করুন।`,
+      ].join('\n')
+    : [
+        `CRITICAL LANGUAGE REQUIREMENT: The application is strictly set to ENGLISH mode. You MUST generate the entire clinical advice strictly in clear, fluent ENGLISH. Do NOT output Bengali explanations.`,
+        `Avian Diagnostic Screening Results:`,
+        `- Primary Detected Condition: ${topDisease} (${confidence} confidence score)`,
+        `- Full Predicted Disease Breakdown (%): ${predictionsList}`,
+        `- Farmer Symptoms Observation: ${symptoms || 'Visual flock screening only'}`,
+        ``,
+        `Provide a structured, farmer-friendly clinical report in English:`,
+        `1. PREDICTED SCREENING BREAKDOWN: State the primary condition (${topDisease} at ${confidence}) and note the secondary/minimum-risk conditions detected (${predictionsList}).`,
+        `2. DETAILED SUPPORTIVE PROTOCOLS FOR ALL DETECTED CONDITIONS: Detail the step-by-step non-pharmaceutical management (Strict Isolation/Quarantine, Hydration & ORS/Electrolytes, Dry Litter & Ammonia Ventilation, and Farm Biosecurity/Footbaths) so the farmer understands how to protect the flock.`,
+        `3. STRICT AMR RESTRICTION: Do NOT suggest or prescribe any antibiotic drug names or medication dosages under any circumstances.`,
+        `4. MANDATORY VETERINARY NOTICE: End with a clear, prominent notice instructing the farmer to consult a registered veterinarian for clinical confirmation and legal prescription.`,
+      ].join('\n')
 
   try {
     const response = await sendChatMessage({
       messages: [{ role: 'user', content: prompt }],
-      language,
+      language: activeLanguage,
       visualResult: { label: topDisease, confidence, predictions },
     })
 
@@ -637,7 +696,7 @@ export async function generateDiagnosticExplanation({
   const localAdvice = generateLocalClinicalKnowledgeReply({
     query: symptoms,
     topDisease,
-    language,
+    language: activeLanguage,
   })
 
   return {

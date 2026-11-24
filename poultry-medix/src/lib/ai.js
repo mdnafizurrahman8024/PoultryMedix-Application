@@ -21,7 +21,7 @@ async function loadPoultryImageModel() {
   }
 }
 
-function canonicalDiseaseName(name) {
+export function canonicalDiseaseName(name) {
   const normalized = normalizeClinicalText(name)
   const matched = diseaseSigns.find((entry) => [entry.disease, ...entry.aliases]
     .some((alias) => normalizeClinicalText(alias) === normalized))
@@ -76,8 +76,16 @@ export async function classifyPoultryImage(file) {
     image.src = imageUrl
     await image.decode()
     const predictions = await model.predict(image)
-    const ranked = predictions
-      .map(({ className, probability }) => ({ disease: canonicalDiseaseName(className), confidence: probability }))
+    const deduplicatedMap = new Map()
+    for (const { className, probability } of predictions) {
+      const canonical = canonicalDiseaseName(className)
+      const existing = deduplicatedMap.get(canonical)
+      if (existing === undefined || probability > existing) {
+        deduplicatedMap.set(canonical, probability)
+      }
+    }
+    const ranked = Array.from(deduplicatedMap.entries())
+      .map(([disease, confidence]) => ({ disease, confidence }))
       .sort((first, second) => second.confidence - first.confidence)
     const top = ranked[0]
     if (!top) throw new Error('The image model did not return a classification.')

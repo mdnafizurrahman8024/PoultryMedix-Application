@@ -81,6 +81,11 @@ export const VERIFIED_VETERINARY_SOURCES = {
       provider: 'World Organisation for Animal Health (WOAH)',
     },
     {
+      title: 'Avian Influenza in Poultry (Etiology, Signs & Biosecurity)',
+      url: 'https://www.merckvetmanual.com/poultry/avian-influenza/avian-influenza-in-poultry',
+      provider: 'Merck Veterinary Manual',
+    },
+    {
       title: 'FAO Global Animal Health & Poultry Biosecurity Standards',
       url: 'https://www.fao.org/animal-health/en',
       provider: 'Food and Agriculture Organization (FAO)',
@@ -110,6 +115,18 @@ export const VERIFIED_VETERINARY_SOURCES = {
       provider: 'Merck Veterinary Manual',
     },
   ],
+  bumblefoot: [
+    {
+      title: 'Poultry Pododermatitis & Bumblefoot Clinical Research',
+      url: 'https://pubmed.ncbi.nlm.nih.gov/?term=poultry+pododermatitis+bumblefoot',
+      provider: 'PubMed / NCBI',
+    },
+    {
+      title: 'Pododermatitis in Poultry (Footpad Dermatitis Management)',
+      url: 'https://www.merckvetmanual.com/poultry',
+      provider: 'Merck Veterinary Manual',
+    },
+  ],
   general: [
     {
       title: 'Global Guidelines on Responsible Antimicrobial Use in Food Animals',
@@ -129,36 +146,45 @@ export const VERIFIED_VETERINARY_SOURCES = {
   ],
 }
 
+export const INSTITUTIONAL_VETERINARY_SOURCES = [
+  {
+    title: 'Department of Livestock Services (DLS) Bangladesh',
+    url: 'http://www.dls.gov.bd/',
+    provider: 'DLS Bangladesh',
+  },
+  {
+    title: 'WOAH Terrestrial Manual (Avian Diseases & Biosecurity Standards)',
+    url: 'https://www.woah.org/en/what-we-do/standards/codes-and-manuals/terrestrial-manual-online-access/',
+    provider: 'World Organisation for Animal Health (WOAH)',
+  },
+]
+
 /**
  * Resolves verified, live reference links based on disease name or symptom query.
  */
 export function getVerifiedVeterinarySources(conditionOrQuery = '') {
   const normalized = (conditionOrQuery || '').toLowerCase().trim()
 
+  let diseaseSources = VERIFIED_VETERINARY_SOURCES.general
   if (normalized.includes('coryza') || normalized.includes('swollen face') || normalized.includes('চোখ ফোলা') || normalized.includes('নাক দিয়ে পানি') || normalized.includes('সর্দি')) {
-    return VERIFIED_VETERINARY_SOURCES.coryza
-  }
-  if (normalized.includes('coccidi') || normalized.includes('blood') || normalized.includes('রক্ত') || normalized.includes('আমাশয়')) {
-    return VERIFIED_VETERINARY_SOURCES.coccidiosis
-  }
-  if (normalized.includes('newcastle') || normalized.includes('ranikhet') || normalized.includes('রানীক্ষেত') || normalized.includes('neck') || normalized.includes('ঘাড়')) {
-    return VERIFIED_VETERINARY_SOURCES.newcastle
-  }
-  if (normalized.includes('gumboro') || normalized.includes('bursal') || normalized.includes('ibd') || normalized.includes('গামবোরো') || normalized.includes('vent')) {
-    return VERIFIED_VETERINARY_SOURCES.gumboro
-  }
-  if (normalized.includes('crd') || normalized.includes('mycoplasma') || normalized.includes('respiratory') || normalized.includes('cough') || normalized.includes('ঠাণ্ডা') || normalized.includes('কাশি') || normalized.includes('ঘরঘর')) {
-    return VERIFIED_VETERINARY_SOURCES.crd
-  }
-  if (normalized.includes('flu') || normalized.includes('influenza') || normalized.includes('বার্ড ফ্লু')) {
-    return VERIFIED_VETERINARY_SOURCES.influenza
-  }
-  if (normalized.includes('pox') || normalized.includes('scab') || normalized.includes('বসন্ত') || normalized.includes('গুটি')) {
-    return VERIFIED_VETERINARY_SOURCES.pox
-  }
-  if (normalized.includes('salmonell') || normalized.includes('cholera') || normalized.includes('typhoid') || normalized.includes('pullorum') || normalized.includes('কলেরা')) {
-    return VERIFIED_VETERINARY_SOURCES.salmonella
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.coryza
+  } else if (normalized.includes('coccidi') || normalized.includes('blood') || normalized.includes('রক্ত') || normalized.includes('আমাশয়')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.coccidiosis
+  } else if (normalized.includes('newcastle') || normalized.includes('ranikhet') || normalized.includes('রানীক্ষেত') || normalized.includes('neck') || normalized.includes('ঘাড়')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.newcastle
+  } else if (normalized.includes('gumboro') || normalized.includes('bursal') || normalized.includes('ibd') || normalized.includes('গামবোরো') || normalized.includes('vent')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.gumboro
+  } else if (normalized.includes('crd') || normalized.includes('mycoplasma') || normalized.includes('respiratory') || normalized.includes('cough') || normalized.includes('ঠাণ্ডা') || normalized.includes('কাশি') || normalized.includes('ঘরঘর')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.crd
+  } else if (normalized.includes('flu') || normalized.includes('influenza') || normalized.includes('বার্ড ফ্লু')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.influenza
+  } else if (normalized.includes('pox') || normalized.includes('scab') || normalized.includes('বসন্ত') || normalized.includes('গুটি')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.pox
+  } else if (normalized.includes('salmonell') || normalized.includes('cholera') || normalized.includes('typhoid') || normalized.includes('pullorum') || normalized.includes('কলেরা')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.salmonella
+  } else if (normalized.includes('bumblefoot') || normalized.includes('pododermatitis') || normalized.includes('foot') || normalized.includes('পা ফোলা') || normalized.includes('খোঁড়া')) {
+    diseaseSources = VERIFIED_VETERINARY_SOURCES.bumblefoot
   }
 
-  return VERIFIED_VETERINARY_SOURCES.general
+  return [...diseaseSources, ...INSTITUTIONAL_VETERINARY_SOURCES]
 }
