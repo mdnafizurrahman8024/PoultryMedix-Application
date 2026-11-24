@@ -2742,31 +2742,37 @@
 }
 
 .history-tabs {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 7px;
+  padding: 6px 8px;
   border: 1px solid #e2eae2;
   border-radius: 14px;
   background: #f5f9f6;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+  scrollbar-width: thin;
 }
 
 .history-tab {
-  display: flex;
-  min-width: 0;
-  min-height: 43px;
+  display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-height: 42px;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 8px 14px;
   border: 1px solid transparent;
   border-radius: 10px;
   color: #6e8073;
   background: transparent;
   font: inherit;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .history-tab:hover,
@@ -2775,6 +2781,22 @@
   color: #367566;
   background: #fff;
   box-shadow: 0 3px 10px rgba(52, 91, 75, 0.06);
+}
+
+html[data-theme="dark"] .history-tabs {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .history-tab {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .history-tab:hover,
+html[data-theme="dark"] .history-tab.is-active {
+  background: #0f172a;
+  border-color: #475569;
+  color: #34d399;
 }
 
 .history-panel {
@@ -2990,6 +3012,276 @@ button.history-entry-trigger:focus-visible,
   flex-wrap: wrap;
   gap: 7px;
   padding: 0 13px;
+}
+
+/* Export actions at top of Clinical History */
+.history-export-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.history-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid #cfe1d5;
+  background: #ffffff;
+  color: #2e6856;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.history-export-btn:hover {
+  background: #f0fdf4;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+/* Rich History Cards */
+.history-rich-card {
+  padding: 14px 16px;
+  border: 1px solid #e2eae2;
+  border-radius: 14px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(34, 60, 48, 0.03);
+  transition: all 0.15s ease;
+}
+
+.history-rich-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(34, 60, 48, 0.06);
+}
+
+.history-rich-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.history-meta-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.history-badge-date,
+.history-badge-district,
+.history-badge-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.history-badge-district {
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 700;
+}
+
+.history-badge-type.diagnosis {
+  background: #eff6ff;
+  color: #1e40af;
+}
+
+.history-badge-type.vet {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.history-badge-type.scan {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.history-metric-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.history-metric-pill.confidence {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.history-metric-pill.withdrawal {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.history-rich-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.history-modalities-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.history-modality-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+.history-rich-desc {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #334155;
+  margin: 0;
+}
+
+.history-meds-summary-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-med-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.history-med-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.history-prescription-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 6px;
+}
+
+.history-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.history-action-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.history-action-btn--primary {
+  background: #15803d;
+  border-color: #166534;
+  color: #ffffff;
+}
+
+.history-action-btn--primary:hover {
+  background: #166534;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .history-export-btn {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .history-export-btn:hover {
+  background: #334155;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .history-rich-card {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .history-rich-header {
+  border-bottom-color: #334155;
+}
+
+html[data-theme="dark"] .history-badge-date,
+html[data-theme="dark"] .history-badge-district,
+html[data-theme="dark"] .history-badge-type {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .history-rich-title {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .history-rich-desc {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .history-meds-summary-box {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .history-med-row {
+  border-bottom-color: #334155;
+}
+
+html[data-theme="dark"] .history-action-btn {
+  background: #0f172a;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .history-action-btn:hover {
+  background: #334155;
+  color: #ffffff;
 }
 
 .history-prescription-actions button {
@@ -3259,10 +3551,6 @@ button.history-entry-trigger:focus-visible,
 }
 
 @media (max-width: 700px) {
-  .history-tabs {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
   .history-payment-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3273,8 +3561,8 @@ button.history-entry-trigger:focus-visible,
 }
 
 @media (min-width: 701px) and (max-width: 960px) {
-  .history-tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .history-payment-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

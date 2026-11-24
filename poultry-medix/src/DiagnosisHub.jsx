@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription, canonicalDiseaseName } from './lib/ai.js'
 import { BANGLADESH_POULTRY_DRUG_DATABASE } from './lib/prescriptionRAG.js'
+import { saveDiagnosisLog, savePrescriptionLog } from './lib/clinicalLogsStore.js'
 import { generateDiagnosticExplanation, REPORT_AI_FALLBACK_NOTE } from './lib/aiServiceAdapter.js'
 import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
@@ -142,6 +143,17 @@ export default function DiagnosisHub() {
       sources: (result.sources || []).map(({ label, url, provider }) => ({ label, url, provider })),
       databaseSaved,
     }, recordId)
+
+    savePrescriptionLog({
+      id: recordId,
+      source: 'image_scan',
+      fileName: file.name,
+      district: 'Rajshahi',
+      transcription: result.transcription || '',
+      medications: medicines,
+      advice: result.transcription || 'Extracted via Prescription Image Analyzer',
+    })
+
     setSaveMessage(databaseSaved ? 'Prescription analysis saved to Clinical Log.' : 'Prescription analysis saved to this device’s Clinical Log.')
   }
 
@@ -307,6 +319,16 @@ export default function DiagnosisHub() {
       setReportModalOpen(true)
       setLoading(false)
 
+      saveDiagnosisLog({
+        id: reportId,
+        primaryDisease: topDisease,
+        confidencePercent: topConfidence,
+        inputModalities: [image && 'image', audio && 'audio', symptomText && 'text'].filter(Boolean),
+        guidanceSummary: `Screened condition: ${topDisease} (${topConfidence})`,
+        breakdown: rankedPredictions,
+        district: 'Rajshahi',
+      })
+
       const initialAnswer = {
         topDisease,
         answer: `${topDisease}: Initial screening complete (${topConfidence}). Review the full breakdown in the open report window.`,
@@ -372,6 +394,16 @@ export default function DiagnosisHub() {
             summary: symptomText || explanationText.slice(0, 140),
             createdAt: new Date().toISOString(),
           }])
+
+          saveDiagnosisLog({
+            id: reportId,
+            primaryDisease: topDisease,
+            confidencePercent: topConfidence,
+            inputModalities: [image && 'image', audio && 'audio', symptomText && 'text'].filter(Boolean),
+            guidanceSummary: explanationText,
+            breakdown: rankedPredictions,
+            district: 'Rajshahi',
+          })
 
           saveUnifiedLog('SMART_DIAGNOSIS', {
             symptoms: symptomText,

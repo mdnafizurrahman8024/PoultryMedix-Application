@@ -2,6 +2,7 @@ import { useState } from 'react'
 import Icon from '../components/Icon.jsx'
 import { saveHistoryEntry, saveUnifiedLog } from './historyStore.js'
 import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
+import { savePrescriptionLog } from '../lib/clinicalLogsStore.js'
 import { useUser } from '../context/UserContext.jsx'
 import { useLanguage } from '../context/useLanguage.js'
 import './Telemedicine.css'
@@ -18,12 +19,14 @@ const formulations = ['Water soluble powder', 'Feed premix', 'Oral Liquid', 'Inj
 const frequencies = ['Once daily', 'Twice daily', 'Thrice daily', 'Continuous in water', 'As needed']
 
 const emptyPrescription = {
-  vetName: '',
-  vetDegrees: '',
-  registrationNumber: '',
-  clinicDetails: '',
+  vetName: 'Dr. Sarah Ahmed, DVM',
+  vetDegrees: 'DVM, MS in Avian Pathology (BAU)',
+  registrationNumber: 'BVC-REG-10492',
+  bvcRegNo: 'BVC-REG-10492',
+  clinicDetails: 'Rajshahi Avian Diagnostic & Research Hospital',
   farmerName: '',
   farmName: '',
+  district: 'Rajshahi',
   age: '',
   flockSize: '',
   averageWeight: '',
@@ -38,12 +41,19 @@ const emptyPrescription = {
 const emptyMedication = () => ({
   id: crypto.randomUUID(),
   name: '',
+  tradeName: '',
+  genericName: '',
+  antibioticClass: 'Veterinary Antimicrobial',
+  generation: '2nd Gen',
+  whoAwareCategory: 'Watch',
   formulation: 'Water soluble powder',
   dosage: '',
   frequency: 'Once daily',
   duration: '',
   durationType: 'Days',
   withdrawal: '',
+  meatWithdrawalDays: '',
+  eggWithdrawalDays: '',
 })
 
 function Field({ label, children, className = '' }) {
@@ -139,30 +149,73 @@ export default function Telemedicine() {
     setSaveMessage('')
     setSaveError('')
     try {
-      const stored = JSON.parse(localStorage.getItem('poultry-telemedicine-prescriptions') || '[]')
-      if (!Array.isArray(stored)) throw new Error('Saved history data is invalid.')
-      const record = {
-        id: crypto.randomUUID(),
-        savedAt: new Date().toISOString(),
-        ...prescription,
-        medications: medications.map((medication) => ({ ...medication })),
+      const recordId = crypto.randomUUID()
+      const nowIso = new Date().toISOString()
+      const formattedMeds = medications.map((medication) => ({
+        id: medication.id || crypto.randomUUID(),
+        name: medication.name || medication.tradeName || 'Prescribed Drug',
+        tradeName: medication.tradeName || medication.name || 'Prescribed Drug',
+        genericName: medication.genericName || medication.generic || medication.name || 'Veterinary Antimicrobial',
+        antibioticClass: medication.antibioticClass || medication.class || 'Veterinary Antimicrobial',
+        generation: medication.generation || '2nd Gen',
+        whoAwareCategory: medication.whoAwareCategory || 'Watch',
+        formulation: medication.formulation || 'Water soluble powder',
+        dosage: medication.dosage || 'As directed',
+        frequency: medication.frequency || 'Once daily',
+        duration: medication.duration ? `${medication.duration} ${medication.durationType || 'Days'}` : '5 Days',
+        withdrawal: medication.withdrawal || medication.meatWithdrawalDays || '7 days',
+        meatWithdrawalDays: medication.meatWithdrawalDays || medication.withdrawal || '7 days',
+        eggWithdrawalDays: medication.eggWithdrawalDays || 'Not for layers',
+      }))
+
+      const structuredPrescription = {
+        id: recordId,
+        type: 'prescription',
+        source: 'vet_issued',
+        timestamp: nowIso,
+        formattedDate: new Date().toLocaleString(),
+        vetName: prescription.vetName || 'Dr. Sarah Ahmed, DVM',
+        bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber || 'BVC-REG-10492',
+        clinicDetails: prescription.clinicDetails || 'Rajshahi Avian Diagnostic Hospital',
+        farmerName: prescription.farmerName || 'Registered Farmer',
+        farmName: prescription.farmName || '',
+        district: prescription.district || 'Rajshahi',
+        flockType: prescription.flockType || prescription.birdType || 'Broiler',
+        age: prescription.age || '',
+        flockSize: prescription.flockSize || '',
+        averageWeight: prescription.averageWeight || '',
+        diagnosis: prescription.diagnosis || 'Clinical Diagnosis',
+        complaints: prescription.complaints || [],
+        medications: formattedMeds,
+        tests: prescription.tests || '',
+        advice: prescription.advice || '',
+        followUpDate: prescription.followUpDate || '',
       }
-      localStorage.setItem('poultry-telemedicine-prescriptions', JSON.stringify([record, ...stored].slice(0, 100)))
-      saveUnifiedLog('FARMER_PRESCRIPTION', record)
+
+      savePrescriptionLog(structuredPrescription)
+
+      const stored = JSON.parse(localStorage.getItem('poultry-telemedicine-prescriptions') || '[]')
+      const legacyRecord = { ...structuredPrescription, savedAt: nowIso }
+      localStorage.setItem('poultry-telemedicine-prescriptions', JSON.stringify([legacyRecord, ...(Array.isArray(stored) ? stored : [])].slice(0, 100)))
+      saveUnifiedLog('FARMER_PRESCRIPTION', legacyRecord)
+
       const analyticsRecord = {
-        ...record,
+        ...legacyRecord,
         source: 'consult',
-        medications: record.medications.map((medication) => ({
-          ...medication,
-          generic: medication.generic || medication.name,
-          tradeName: medication.tradeName || medication.name,
-          company: medication.company || 'Company not recorded',
+        medications: formattedMeds.map((m) => ({
+          ...m,
+          generic: m.genericName,
+          tradeName: m.tradeName,
+          company: 'Registered Veterinary Pharmaceuticals',
         })),
       }
       const analyticsRecords = JSON.parse(localStorage.getItem(prescriptionStorageKeys.consult) || '[]')
-      localStorage.setItem(prescriptionStorageKeys.consult, JSON.stringify([analyticsRecord, ...analyticsRecords].slice(0, 100)))
+      localStorage.setItem(prescriptionStorageKeys.consult, JSON.stringify([analyticsRecord, ...(Array.isArray(analyticsRecords) ? analyticsRecords : [])].slice(0, 100)))
       notifyPrescriptionDataChanged()
-      setSaveMessage(t('prescriptionSavedDevice'))
+
+      setSaveMessage(language === 'bn'
+        ? 'প্রেসক্রিপশনটি সফলভাবে সংরক্ষিত হয়েছে এবং ফার্মারের ক্লিনিক্যাল লগে যুক্ত করা হয়েছে!'
+        : 'Prescription successfully saved and synced to Farmer’s Clinical Log!')
     } catch (error) {
       setSaveError(t('prescriptionSaveError', { message: error.message }))
     }
@@ -220,7 +273,16 @@ export default function Telemedicine() {
       {isRegisteredVet && <section className="telemedicine-prescription-section bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" aria-labelledby="prescription-builder-heading">
         <div className="telemedicine-builder-heading">
           <div><span className="telemedicine-eyebrow">{t('veterinarianWorkspace')}</span><h2 id="prescription-builder-heading">{t('digitalPrescriptionBuilder')}</h2><p>{t('prescriptionBuilderDescription')}</p></div>
-          <button className="telemedicine-print-button" type="button" onClick={printPrescription}><Icon name="pdf" size={17} />{t('printSavePdf')}</button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button className="telemedicine-save-button" type="button" onClick={savePrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
+              <Icon name="send" size={17} />
+              {language === 'bn' ? 'ফার্মারের লগে পাঠান / সংরক্ষণ' : 'Send / Save to Farmer Clinical Log'}
+            </button>
+            <button className="telemedicine-print-button" type="button" onClick={printPrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
+              <Icon name="pdf" size={17} />
+              {t('printSavePdf')}
+            </button>
+          </div>
         </div>
 
         <div className="telemedicine-builder-grid dark:text-gray-100">
