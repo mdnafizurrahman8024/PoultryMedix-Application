@@ -738,8 +738,8 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       </div>
       {pointsToast && <div className="points-toast" role="status">+10 Point earned for your contribution!</div>}
 
-      <nav className="bottom-navigation w-full md:max-w-7xl mx-auto" aria-label={t('featureNavigation')} style={isWideDesktop ? { display: 'flex', width: '100vw', maxWidth: 'none', boxSizing: 'border-box', left: '50%', right: 'auto', transform: 'translateX(-50%)' } : undefined}>
-        <div className="bottom-navigation-items flex w-full justify-between items-center px-2 md:px-8" style={isWideDesktop ? { display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', paddingInline: '32px' } : undefined}>
+      <nav className="bottom-navigation" aria-label={t('featureNavigation')}>
+        <div className="bottom-navigation-items">
           {[
             ['home', 'home', 'bottomHome'],
             ['map', 'map', 'bottomMap'],
@@ -747,8 +747,15 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             ['data', 'brain', 'bottomContribute'],
             ['telemedicine', 'stethoscope', 'consultVetNav'],
           ].map(([view, icon, label]) => (
-            <button type="button" key={view} aria-current={activeView === view ? 'page' : undefined} className={`flex-1 flex flex-col items-center justify-center min-w-[70px] md:min-w-[100px] text-center${activeView === view ? ' active' : ''}`} onClick={() => setActiveView(view)} style={isWideDesktop ? { display: 'flex', flex: '1 1 0', minWidth: '100px', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' } : undefined}>
-              <Icon name={icon} size={19} /><span className="text-xs md:text-base font-medium" style={isWideDesktop ? { maxWidth: 'none', overflow: 'visible', textOverflow: 'clip', whiteSpace: 'nowrap', fontSize: '16px', fontWeight: 500 } : undefined}>{t(label)}</span>
+            <button
+              type="button"
+              key={view}
+              aria-current={activeView === view ? 'page' : undefined}
+              className={activeView === view ? 'active' : undefined}
+              onClick={() => setActiveView(view)}
+            >
+              <Icon name={icon} size={19} />
+              <span>{t(label)}</span>
             </button>
           ))}
         </div>

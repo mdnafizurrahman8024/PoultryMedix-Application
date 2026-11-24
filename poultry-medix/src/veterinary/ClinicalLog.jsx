@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   BookOpen,
   Brain,
@@ -813,7 +814,7 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
 
   const dateDisplay = record.formattedDate || formattedDate(record.timestamp || record.updatedAt || record.createdAt, locale)
 
-  return (
+  return createPortal(
     <div
       className="history-modal-backdrop"
       role="presentation"
@@ -826,7 +827,7 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
         role="dialog"
         aria-modal="true"
         aria-labelledby="history-detail-modal-title"
-        style={{ maxWidth: '680px', width: '94vw' }}
+        style={{ maxWidth: 'min(680px, 100%)', width: '100%' }}
       >
         <header>
           <div>
@@ -1091,7 +1092,8 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   )
 }
 
