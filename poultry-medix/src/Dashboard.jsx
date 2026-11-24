@@ -10,6 +10,8 @@ import TeamPage from './veterinary/TeamPage.jsx'
 import PrivacyPolicy from './veterinary/PrivacyPolicy.jsx'
 import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
+import ShedFlockManager from './veterinary/ShedFlockManager.jsx'
+import { getSheds, evaluateAllSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import { USER_ROLES, useUser } from './context/UserContext.jsx'
 import './Dashboard.css'
@@ -123,6 +125,19 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [shareMessage, setShareMessage] = useState('')
   const [guidelinesExpanded, setGuidelinesExpanded] = useState(false)
   const [activeView, setActiveView] = useState('home')
+  const [sheds, setSheds] = useState(() => getSheds())
+
+  useEffect(() => {
+    function syncSheds() {
+      setSheds(getSheds())
+    }
+    window.addEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncSheds)
+    window.addEventListener('storage', syncSheds)
+    return () => {
+      window.removeEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncSheds)
+      window.removeEventListener('storage', syncSheds)
+    }
+  }, [])
 
   useEffect(() => {
     const desktopQuery = window.matchMedia('(min-width: 1024px)')
@@ -300,11 +315,18 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [settingsOpen, sosOpen, profileAction])
 
-  const heatStress = weather && (
+  const shedThermalSummary = sheds.length > 0 && weather
+    ? evaluateAllSheds(sheds, weather.temperature, weather.humidity)
+    : null
+
+  const fallbackHeatStress = weather && (
     weather.temperature >= 35
     || (weather.temperature >= 30 && weather.humidity >= 70)
     || weather.feelsLike >= 36
   )
+  const heatStress = shedThermalSummary
+    ? shedThermalSummary.activeAlerts.length > 0
+    : fallbackHeatStress
   const weatherTheme = weather?.theme || 'sunny'
 
   async function shareApp() {
@@ -653,8 +675,40 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
               </div>
               <div className={`heat-alert${heatStress ? ' heat-alert--high' : ''}`}>
                 <Icon name={heatStress ? 'alert' : 'thermometer'} size={17} />
-                <span><strong>{heatStress ? t('heatStressAlert') : t('heatStressCheck')}</strong><small>{heatStress ? t('heatStressAdvice') : t('heatStressNormal')}</small></span>
-                <span className="heat-badge">{heatStress ? t('attention') : t('normal')}</span>
+                {shedThermalSummary ? (
+                  <>
+                    <span>
+                      <strong>
+                        {heatStress
+                          ? (language === 'bn'
+                            ? `${shedThermalSummary.activeAlerts.length}টি শেডে তাপ-পীড়ন সতর্কতা (${shedThermalSummary.highestReport?.shed?.name})`
+                            : `${shedThermalSummary.activeAlerts.length} Shed Alert${shedThermalSummary.activeAlerts.length > 1 ? 's' : ''} (${shedThermalSummary.highestReport?.shed?.name})`)
+                          : shedThermalSummary.broodingHeatAlerts.length > 0
+                          ? (language === 'bn'
+                            ? `${shedThermalSummary.broodingHeatAlerts.length}টি শেডে ব্রুডিং তাপ প্রয়োজন`
+                            : `${shedThermalSummary.broodingHeatAlerts.length} Shed${shedThermalSummary.broodingHeatAlerts.length > 1 ? 's' : ''} Need Brooding Heat`)
+                          : (language === 'bn'
+                            ? `সব ${sheds.length}টি শেড আদর্শ তাপমাত্রায় আছে`
+                            : `All ${sheds.length} Shed${sheds.length > 1 ? 's' : ''} Within Comfort Targets`)}
+                      </strong>
+                      <small>
+                        {language === 'bn'
+                          ? shedThermalSummary.highestReport?.adviceBn
+                          : shedThermalSummary.highestReport?.adviceEn}
+                      </small>
+                    </span>
+                    <span className="heat-badge">
+                      {language === 'bn'
+                        ? shedThermalSummary.highestReport?.severityLabelBn
+                        : shedThermalSummary.highestReport?.severityLabelEn}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span><strong>{heatStress ? t('heatStressAlert') : t('heatStressCheck')}</strong><small>{heatStress ? t('heatStressAdvice') : t('heatStressNormal')}</small></span>
+                    <span className="heat-badge">{heatStress ? t('attention') : t('normal')}</span>
+                  </>
+                )}
               </div>
             </>
           ) : (
@@ -665,6 +719,8 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             </div>
           )}
         </section>
+
+        <ShedFlockManager weather={weather} />
 
         <DiagnosisHub />
 

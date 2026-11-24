@@ -8,7 +8,6 @@ import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
-import PrescriptionLookup from './veterinary/PrescriptionLookup.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
 import { saveHistoryEntry, saveLocalPrescriptionAttachment, saveUnifiedLog } from './veterinary/historyStore.js'
 import useSpeechToText from './hooks/useSpeechToText.js'
@@ -870,14 +869,6 @@ export default function DiagnosisHub() {
             </div>
           </div>
         )}
-      </section>
-
-      <section className="diagnosis-tool-card diagnosis-dose-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="dose-calculator-title">
-        <div className="diagnosis-section-heading dark:text-gray-100">
-          <div><span className="diagnosis-section-kicker dark:text-gray-300">{t('sectionThree')}</span><h3 id="dose-calculator-title" className="dark:text-gray-100">{t('doseCalculator')}</h3><p className="dark:text-gray-300">{t('doseValuesWarning')}</p></div>
-          <span className="diagnosis-section-icon"><Icon name="calculator" size={20} /></span>
-        </div>
-        <PrescriptionLookup hideDrugInfo alwaysShowDose />
       </section>
 
       {reportModalOpen && currentReport && (

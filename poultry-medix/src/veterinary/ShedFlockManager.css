@@ -1,0 +1,566 @@
+.shed-manager-card {
+  margin-top: 20px;
+  padding: clamp(16px, 2.5vw, 24px);
+  border: 1px solid #dfe8dc;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(34, 58, 39, 0.05);
+}
+
+.shed-manager-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #edf2eb;
+}
+
+.shed-manager-heading {
+  flex: 1 1 280px;
+  min-width: 0;
+}
+
+.shed-manager-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.shed-manager-heading h2 {
+  margin: 4px 0 0;
+  color: #172b1e;
+  font-size: clamp(17px, 2.2vw, 21px);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.shed-manager-heading p {
+  margin: 5px 0 0;
+  color: #5a6a5e;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.shed-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.shed-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.shed-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.shed-btn--primary {
+  border-color: #166534;
+  background: #15803d;
+  color: #ffffff;
+}
+
+.shed-btn--primary:hover {
+  background: #166534;
+  border-color: #14532d;
+}
+
+.shed-btn--sim-active {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.shed-summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: 1px solid #e5ece3;
+  border-radius: 12px;
+  background: #f8faf7;
+  font-size: 12px;
+  color: #475569;
+}
+
+.shed-summary-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+
+.shed-summary-metrics strong,
+.shed-summary-weather strong {
+  color: #0f172a;
+}
+
+.shed-summary-weather {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shed-sim-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  background: #fffbeb;
+}
+
+.shed-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.shed-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shed-link-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.shed-field input,
+.shed-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+}
+
+.shed-field input:focus,
+.shed-field select:focus {
+  outline: 2px solid #86efac;
+  border-color: #15803d;
+}
+
+.shed-form-panel {
+  margin-top: 14px;
+  padding: 16px;
+  border: 1px solid #bbf7d0;
+  border-radius: 14px;
+  background: #f9fcfa;
+}
+
+.shed-form-panel h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #14532d;
+}
+
+.shed-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.shed-form-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.shed-form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.shed-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 28px 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #fafcfb;
+  text-align: center;
+}
+
+.shed-empty-state h3 {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.shed-empty-state p {
+  margin: 0;
+  max-width: 480px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.shed-serial-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.shed-report-card {
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+}
+
+.shed-report-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.shed-identity-group {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.shed-identity-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.shed-serial-num {
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.shed-report-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.shed-species-pill {
+  padding: 2px 9px;
+  border: 1px solid #bbf7d0;
+  border-radius: 9999px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.shed-age-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.shed-stage-subtitle {
+  margin: 5px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.shed-status-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.shed-alert-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.shed-icon-btn {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+}
+
+.shed-icon-btn:hover {
+  background: #f8fafc;
+}
+
+.shed-icon-btn--danger {
+  color: #dc2626;
+}
+
+.shed-icon-btn--danger:hover {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.shed-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.shed-metric-cell {
+  padding: 10px 12px;
+  border: 1px solid #f1f5f9;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.shed-metric-cell span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.shed-metric-cell strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.shed-advice-text {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.shed-citation {
+  margin: 8px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.shed-simulator-panel {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8faf7;
+}
+
+.shed-simulator-panel h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.shed-simulator-panel > p {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.shed-simulator-result {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.shed-simulator-result-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Dark theme support */
+html[data-theme="dark"] .shed-manager-card,
+html[data-theme="dark"] .shed-report-card,
+html[data-theme="dark"] .shed-simulator-result {
+  border-color: #334155;
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+html[data-theme="dark"] .shed-manager-header,
+html[data-theme="dark"] .shed-report-top,
+html[data-theme="dark"] .shed-citation {
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .shed-summary-strip,
+html[data-theme="dark"] .shed-form-panel,
+html[data-theme="dark"] .shed-empty-state,
+html[data-theme="dark"] .shed-metric-cell,
+html[data-theme="dark"] .shed-simulator-panel {
+  border-color: #334155;
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .shed-sim-bar {
+  border-color: #78350f;
+  background: rgba(120, 53, 15, 0.25);
+}
+
+html[data-theme="dark"] .shed-manager-heading h2,
+html[data-theme="dark"] .shed-summary-metrics strong,
+html[data-theme="dark"] .shed-summary-weather strong,
+html[data-theme="dark"] .shed-report-title,
+html[data-theme="dark"] .shed-metric-cell strong,
+html[data-theme="dark"] .shed-empty-state h3,
+html[data-theme="dark"] .shed-simulator-panel h3,
+html[data-theme="dark"] .shed-simulator-result-top {
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .shed-manager-heading p,
+html[data-theme="dark"] .shed-advice-text,
+html[data-theme="dark"] .shed-field,
+html[data-theme="dark"] .shed-stage-subtitle {
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .shed-field input,
+html[data-theme="dark"] .shed-field select,
+html[data-theme="dark"] .shed-btn,
+html[data-theme="dark"] .shed-icon-btn {
+  border-color: #475569;
+  background: #1e293b;
+  color: #f1f5f9;
+}
+
+html[data-theme="dark"] .shed-btn--primary {
+  border-color: #15803d;
+  background: #15803d;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .shed-serial-num,
+html[data-theme="dark"] .shed-age-pill {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .shed-species-pill {
+  background: rgba(6, 78, 59, 0.45);
+  border-color: #065f46;
+  color: #6ee7b7;
+}
+
+/* Responsive viewports */
+@media (max-width: 960px) {
+  .shed-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .shed-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 540px) {
+  .shed-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shed-header-actions {
+    width: 100%;
+  }
+
+  .shed-header-actions .shed-btn {
+    flex: 1 1 auto;
+  }
+}
