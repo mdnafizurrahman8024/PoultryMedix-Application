@@ -3284,6 +3284,33 @@ html[data-theme="dark"] .history-action-btn:hover {
   color: #ffffff;
 }
 
+html[data-theme="dark"] .history-prescription-modal {
+  background: #1e293b;
+  border-color: #334155;
+}
+
+html[data-theme="dark"] .history-prescription-modal > header {
+  background: #0f172a;
+  border-bottom-color: #334155;
+}
+
+html[data-theme="dark"] .history-prescription-modal h2,
+html[data-theme="dark"] .history-prescription-modal-body h3,
+html[data-theme="dark"] .history-medication-detail strong {
+  color: #f1f5f9;
+}
+
+html[data-theme="dark"] .history-prescription-modal header button {
+  background: #1e293b;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .history-medication-detail {
+  background: #0f172a;
+  border-color: #334155;
+}
+
 .history-prescription-actions button {
   display: inline-flex;
   min-height: 32px;
@@ -3466,8 +3493,7 @@ html[data-theme="dark"] .history-action-btn:hover {
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(30, 47, 35, 0.44);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.45);
 }
 
 .history-prescription-modal {

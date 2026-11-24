@@ -77,6 +77,34 @@ function getInitialLogs() {
       }
     }
 
+    // 3. From legacy consultation appointments
+    const legacyAppts = JSON.parse(localStorage.getItem('poultry-telemedicine-appointments') || '[]')
+    if (Array.isArray(legacyAppts)) {
+      for (const item of legacyAppts) {
+        migrated.push({
+          id: item.id || `consult-${item.createdAt || Date.now()}`,
+          type: 'consultation',
+          timestamp: item.createdAt || new Date().toISOString(),
+          formattedDate: item.createdAt ? new Date(item.createdAt).toLocaleString() : new Date().toLocaleString(),
+          vetName: item.vetName || 'Dr. Sarah Ahmed, DVM',
+          bvcRegNo: item.bvcRegNo || 'BVC-REG-10492',
+          clinicDetails: item.clinicDetails || 'PoultryMedix Veterinary Consultation',
+          farmerName: item.farmerName || 'Registered Farmer',
+          farmName: item.farmName || '',
+          district: item.district || 'Rajshahi',
+          bookingDate: item.date || '',
+          bookingTime: item.time || '',
+          concern: item.concern || 'General Poultry Consultation',
+          amount: Number(item.amount) || 500,
+          currency: item.currency || 'BDT',
+          paymentMethod: item.paymentMethod || 'bkash',
+          paymentMethodLabel: item.paymentMethodLabel || item.paymentMethod || 'bKash',
+          paymentStatus: item.paymentStatus || 'Confirmed',
+          syncedToCloud: false,
+        })
+      }
+    }
+
     if (migrated.length > 0) {
       localStorage.setItem(CLINICAL_LOGS_STORAGE_KEY, JSON.stringify(migrated.slice(0, 200)))
       return migrated
@@ -193,6 +221,49 @@ export function savePrescriptionLog({
     medications: Array.isArray(medications) ? medications : [],
     advice,
     followUpDate,
+    syncedToCloud: false,
+  })
+}
+
+/**
+ * Saves a Vet Consultation Booking log entry (appointment + fee record).
+ */
+export function saveConsultationLog({
+  id,
+  vetName = 'Dr. Sarah Ahmed, DVM',
+  bvcRegNo = 'BVC-REG-10492',
+  clinicDetails = 'Rajshahi Avian Diagnostic & Research Hospital',
+  farmerName = 'Registered Farmer',
+  farmName = '',
+  district = 'Rajshahi',
+  bookingDate = '',
+  bookingTime = '',
+  concern = '',
+  paymentMethod = 'bkash',
+  paymentMethodLabel = 'bKash',
+  amount = 500,
+  currency = 'BDT',
+  paymentStatus = 'Confirmed',
+}) {
+  return saveClinicalLog({
+    id: id || crypto.randomUUID(),
+    type: 'consultation',
+    vetName,
+    bvcRegNo,
+    clinicDetails,
+    farmerName: farmerName || 'Registered Farmer',
+    farmName,
+    district: district || 'Rajshahi',
+    bookingDate,
+    bookingTime,
+    date: bookingDate,
+    time: bookingTime,
+    concern: concern || 'Flock Consultation',
+    paymentMethod,
+    paymentMethodLabel,
+    amount: Number(amount) || 500,
+    currency: currency || 'BDT',
+    paymentStatus,
     syncedToCloud: false,
   })
 }

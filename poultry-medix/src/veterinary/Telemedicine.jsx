@@ -1,11 +1,57 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Icon from '../components/Icon.jsx'
-import { saveHistoryEntry, saveUnifiedLog } from './historyStore.js'
+import { saveHistoryEntry, saveUnifiedLog, readHistory } from './historyStore.js'
 import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
-import { savePrescriptionLog } from '../lib/clinicalLogsStore.js'
+import {
+  savePrescriptionLog,
+  saveConsultationLog,
+  getClinicalLogs,
+  CLINICAL_LOGS_UPDATED_EVENT,
+} from '../lib/clinicalLogsStore.js'
 import { useUser } from '../context/UserContext.jsx'
 import { useLanguage } from '../context/useLanguage.js'
 import './Telemedicine.css'
+
+const VETERINARY_DOCTORS = [
+  {
+    id: 'dr-sarah',
+    name: 'Dr. Sarah Ahmed, DVM',
+    degrees: 'DVM, MS in Avian Pathology (BAU)',
+    regNo: 'BVC-REG-10492',
+    clinic: 'Rajshahi Avian Diagnostic & Research Hospital',
+    specialty: 'Avian Pathology & Respiratory Care',
+  },
+  {
+    id: 'dr-tariqul',
+    name: 'Dr. Tariqul Islam, DVM',
+    degrees: 'DVM, MSc in Veterinary Microbiology',
+    regNo: 'BVC-REG-11284',
+    clinic: 'Bogura Poultry Health & Biosecurity Center',
+    specialty: 'AMR Stewardship & Hatchery Biosecurity',
+  },
+  {
+    id: 'dr-farhana',
+    name: 'Dr. Farhana Rahman, DVM',
+    degrees: 'DVM, MS in Poultry Medicine',
+    regNo: 'BVC-REG-09871',
+    clinic: 'Gazipur Central Avian Clinic',
+    specialty: 'Broiler & Layer Flock Management',
+  },
+]
+
+const BANGLADESH_DISTRICTS = [
+  'Rajshahi',
+  'Bogura',
+  'Gazipur',
+  'Mymensingh',
+  'Cumilla',
+  'Dhaka',
+  'Chattogram',
+  'Sylhet',
+  'Khulna',
+  'Rangpur',
+  'Barishal',
+]
 
 const paymentMethods = [
   { id: 'bkash', labelKey: 'bkash', detailKey: 'mobileFinancialService' },
@@ -69,13 +115,53 @@ function FormSection({ title, icon, children }) {
   )
 }
 
+function loadConsultationBookings() {
+  const fromStore = getClinicalLogs('consultation')
+  const readLegacyAppointments = () => {
+    try {
+      return readHistory('appointment').map((item) => ({
+        id: item.id,
+        vetName: item.vetName || 'Dr. Sarah Ahmed, DVM',
+        farmerName: item.farmerName || 'Registered Farmer',
+        farmName: item.farmName || '',
+        district: item.district || 'Rajshahi',
+        bookingDate: item.date || item.bookingDate || '',
+        bookingTime: item.time || item.bookingTime || '',
+        concern: item.concern || '',
+        amount: Number(item.amount) || 500,
+        paymentMethodLabel: item.paymentMethodLabel || item.paymentMethod || 'bKash',
+        timestamp: item.createdAt || new Date().toISOString(),
+      }))
+    } catch {
+      return []
+    }
+  }
+
+  const seen = new Set()
+  return [...fromStore, ...readLegacyAppointments()].filter((item) => {
+    if (!item?.id || seen.has(item.id)) return false
+    seen.add(item.id)
+    return true
+  })
+}
+
 export default function Telemedicine() {
   const { role } = useUser()
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
   const isRegisteredVet = role === 'REGISTERED_VET'
-  const [booking, setBooking] = useState({ farmer: '', farm: '', concern: '', date: '', time: '', payment: 'bkash' })
+  const [booking, setBooking] = useState({
+    vetId: VETERINARY_DOCTORS[0].id,
+    district: 'Rajshahi',
+    farmer: '',
+    farm: '',
+    concern: '',
+    date: new Date().toISOString().slice(0, 10),
+    time: '10:30',
+    payment: 'bkash',
+  })
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
+  const [recentBookings, setRecentBookings] = useState(() => loadConsultationBookings())
   const [callMode, setCallMode] = useState('')
   const [prescription, setPrescription] = useState(emptyPrescription)
   const [medications, setMedications] = useState([emptyMedication()])
@@ -83,6 +169,18 @@ export default function Telemedicine() {
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
   const canStartCall = isRegisteredVet || bookingConfirmed
+
+  useEffect(() => {
+    function syncBookings() {
+      setRecentBookings(loadConsultationBookings())
+    }
+    window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
+    window.addEventListener('storage', syncBookings)
+    return () => {
+      window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
+      window.removeEventListener('storage', syncBookings)
+    }
+  }, [])
 
   function updateBooking(field, value) {
     setBooking((current) => ({ ...current, [field]: value }))
@@ -107,29 +205,80 @@ export default function Telemedicine() {
     setComplaintDraft('')
   }
 
+  function loadBookingIntoPrescription(appt) {
+    const matchedDoc = VETERINARY_DOCTORS.find((doc) => doc.name === appt.vetName)
+    setPrescription((current) => ({
+      ...current,
+      vetName: matchedDoc?.name || appt.vetName || current.vetName,
+      vetDegrees: matchedDoc?.degrees || current.vetDegrees,
+      registrationNumber: matchedDoc?.regNo || current.registrationNumber,
+      bvcRegNo: matchedDoc?.regNo || current.bvcRegNo,
+      clinicDetails: matchedDoc?.clinic || appt.clinicDetails || current.clinicDetails,
+      farmerName: appt.farmerName || current.farmerName,
+      farmName: appt.farmName || current.farmName,
+      district: appt.district || current.district,
+      complaints: appt.concern && !current.complaints.includes(appt.concern)
+        ? [appt.concern, ...current.complaints]
+        : current.complaints,
+    }))
+    setSaveMessage(language === 'bn'
+      ? `বুকিং লোড হয়েছে: ${appt.farmerName || 'Farmer'} (${appt.bookingDate || ''} ${appt.bookingTime || ''})`
+      : `Loaded patient booking: ${appt.farmerName || 'Farmer'} (${appt.bookingDate || ''} ${appt.bookingTime || ''})`)
+  }
+
   function confirmBooking(event) {
     event.preventDefault()
     setBookingConfirmed(true)
     setCallMode('')
+    const selectedVet = VETERINARY_DOCTORS.find((doc) => doc.id === booking.vetId) || VETERINARY_DOCTORS[0]
     const paymentMethod = paymentMethods.find(({ id }) => id === booking.payment)
     const paymentMethodLabel = paymentMethod ? t(paymentMethod.labelKey) : booking.payment
+    const recordId = crypto.randomUUID()
+    const createdAt = new Date().toISOString()
+
     try {
-      saveHistoryEntry('appointment', {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        date: booking.date,
-        time: booking.time,
-        vetName: 'PoultryMedix Veterinary Team (not assigned)',
-        concern: booking.concern,
-        amount: 0,
+      saveConsultationLog({
+        id: recordId,
+        vetName: selectedVet.name,
+        bvcRegNo: selectedVet.regNo,
+        clinicDetails: selectedVet.clinic,
+        farmerName: booking.farmer.trim(),
+        farmName: booking.farm.trim(),
+        district: booking.district || 'Rajshahi',
+        bookingDate: booking.date,
+        bookingTime: booking.time,
+        concern: booking.concern.trim(),
+        amount: 500,
         currency: 'BDT',
         paymentMethod: booking.payment,
         paymentMethodLabel,
-        paymentStatusKey: 'historyPaymentNotProcessed',
+        paymentStatus: 'Confirmed',
       })
-      setBookingMessage(t('mockBookingConfirmed', { payment: paymentMethodLabel }))
+
+      saveHistoryEntry('appointment', {
+        id: recordId,
+        createdAt,
+        date: booking.date,
+        time: booking.time,
+        vetName: selectedVet.name,
+        bvcRegNo: selectedVet.regNo,
+        clinicDetails: selectedVet.clinic,
+        farmerName: booking.farmer.trim(),
+        farmName: booking.farm.trim(),
+        district: booking.district || 'Rajshahi',
+        concern: booking.concern.trim(),
+        amount: 500,
+        currency: 'BDT',
+        paymentMethod: booking.payment,
+        paymentMethodLabel,
+        paymentStatusKey: 'historyBookingConfirmed',
+      })
+
+      setBookingMessage(language === 'bn'
+        ? `${selectedVet.name}-এর সাথে বুকিং নিশ্চিত হয়েছে (${booking.date}, ${booking.time})। ক্লিনিক্যাল লগের Vet Consultations অপশনে সংরক্ষণ করা হয়েছে।`
+        : `Booking confirmed with ${selectedVet.name} on ${booking.date} at ${booking.time}. Saved to Clinical Log → Vet Consultations.`)
     } catch (error) {
-      console.error('Unable to save the mock consultation booking to history.', error)
+      console.error('Unable to save consultation booking to history.', error)
       setBookingMessage(t('mockBookingSaveFailed', { payment: paymentMethodLabel }))
     }
   }
@@ -173,7 +322,7 @@ export default function Telemedicine() {
         type: 'prescription',
         source: 'vet_issued',
         timestamp: nowIso,
-        formattedDate: new Date().toLocaleString(),
+        formattedDate: new Date(nowIso).toLocaleString(),
         vetName: prescription.vetName || 'Dr. Sarah Ahmed, DVM',
         bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber || 'BVC-REG-10492',
         clinicDetails: prescription.clinicDetails || 'Rajshahi Avian Diagnostic Hospital',
@@ -214,8 +363,8 @@ export default function Telemedicine() {
       notifyPrescriptionDataChanged()
 
       setSaveMessage(language === 'bn'
-        ? 'প্রেসক্রিপশনটি সফলভাবে সংরক্ষিত হয়েছে এবং ফার্মারের ক্লিনিক্যাল লগে যুক্ত করা হয়েছে!'
-        : 'Prescription successfully saved and synced to Farmer’s Clinical Log!')
+        ? 'ডিজিটাল প্রেসক্রিপশনটি সফলভাবে পাঠানো হয়েছে এবং ফার্মারের ক্লিনিক্যাল লগের Prescriptions ও Vet Consultations অংশে তারিখ ও সময়সহ সংরক্ষিত হয়েছে!'
+        : 'Digital Prescription successfully sent and saved to the Farmer’s Clinical Log (Prescriptions tab) with date & time!')
     } catch (error) {
       setSaveError(t('prescriptionSaveError', { message: error.message }))
     }
@@ -235,13 +384,29 @@ export default function Telemedicine() {
           <div><span className="telemedicine-eyebrow">{t('remoteVeterinarySupport')}</span><h2 id="consult-booking-heading">{t('bookVetConsultation')}</h2></div>
         </div>
         <form className="telemedicine-booking-form dark:text-gray-100" onSubmit={confirmBooking}>
+          <Field label={language === 'bn' ? 'পশুচিকিৎসক নির্বাচন করুন' : 'Select Veterinarian'}>
+            <select value={booking.vetId} onChange={(event) => updateBooking('vetId', event.target.value)}>
+              {VETERINARY_DOCTORS.map((doc) => (
+                <option key={doc.id} value={doc.id}>
+                  {doc.name} — {doc.clinic}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label={language === 'bn' ? 'জেলা' : 'District'}>
+            <select value={booking.district} onChange={(event) => updateBooking('district', event.target.value)}>
+              {BANGLADESH_DISTRICTS.map((dist) => (
+                <option key={dist} value={dist}>{dist}</option>
+              ))}
+            </select>
+          </Field>
           <Field label={t('farmerName')}><input required maxLength={120} value={booking.farmer} onChange={(event) => updateBooking('farmer', event.target.value)} placeholder={t('namePlaceholder')} /></Field>
           <Field label={t('farmName')}><input required maxLength={120} value={booking.farm} onChange={(event) => updateBooking('farm', event.target.value)} placeholder={t('farmFlockPlaceholder')} /></Field>
           <Field label={t('mainConcern')}><input required maxLength={300} value={booking.concern} onChange={(event) => updateBooking('concern', event.target.value)} placeholder={t('concernPlaceholder')} /></Field>
           <Field label={t('preferredDate')}><input required type="date" min={new Date().toISOString().slice(0, 10)} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
           <Field label={t('preferredTime')}><input required type="time" value={booking.time} onChange={(event) => updateBooking('time', event.target.value)} /></Field>
           <fieldset className="telemedicine-payment-options dark:border-gray-700 dark:text-gray-100">
-            <legend>{t('mockPaymentMethod')}</legend>
+            <legend>{t('mockPaymentMethod')} (৳ 500)</legend>
             <div className="telemedicine-payment-grid">
               {paymentMethods.map((method) => (
                 <label className={`telemedicine-payment-option dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700${booking.payment === method.id ? ' selected' : ''}`} key={method.id}>
@@ -256,6 +421,7 @@ export default function Telemedicine() {
           <button className="telemedicine-primary-button" type="submit"><Icon name="check" size={17} />{t('confirmMockBooking')}</button>
           {bookingMessage && <p className="telemedicine-status" role="status">{bookingMessage}</p>}
         </form>
+
         <div className="telemedicine-call-actions">
           <div><h3>{t('consultationRoom')}</h3><p>{bookingConfirmed ? t('bookingReady') : t('confirmBookingToCall')}</p></div>
           <div className="telemedicine-call-buttons">
@@ -268,9 +434,74 @@ export default function Telemedicine() {
           <div><strong>{callMode === 'audio' ? t('demoAudioCall') : t('demoVideoCall')} {t('isReady')}</strong><p>{t('noRealCall')}</p></div>
           <button type="button" onClick={() => setCallMode('')}>{t('endDemo')}</button>
         </div>}
+
+        {recentBookings.length > 0 && (
+          <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
+            <h3 className="mb-2.5 text-sm font-bold text-gray-800 dark:text-gray-100">
+              {language === 'bn' ? 'সাম্প্রতিক বুকিং তালিকা' : 'Your Scheduled Vet Bookings'}
+            </h3>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {recentBookings.slice(0, 4).map((item) => (
+                <div key={item.id} className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
+                  <div className="flex items-center justify-between gap-2 font-bold text-emerald-800 dark:text-emerald-400">
+                    <span>{item.vetName}</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                      {item.bookingDate || 'Scheduled'} · {item.bookingTime || '--:--'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-gray-600 dark:text-gray-300">
+                    <strong>{item.farmerName || 'Farmer'}</strong> ({item.district || 'Rajshahi'}) — {item.concern}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+          {language === 'bn'
+            ? 'নোট: ডিজিটাল প্রেসক্রিপশন লেখা এবং ফার্মারের লগে পাঠানোর সুবিধাটি শুধুমাত্র রেজিস্টার্ড ভেটেরিনারিয়ান (Doctor Mode) মোডে সক্রিয় থাকে।'
+            : 'Note: Digital Prescription authoring and sending to Farmer Clinical Logs is restricted to Registered Veterinarians (Doctor Mode). Received prescriptions appear under Clinical Log → Prescriptions.'}
+        </p>
       </section>}
 
       {isRegisteredVet && <section className="telemedicine-prescription-section bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white" aria-labelledby="prescription-builder-heading">
+        {recentBookings.length > 0 && (
+          <div className="mb-5 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+                {language === 'bn' ? 'ফার্মার কনসালটেশন বুকিং তালিকা (Doctor Queue)' : 'Farmer Consultation Bookings (Doctor Queue)'}
+              </h3>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {recentBookings.length} {language === 'bn' ? 'টি বুকিং' : 'bookings'}
+              </span>
+            </div>
+            <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {recentBookings.slice(0, 6).map((appt) => (
+                <div key={appt.id} className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="text-gray-900 dark:text-white">{appt.farmerName || 'Farmer'}</strong>
+                      <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        {appt.bookingDate || 'Today'} {appt.bookingTime || ''}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-gray-600 dark:text-gray-300">{appt.farmName || 'Poultry Farm'} · {appt.district || 'Rajshahi'}</p>
+                    <p className="mt-1 line-clamp-2 text-gray-500 dark:text-gray-400">{appt.concern}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => loadBookingIntoPrescription(appt)}
+                    className="mt-2.5 w-full rounded-lg border border-emerald-600 bg-emerald-600/10 py-1.5 font-semibold text-emerald-800 transition-colors hover:bg-emerald-600 hover:text-white dark:text-emerald-300"
+                  >
+                    {language === 'bn' ? 'রোগীর তথ্য Rx-এ লোড করুন' : 'Load into Rx Builder'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="telemedicine-builder-heading">
           <div><span className="telemedicine-eyebrow">{t('veterinarianWorkspace')}</span><h2 id="prescription-builder-heading">{t('digitalPrescriptionBuilder')}</h2><p>{t('prescriptionBuilderDescription')}</p></div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -300,10 +531,15 @@ export default function Telemedicine() {
               <div className="telemedicine-fields-grid">
                 <Field label={t('farmerName')}><input value={prescription.farmerName} onChange={(event) => updatePrescription('farmerName', event.target.value)} /></Field>
                 <Field label={t('farmName')}><input value={prescription.farmName} onChange={(event) => updatePrescription('farmName', event.target.value)} /></Field>
+                <Field label={language === 'bn' ? 'জেলা' : 'District'}>
+                  <select value={prescription.district} onChange={(event) => updatePrescription('district', event.target.value)}>
+                    {BANGLADESH_DISTRICTS.map((dist) => <option key={dist} value={dist}>{dist}</option>)}
+                  </select>
+                </Field>
                 <Field label={t('age')}><input type="text" value={prescription.age} onChange={(event) => updatePrescription('age', event.target.value)} placeholder={t('agePlaceholder')} /></Field>
                 <Field label={t('flockSize')}><input type="number" min="0" value={prescription.flockSize} onChange={(event) => updatePrescription('flockSize', event.target.value)} /></Field>
                 <Field label={t('averageWeight')}><input type="number" min="0" step="any" value={prescription.averageWeight} onChange={(event) => updatePrescription('averageWeight', event.target.value)} placeholder={t('kg')} /></Field>
-                <Field label={t('birdType')}><select value={prescription.birdType} onChange={(event) => updatePrescription('birdType', event.target.value)}>{birdTypes.map((type) => <option key={type}>{t(`birdTypes.${type}`)}</option>)}</select></Field>
+                <Field label={t('birdType')}><select value={prescription.birdType} onChange={(event) => updatePrescription('birdType', event.target.value)}>{birdTypes.map((type) => <option key={type} value={type}>{t(`birdTypes.${type}`)}</option>)}</select></Field>
               </div>
             </FormSection>
 
@@ -324,10 +560,11 @@ export default function Telemedicine() {
                     {medications.length > 1 && <button className="telemedicine-remove-button" type="button" aria-label={`Remove medicine ${index + 1}`} onClick={() => setMedications((current) => current.filter(({ id }) => id !== medication.id))}><Icon name="remove" size={16} />Remove</button>}
                     <div className="telemedicine-fields-grid">
                       <Field label={t('drugMedicineName')}><input value={medication.name} onChange={(event) => updateMedication(medication.id, 'name', event.target.value)} placeholder={t('medicineName')} /></Field>
-                      <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation}>{t(`formulations.${formulation}`)}</option>)}</select></Field>
+                      <Field label={language === 'bn' ? 'জেনেরিক নাম' : 'Generic Name'}><input value={medication.genericName} onChange={(event) => updateMedication(medication.id, 'genericName', event.target.value)} placeholder="e.g. Doxycycline" /></Field>
+                      <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation} value={formulation}>{t(`formulations.${formulation}`)}</option>)}</select></Field>
                       <Field label={t('dosage')}><input value={medication.dosage} onChange={(event) => updateMedication(medication.id, 'dosage', event.target.value)} placeholder={t('dosagePlaceholder')} /></Field>
-                      <Field label={t('frequencyTiming')}><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency}>{t(`frequencies.${frequency}`)}</option>)}</select></Field>
-                      <Field label={t('duration')}><span className="telemedicine-duration-inputs"><input type="number" min="1" value={medication.duration} onChange={(event) => updateMedication(medication.id, 'duration', event.target.value)} /><select aria-label={t('durationType')} value={medication.durationType} onChange={(event) => updateMedication(medication.id, 'durationType', event.target.value)}><option>{t('days')}</option><option>{t('weeks')}</option></select></span></Field>
+                      <Field label={t('frequencyTiming')}><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency} value={frequency}>{t(`frequencies.${frequency}`)}</option>)}</select></Field>
+                      <Field label={t('duration')}><span className="telemedicine-duration-inputs"><input type="number" min="1" value={medication.duration} onChange={(event) => updateMedication(medication.id, 'duration', event.target.value)} /><select aria-label={t('durationType')} value={medication.durationType} onChange={(event) => updateMedication(medication.id, 'durationType', event.target.value)}><option value="Days">{t('days')}</option><option value="Weeks">{t('weeks')}</option></select></span></Field>
                       <Field label={t('withdrawalPeriod')}><input value={medication.withdrawal} onChange={(event) => updateMedication(medication.id, 'withdrawal', event.target.value)} placeholder={t('withdrawalPlaceholder')} /></Field>
                     </div>
                   </fieldset>
@@ -354,7 +591,7 @@ export default function Telemedicine() {
               <div className="prescription-preview-title"><span>VETERINARY PRESCRIPTION</span><time>{new Date().toLocaleDateString()}</time></div>
               <div className="prescription-info-grid">
                 <div><span>FARMER</span><strong>{prescription.farmerName || '—'}</strong></div>
-                <div><span>FARM / FLOCK</span><strong>{prescription.farmName || '—'}</strong></div>
+                <div><span>FARM / DISTRICT</span><strong>{[prescription.farmName, prescription.district].filter(Boolean).join(' · ') || '—'}</strong></div>
                 <div><span>BIRD TYPE</span><strong>{prescription.birdType}</strong></div>
                 <div><span>AGE</span><strong>{prescription.age || '—'}</strong></div>
                 <div><span>FLOCK SIZE</span><strong>{prescription.flockSize || '—'}</strong></div>
@@ -366,7 +603,7 @@ export default function Telemedicine() {
                 <div className="prescription-rx-mark">℞</div>
                 {medications.map((medication, index) => (
                   <div className="prescription-preview-medication" key={medication.id}>
-                    <strong>{index + 1}. {medication.name || 'Medicine name'}</strong>
+                    <strong>{index + 1}. {medication.name || 'Medicine name'} {medication.genericName ? `(${medication.genericName})` : ''}</strong>
                     <span>{[medication.formulation, medication.dosage, medication.frequency, medication.duration && `${medication.duration} ${medication.durationType}`].filter(Boolean).join(' · ')}</span>
                     {medication.withdrawal && <small>Withdrawal: {medication.withdrawal}</small>}
                   </div>
@@ -379,8 +616,11 @@ export default function Telemedicine() {
             </article>
             {saveMessage && <p className="telemedicine-status telemedicine-save-status" role="status">{saveMessage}</p>}
             {saveError && <p className="telemedicine-error" role="alert">{saveError}</p>}
-            <button className="telemedicine-save-button" type="button" onClick={savePrescription}><Icon name="send" size={17} />Send to Farmer's Clinical History</button>
-            <p className="telemedicine-preview-note">Saved on this device for this prototype; it is not uploaded to a clinical database.</p>
+            <button className="telemedicine-save-button" type="button" onClick={savePrescription}>
+              <Icon name="send" size={17} />
+              {language === 'bn' ? 'ফার্মারের লগে পাঠান' : 'Send to Farmer\'s Clinical Log'}
+            </button>
+            <p className="telemedicine-preview-note">Saved on this device for this prototype; immediately synced to Farmer Clinical Log.</p>
           </aside>
         </div>
       </section>}

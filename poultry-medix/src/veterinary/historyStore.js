@@ -66,6 +66,9 @@ export function saveHistoryEntry(type, record) {
     ? [record, ...records]
     : records.map((item, index) => index === existingIndex ? record : item)
   localStorage.setItem(storageKeys[type], JSON.stringify(updated.slice(0, 100)))
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('poultrymedix-clinical-logs-updated', { detail: record }))
+  }
 }
 
 export function readPrescriptionHistory() {
