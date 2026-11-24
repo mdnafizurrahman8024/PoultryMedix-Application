@@ -1,0 +1,7 @@
+{
+  "name": "poultrymedix",
+  "defaultBranch": "main",
+  "indexOnly": true,
+  "skipSkills": true,
+  "noStats": true
+}

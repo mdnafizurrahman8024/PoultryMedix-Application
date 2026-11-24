@@ -1,0 +1,20 @@
+{
+  "version": "0.1.7",
+  "project": "PoultryMedix",
+  "masterRulesPath": "D:/A.Technical Skill/GitHub-Projects/AI-Dev-Rules/unslop-rules.md",
+  "localSkillPath": "C:/Users/MSI/.gemini/antigravity/skills/unslop",
+  "principles": [
+    "quiet-chrome",
+    "no-purple-gradient-cliches",
+    "no-emoji-badges",
+    "human-clinical-copy",
+    "evidence-grounded-facts",
+    "consistent-4px-rhythm",
+    "purposeful-subtle-motion"
+  ],
+  "protectedDirs": [
+    "poultry-medix/src/components",
+    "poultry-medix/src/veterinary",
+    "poultry-medix/src/context"
+  ]
+}

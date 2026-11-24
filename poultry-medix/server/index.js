@@ -110,8 +110,9 @@ function allowDevelopmentGuest(request, response, next) {
   return next()
 }
 
-// Keep the strict middleware available for production; development chat accepts guests.
-const requireAiUser = process.env.NODE_ENV === 'development' ? allowDevelopmentGuest : requireUser
+// Allow guest AI access when configured via VITE_ALLOW_GUEST_AI or in development mode
+const allowGuestAi = process.env.VITE_ALLOW_GUEST_AI === 'true' || process.env.ALLOW_GUEST_AI === 'true' || process.env.NODE_ENV === 'development'
+const requireAiUser = allowGuestAi ? allowDevelopmentGuest : requireUser
 
 function validateRequest(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return 'A valid diagnosis request is required.'

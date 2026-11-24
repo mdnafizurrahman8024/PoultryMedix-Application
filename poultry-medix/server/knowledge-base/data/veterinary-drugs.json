@@ -1,0 +1,84 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-11-24",
+  "regulatoryAuthority": "Directorate General of Drug Administration (DGDA) & Department of Livestock Services (DLS), Bangladesh",
+  "drugs": [
+    {
+      "genericName": "Colistin Sulfate",
+      "class": "Polymyxin",
+      "status": "BANNED",
+      "regulatoryNotice": "Colistin is strictly prohibited for food animal production in Bangladesh and internationally by WHO due to extreme human AMR risk (last-resort antibiotic).",
+      "localMeatWithdrawalDays": "BANNED",
+      "localEggWithdrawalDays": "BANNED",
+      "internationalMeatWithdrawalDays": "BANNED",
+      "internationalEggWithdrawalDays": "BANNED",
+      "indications": "No legal veterinary indication in poultry."
+    },
+    {
+      "genericName": "Enrofloxacin",
+      "class": "Fluoroquinolone",
+      "status": "RESTRICTED",
+      "regulatoryNotice": "Critically Important Antimicrobial (CIA). Prohibited for commercial egg-laying flocks. Requires registered veterinary prescription with AST confirmation.",
+      "localMeatWithdrawalDays": "7 days",
+      "localEggWithdrawalDays": "Not permitted for laying hens producing table eggs",
+      "internationalMeatWithdrawalDays": "8-10 days",
+      "internationalEggWithdrawalDays": "Prohibited in layers",
+      "indications": "Severe respiratory complexes (CRD), Colibacillosis under veterinary supervision only."
+    },
+    {
+      "genericName": "Oxytetracycline",
+      "class": "Tetracycline",
+      "status": "APPROVED_PRESCRIPTION_ONLY",
+      "regulatoryNotice": "Standard poultry antimicrobial. Withholding period must be strictly adhered to before slaughter.",
+      "localMeatWithdrawalDays": "5-7 days",
+      "localEggWithdrawalDays": "4 days",
+      "internationalMeatWithdrawalDays": "7 days",
+      "internationalEggWithdrawalDays": "5 days",
+      "indications": "Fowl cholera, infectious coryza, bacterial enteritis."
+    },
+    {
+      "genericName": "Doxycycline",
+      "class": "Tetracycline",
+      "status": "APPROVED_PRESCRIPTION_ONLY",
+      "regulatoryNotice": "High binding affinity. Not recommended in laying birds.",
+      "localMeatWithdrawalDays": "7 days",
+      "localEggWithdrawalDays": "Not recommended for layers",
+      "internationalMeatWithdrawalDays": "7-10 days",
+      "internationalEggWithdrawalDays": "Not authorized in layers",
+      "indications": "Mycoplasmosis, ornithosis, chronic respiratory disease."
+    },
+    {
+      "genericName": "Tilmicosin",
+      "class": "Macrolide",
+      "status": "APPROVED_PRESCRIPTION_ONLY",
+      "regulatoryNotice": "Respiratory specific. Cardiotoxic if injected; water soluble formulation strictly under vet oversight.",
+      "localMeatWithdrawalDays": "12 days",
+      "localEggWithdrawalDays": "Not authorized for layers producing eggs for human consumption",
+      "internationalMeatWithdrawalDays": "12-14 days",
+      "internationalEggWithdrawalDays": "Prohibited in layers",
+      "indications": "Avian mycoplasmosis (Mycoplasma gallisepticum / synoviae)."
+    },
+    {
+      "genericName": "Amoxicillin Trihydrate",
+      "class": "Aminopenicillin",
+      "status": "APPROVED_PRESCRIPTION_ONLY",
+      "regulatoryNotice": "Broad spectrum bactericidal. Susceptible to beta-lactamase resistance.",
+      "localMeatWithdrawalDays": "1-3 days",
+      "localEggWithdrawalDays": "Zero days in approved doses",
+      "internationalMeatWithdrawalDays": "2 days",
+      "internationalEggWithdrawalDays": "Zero days (where authorized)",
+      "indications": "Staphylococcosis, streptococcosis, bacterial enteritis."
+    },
+    {
+      "genericName": "Toltrazuril",
+      "class": "Antiprotozoal / Triazinon",
+      "status": "APPROVED_PRESCRIPTION_ONLY",
+      "regulatoryNotice": "Non-antibiotic coccidiocide. Acts on all intracellular developmental stages of Eimeria.",
+      "localMeatWithdrawalDays": "14 days",
+      "localEggWithdrawalDays": "Not for use in replacement pullets within 4 weeks of laying or in active layers",
+      "internationalMeatWithdrawalDays": "14-16 days",
+      "internationalEggWithdrawalDays": "Prohibited in layers",
+      "indications": "Clinical and subclinical coccidiosis in broiler and breeder flocks."
+    }
+  ]
+}

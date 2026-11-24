@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "pathogens": [
+    {
+      "name": "Avian Influenza (Highly Pathogenic / Low Pathogenic)",
+      "type": "Viral (Orthomyxoviridae)",
+      "notifiable": true,
+      "transmission": "Direct bird-to-bird contact, migratory waterfowl, contaminated water, fomites.",
+      "clinicalSigns": ["Severe respiratory distress", "Facial cyanosis/swelling of comb and wattles", "Petechial hemorrhages on shanks", "Sudden spike in flock mortality", "Drop in egg production"],
+      "biosecurityMeasures": ["Immediate flock isolation", "Strict restriction of farm visitors and equipment", "Mandatory notification to Upazila Livestock Officer (ULO)", "Footbath disinfection with iodophore/glutaraldehyde"],
+      "amrRelevance": "Viral disease. Antibiotics have zero therapeutic effect and must never be administered."
+    },
+    {
+      "name": "Newcastle Disease (Ranikhet)",
+      "type": "Viral (Paramyxoviridae)",
+      "notifiable": true,
+      "transmission": "Aerosol, ingestion of contaminated feces/feed.",
+      "clinicalSigns": ["Gasping, coughing", "Greenish watery diarrhea", "Nervous signs (torticollis / twisted neck, circling, tremors)", "High mortality in unvaccinated flocks"],
+      "biosecurityMeasures": ["Strict adherence to BCRDV / RDV vaccination schedules", "Separation of wild bird vectors", "Proper bird disposal (deep burial with lime or incineration)"],
+      "amrRelevance": "Viral etiology. Antibiotic administration is completely ineffective and violates AMR guidelines."
+    },
+    {
+      "name": "Infectious Bursal Disease (Gumboro)",
+      "type": "Viral (Birnaviridae)",
+      "notifiable": true,
+      "transmission": "Fecal-oral route; highly resistant in environment.",
+      "clinicalSigns": ["Severe depression, ruffled feathers", "Vent pecking, whitish-watery diarrhea", "Dehydration", "High bursal inflammation on necropsy"],
+      "biosecurityMeasures": ["Thorough shed cleaning with formaldehyde or virucidal disinfectant between batches", "Downtime of at least 14 days", "Breeder flock vaccination for maternal antibodies"],
+      "amrRelevance": "Immunosuppressive viral disease. Supportive hydration (electrolytes) indicated; no antibiotics."
+    },
+    {
+      "name": "Coccidiosis (Eimeria tenella, necatrix, acervulina)",
+      "type": "Protozoal (Apicomplexa)",
+      "notifiable": false,
+      "transmission": "Ingestion of sporulated oocysts from wet, warm litter.",
+      "clinicalSigns": ["Bloody droppings / cecal hemorrhages", "Pale combs, unthriftiness, huddling", "Decreased feed conversion ratio"],
+      "biosecurityMeasures": ["Maintain dry litter (moisture < 25%)", "Prevent waterer leakage", "Regular litter racking or replacement", "Coccidiostat rotation"],
+      "amrRelevance": "Protozoal infection. Antibacterials are ineffective. Requires antiprotozoals (e.g. toltrazuril/amprolium) under veterinary instruction."
+    },
+    {
+      "name": "Infectious Coryza (Avibacterium paragallinarum)",
+      "type": "Bacterial (Gram-negative)",
+      "notifiable": false,
+      "transmission": "Direct contact, airborne droplets, contaminated drinking water.",
+      "clinicalSigns": ["Facial edema and swollen sinuses", "Foul-smelling nasal discharge", "Conjunctivitis", "Snicking and anorexia"],
+      "biosecurityMeasures": ["All-in, all-out batch management", "Water chlorination (3-5 ppm free chlorine)", "Disinfection of drinkers daily"],
+      "amrRelevance": "Requires bacterial culture and Antimicrobial Susceptibility Testing (AST) before therapeutic intervention."
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
-import { runMultimodalDiagnosis } from './lib/ai.js'
+import { runMultimodalDiagnosis, classifyPoultryImage } from './lib/ai.js'
+import { sendChatMessage, POLITE_EXHAUSTION_MESSAGE } from './lib/aiServiceAdapter.js'
+import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
@@ -305,58 +307,107 @@ export default function AIChat() {
     setLoading(true)
     setLoadingStatusKey('analyzing')
     try {
+      const allowGuestAi = import.meta.env.VITE_ALLOW_GUEST_AI === 'true'
       let accessToken = ''
-      if (!import.meta.env.DEV) {
-        let session = null
-        try {
-          const current = await supabase.auth.getSession()
-          session = current.data.session
-          if (!session?.access_token) {
-            const refreshed = await supabase.auth.refreshSession()
-            session = refreshed.data.session
-          }
-        } catch (error) {
-          console.info('Unable to restore the Supabase session for AI diagnosis.', error)
+
+      try {
+        const current = await supabase.auth.getSession()
+        let session = current.data.session
+        if (!session?.access_token) {
+          const refreshed = await supabase.auth.refreshSession()
+          session = refreshed.data.session
         }
         accessToken = session?.access_token || ''
-        if (!accessToken) {
-          const assistantMessage = {
-            role: 'assistant',
-            text: 'Please create an account to use this feature.',
-            sources: [],
-          }
-          saveChatResponse(question, queuedFiles, assistantMessage)
-          setMessages((previous) => [...previous, {
-            id: `${Date.now()}-assistant`,
-            ...assistantMessage,
-          }])
-          return
-        }
+      } catch (error) {
+        console.info('Session check in chat completed', error)
       }
-      setGuestNotice(!accessToken && import.meta.env.DEV
-        ? 'Please create an account to use this feature.'
-        : '')
+
+      if (!accessToken && !allowGuestAi) {
+        const assistantMessage = {
+          role: 'assistant',
+          text: 'Please create an account to use this feature.',
+          sources: [],
+        }
+        saveChatResponse(question, queuedFiles, assistantMessage)
+        setMessages((previous) => [...previous, {
+          id: `${Date.now()}-assistant`,
+          ...assistantMessage,
+        }])
+        return
+      }
+
+      setGuestNotice('')
+
       const transcript = messages
         .filter((item) => item.role !== 'error')
         .slice(-6)
         .map((item) => `${item.role === 'assistant' ? 'Assistant' : 'Farmer'}: ${item.text}`)
         .join('\n')
-      const contextualQuestion = transcript
-        ? `${t('chatHistoryContext')}\n${transcript}\nFarmer: ${question || t('attachedFilesOnly')}`
-        : question
-      const result = await runMultimodalDiagnosis({
-        text: contextualQuestion,
-        files: queuedFiles,
-        accessToken,
-        userRole,
-        appLanguage: language,
-        onModelWarning: (modelError) => setModelWarning(`${t('visualModelUnavailable')} ${modelError.message}`),
-      })
+
+      let result = null
+      let visualResult = null
+
+      // If user queued an image, run edge Teachable Machine vision analysis on-device
+      const imageFile = queuedFiles.find((file) => file.type?.startsWith('image/'))
+      if (imageFile) {
+        try {
+          visualResult = await classifyPoultryImage(imageFile)
+          console.info('[chat] On-device image classification received:', visualResult)
+        } catch (visionError) {
+          console.warn('[chat] On-device image model classification note:', visionError?.message)
+        }
+      }
+
+      if (queuedFiles.length > 0) {
+        try {
+          const contextualQuestion = transcript
+            ? `${t('chatHistoryContext')}\n${transcript}\nFarmer: ${question || t('attachedFilesOnly')}`
+            : question
+
+          result = await runMultimodalDiagnosis({
+            text: contextualQuestion,
+            files: queuedFiles,
+            accessToken,
+            userRole,
+            appLanguage: language,
+            onModelWarning: () => {},
+          })
+          if (result?.visualResult) {
+            visualResult = result.visualResult
+          }
+        } catch (diagError) {
+          console.warn('[chat] Multimodal diagnostics fallback to AI engine:', diagError?.message)
+        }
+      }
+
+      if (!result || !result.answer) {
+        const conversationMessages = messages
+          .filter((item) => item.role === 'assistant' || item.role === 'user')
+          .slice(-6)
+          .map((item) => ({ role: item.role, content: item.text }))
+
+        conversationMessages.push({
+          role: 'user',
+          content: question || (visualResult ? `Attached flock image: ${imageFile?.name || 'Photo'}` : t('attachedFilesOnly')),
+        })
+
+        result = await sendChatMessage({
+          messages: conversationMessages,
+          language,
+          contextPrompt: transcript,
+          visualResult,
+        })
+      }
+
+      const verifiedSources = (Array.isArray(result.sources) && result.sources.length > 0)
+        ? result.sources
+        : getVerifiedVeterinarySources(visualResult?.label || question)
+
       const assistantMessage = {
         role: 'assistant',
         text: result.answer,
-        sources: result.sources,
-        visualResult: result.visualResult,
+        sources: verifiedSources,
+        visualResult: result.visualResult || visualResult || null,
       }
       saveChatResponse(question, queuedFiles, assistantMessage)
       setMessages((previous) => [...previous, {
@@ -364,12 +415,11 @@ export default function AIChat() {
         ...assistantMessage,
       }])
     } catch (error) {
+      console.warn('[chat] Chat consultation error:', error)
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-error`,
         role: 'error',
-        text: language === 'en'
-          ? error.message || t('aiRequestFailed')
-          : t('aiRequestFailed'),
+        text: POLITE_EXHAUSTION_MESSAGE,
       }])
     } finally {
       setLoading(false)
@@ -455,11 +505,77 @@ export default function AIChat() {
             <p>{item.text}</p>
             {item.files?.length > 0 && <div className="chat-message-files">{item.files.map((name) => <span key={name}><Icon name="file" size={12} />{name}</span>)}</div>}
             {item.role === 'assistant' && <>
-              {item.visualResult && <span className="chat-visual-result">{t('visualClassification')}: {item.visualResult.label} ({Math.round(item.visualResult.confidence * 100)}%)</span>}
-              <span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>
-              <div className="chat-source-list">
-                {item.sources.map((source) => <span key={source}>{source}</span>)}
-              </div>
+              {item.visualResult && (
+                <div style={{ marginBottom: '6px' }}>
+                  <span className="chat-visual-result" style={{ display: 'inline-block', marginBottom: '4px' }}>
+                    {t('visualClassification')}: <strong>{item.visualResult.label}</strong> ({Math.round(item.visualResult.confidence * 100)}%)
+                  </span>
+                  {item.visualResult.predictions?.length > 1 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                      {item.visualResult.predictions.slice(0, 4).map((pred) => (
+                        <span
+                          key={pred.disease}
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 600,
+                            padding: '2px 6px',
+                            borderRadius: '6px',
+                            background: pred.disease === item.visualResult.label ? '#dcfce7' : '#f1f5f9',
+                            color: pred.disease === item.visualResult.label ? '#166534' : '#64748b',
+                            border: '1px solid rgba(0,0,0,0.06)',
+                          }}
+                        >
+                          {pred.disease}: {typeof pred.confidence === 'number' ? `${(pred.confidence * 100).toFixed(1)}%` : pred.percentage}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {item.sources?.length > 0 && (
+                <div className="chat-source-section" style={{ marginTop: '8px', paddingTop: '6px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                  <span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>
+                  <div className="chat-source-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                    {item.sources.map((source, sIdx) => {
+                      const isObj = typeof source === 'object' && source !== null
+                      const title = isObj ? source.title : source
+                      const url = isObj ? source.url : null
+                      const provider = isObj ? source.provider : null
+
+                      if (url) {
+                        return (
+                          <a
+                            key={url || sIdx}
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="chat-source-link hover:underline"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontSize: '11px',
+                              color: '#047857',
+                              fontWeight: 600,
+                              textDecoration: 'underline',
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            <span>{title} {provider ? `(${provider})` : ''}</span>
+                            <Icon name="arrow" size={10} />
+                          </a>
+                        )
+                      }
+
+                      return (
+                        <span key={title || sIdx} style={{ fontSize: '11px', color: '#64748b' }}>
+                          {title}
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               <aside className="chat-message-safety dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="note">
                 <strong>{t('veterinaryConsultingAlertTitle')}</strong>
                 <p>{t('veterinaryConsultingAlert')}</p>

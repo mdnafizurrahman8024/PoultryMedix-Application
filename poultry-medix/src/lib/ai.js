@@ -6,12 +6,19 @@ let teachableModelPromise
 const teachableModelBase = new URL('https://teachablemachine.withgoogle.com/models/i4VE4hlCa/')
 
 async function loadPoultryImageModel() {
-  const modelUrl = new URL('model.json', teachableModelBase).href
-  const metadataUrl = new URL('metadata.json', teachableModelBase).href
-  console.info('[smart-diagnosis] Loading Teachable Machine image model', { modelUrl, metadataUrl })
   const load = tmImage.load || tmImage.default?.load
   if (typeof load !== 'function') throw new Error('The Teachable Machine image loader is missing from the installed package.')
-  return load(modelUrl, metadataUrl)
+
+  try {
+    const localModelUrl = '/models/vision/model.json'
+    const localMetadataUrl = '/models/vision/metadata.json'
+    return await load(localModelUrl, localMetadataUrl)
+  } catch (localError) {
+    console.info('[smart-diagnosis] Loading remote Teachable Machine model fallback', localError?.message)
+    const modelUrl = new URL('model.json', teachableModelBase).href
+    const metadataUrl = new URL('metadata.json', teachableModelBase).href
+    return load(modelUrl, metadataUrl)
+  }
 }
 
 function canonicalDiseaseName(name) {
@@ -88,7 +95,7 @@ function normalizeClinicalText(text) {
   return text.toLocaleLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim()
 }
 
-function findLocalClinicalMatches(text) {
+export function findLocalClinicalMatches(text) {
   const normalized = normalizeClinicalText(text)
   if (!normalized) return []
   return diseaseSigns.map((entry) => {

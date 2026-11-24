@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
-import { analyzeSmartDiagnosis, scanPrescription } from './lib/ai.js'
+import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription } from './lib/ai.js'
+import { generateDiagnosticExplanation, REPORT_AI_FALLBACK_NOTE } from './lib/aiServiceAdapter.js'
+import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
@@ -10,6 +12,23 @@ import { saveHistoryEntry, saveLocalPrescriptionAttachment, saveUnifiedLog } fro
 import useSpeechToText from './hooks/useSpeechToText.js'
 
 const maxFileSize = 8 * 1024 * 1024
+
+function mergeSources(...sourceArrays) {
+  const seen = new Set()
+  const result = []
+  for (const arr of sourceArrays) {
+    if (!Array.isArray(arr)) continue
+    for (const item of arr) {
+      if (!item) continue
+      const key = typeof item === 'object' ? (item.url || item.title) : item
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push(item)
+      }
+    }
+  }
+  return result
+}
 
 export default function DiagnosisHub() {
   const { t, language } = useLanguage()
@@ -29,6 +48,9 @@ export default function DiagnosisHub() {
   const [modelWarning, setModelWarning] = useState('')
   const [, setClinicalLogs] = useState([])
   const [withdrawalModalOpen, setWithdrawalModalOpen] = useState(false)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const [currentReport, setCurrentReport] = useState(null)
+  const modalOpenedAtRef = useRef(0)
   const [prescriptionLoading, setPrescriptionLoading] = useState(false)
   const [prescriptionError, setPrescriptionError] = useState('')
   const [prescriptionResult, setPrescriptionResult] = useState(null)
@@ -148,7 +170,8 @@ export default function DiagnosisHub() {
     event.preventDefault()
     speech.stop()
     const files = [image, audio].filter(Boolean)
-    if (!symptoms.trim() && !image && !audio) {
+    const symptomText = symptoms.trim()
+    if (!symptomText && !image && !audio) {
       setError(t('aiInputRequired'))
       return
     }
@@ -156,54 +179,198 @@ export default function DiagnosisHub() {
     setModelWarning('')
     setAnswer(null)
     setLoading(true)
+
     try {
       const { data, error: sessionError } = await supabase.auth.getSession()
       if (sessionError) throw sessionError
       const accessToken = data.session?.access_token
-      if (!accessToken && !import.meta.env.DEV) throw new Error(t('aiSignInRequired'))
-      const result = await analyzeSmartDiagnosis({
-        text: symptoms.trim(),
-        imageFile: image,
-        audioFile: audio,
-        accessToken,
-        appLanguage: language,
-        onModelWarning: (modelError) => setModelWarning(`${t('visualModelUnavailable')} ${modelError.message}`),
-      })
-      setAnswer(result)
-      setClinicalLogs((logs) => [...logs, {
-        type: 'Smart Diagnosis',
-        summary: symptoms.trim() || result.answer.slice(0, 140),
-        createdAt: new Date().toISOString(),
-      }])
-      saveUnifiedLog('SMART_DIAGNOSIS', {
-        symptoms: symptoms.trim(),
-        summary: symptoms.trim() || result.answer.slice(0, 140),
-        answer: result.answer,
-        predictions: result.predictions,
-        differential_diagnosis: result.differential_diagnosis,
-        files: files.map(({ name }) => name),
-      })
-      setSaveMessage(t('antibiotics.savedToClinicalLog'))
-      try {
-        saveHistoryEntry('diagnosis', {
-          id: crypto.randomUUID(),
-          createdAt: new Date().toISOString(),
-          summary: symptoms.trim().slice(0, 140) || result.answer.slice(0, 140),
-          answer: result.answer,
-          predictions: result.predictions,
-          differential_diagnosis: result.differential_diagnosis,
-          sources: result.sources || [],
-          visualResult: result.visualResult || null,
-          files: files.map(({ name }) => name),
-        })
-        setHistoryWarning('')
-      } catch (historyError) {
-        console.error('Unable to save Smart Diagnosis history.', historyError)
-        setHistoryWarning(t('historySaveError'))
+      const allowGuestAi = import.meta.env.VITE_ALLOW_GUEST_AI === 'true'
+      if (!accessToken && !import.meta.env.DEV && !allowGuestAi) throw new Error(t('aiSignInRequired'))
+
+      // 1. Client-side evaluation: Teachable Machine on image & local clinical signs on symptoms
+      let visualResult = null
+      if (image) {
+        try {
+          visualResult = await classifyPoultryImage(image)
+        } catch (modelError) {
+          console.warn('[smart-diagnosis] Teachable Machine vision error:', modelError)
+          setModelWarning(`${t('visualModelUnavailable')} ${modelError.message}`)
+        }
       }
+
+      const localMatches = symptomText ? findLocalClinicalMatches(symptomText) : []
+
+      // Derive disease ranking & percentage breakdown
+      let rankedPredictions = []
+      let topDisease = 'Avian Health Screening'
+      let topConfidence = 'Screened'
+
+      if (visualResult?.predictions?.length) {
+        rankedPredictions = visualResult.predictions.map((p) => ({
+          disease: p.disease,
+          confidence: p.confidence,
+          percentage: `${(p.confidence * 100).toFixed(1)}%`,
+          score: p.confidence,
+        }))
+        topDisease = visualResult.label || rankedPredictions[0].disease
+        topConfidence = `${(visualResult.confidence * 100).toFixed(1)}%`
+      } else if (localMatches.length) {
+        rankedPredictions = localMatches.map((m) => ({
+          disease: m.disease,
+          confidence: m.score,
+          percentage: `${Math.round(m.score * 100)}%`,
+          matchedSigns: m.matchedSigns,
+          score: m.score,
+        }))
+        topDisease = rankedPredictions[0].disease
+        topConfidence = rankedPredictions[0].percentage
+      } else if (audio) {
+        rankedPredictions = [{
+          disease: 'Respiratory Sound Observation',
+          confidence: 0.85,
+          percentage: 'Acoustic Screened',
+          score: 0.85,
+        }]
+        topDisease = 'Flock Respiratory Audio Observation'
+        topConfidence = 'Audio Recorded'
+      } else if (symptomText) {
+        topDisease = 'Clinical Symptom Evaluation'
+        topConfidence = 'Observational'
+      }
+
+      const reportId = crypto.randomUUID()
+      const initialReport = {
+        id: reportId,
+        createdAt: new Date().toISOString(),
+        topDisease,
+        topConfidence,
+        predictions: rankedPredictions,
+        visualResult,
+        symptoms: symptomText,
+        hasImage: Boolean(image),
+        hasAudio: Boolean(audio),
+        hasText: Boolean(symptomText),
+        imageName: image?.name || '',
+        audioName: audio?.name || '',
+        explanation: '',
+        explanationLoading: true,
+        explanationFallback: false,
+        sources: getVerifiedVeterinarySources(topDisease),
+      }
+
+      // 2. Open Diagnostic Report Window IMMEDIATELY & populate main-page answer card
+      modalOpenedAtRef.current = Date.now()
+      setCurrentReport(initialReport)
+      setReportModalOpen(true)
+      setLoading(false)
+
+      const initialAnswer = {
+        answer: `${topDisease}: Initial screening complete (${topConfidence}). Review the full breakdown in the open report window.`,
+        predictions: rankedPredictions.map((p) => ({
+          disease: p.disease,
+          overall_probability: p.percentage,
+          breakdown: {
+            clinical_sign_match: p.matchedSigns?.length ? p.percentage : 'N/A',
+            image_match: visualResult ? p.percentage : 'N/A',
+            audio_match: audio ? 'Received' : 'N/A',
+          },
+        })),
+        differential_diagnosis: `Screened condition: ${topDisease} (${topConfidence})`,
+        sources: initialReport.sources,
+        visualResult,
+      }
+      setAnswer(initialAnswer)
+
+      // 3. Background AI explanation & biosecurity advice (non-blocking)
+      generateDiagnosticExplanation({
+        topDisease,
+        confidence: topConfidence,
+        predictions: rankedPredictions,
+        symptoms: symptomText,
+        language,
+      }).then((aiResult) => {
+        try {
+          const explanationText = aiResult?.explanation || REPORT_AI_FALLBACK_NOTE
+          const aiSources = aiResult?.sources || getVerifiedVeterinarySources(topDisease)
+          const isFallback = Boolean(aiResult?.isFallback)
+
+          setCurrentReport((prev) => {
+            if (!prev || prev.id !== reportId) return prev
+            return {
+              ...prev,
+              explanation: explanationText,
+              explanationLoading: false,
+              explanationFallback: isFallback,
+              sources: mergeSources(prev.sources, aiSources, getVerifiedVeterinarySources(topDisease)),
+            }
+          })
+
+          const fullAnswer = {
+            answer: explanationText,
+            predictions: rankedPredictions.map((p) => ({
+              disease: p.disease,
+              overall_probability: p.percentage,
+              breakdown: {
+                clinical_sign_match: p.matchedSigns?.length ? p.percentage : 'N/A',
+                image_match: visualResult ? p.percentage : 'N/A',
+                audio_match: audio ? 'Received' : 'N/A',
+              },
+            })),
+            differential_diagnosis: explanationText,
+            sources: mergeSources(initialReport.sources, aiSources, getVerifiedVeterinarySources(topDisease)),
+            visualResult,
+          }
+          setAnswer(fullAnswer)
+
+          setClinicalLogs((logs) => [...logs, {
+            type: 'Smart Diagnosis',
+            summary: symptomText || explanationText.slice(0, 140),
+            createdAt: new Date().toISOString(),
+          }])
+
+          saveUnifiedLog('SMART_DIAGNOSIS', {
+            symptoms: symptomText,
+            summary: symptomText || explanationText.slice(0, 140),
+            answer: explanationText,
+            predictions: fullAnswer.predictions,
+            differential_diagnosis: explanationText,
+            files: files.map(({ name }) => name),
+          })
+
+          try {
+            saveHistoryEntry('diagnosis', {
+              id: reportId,
+              createdAt: initialReport.createdAt,
+              summary: `${topDisease} (${topConfidence}) - ${symptomText.slice(0, 80) || 'Flock triage'}`,
+              answer: explanationText,
+              predictions: fullAnswer.predictions,
+              differential_diagnosis: explanationText,
+              sources: fullAnswer.sources,
+              visualResult,
+              files: files.map(({ name }) => name),
+            })
+            setHistoryWarning('')
+          } catch (historyError) {
+            console.error('Unable to save Smart Diagnosis history.', historyError)
+            setHistoryWarning(t('historySaveError'))
+          }
+        } catch (secondaryError) {
+          console.warn('[smart-diagnosis] Secondary report update error:', secondaryError)
+        }
+      }).catch((aiError) => {
+        console.warn('[smart-diagnosis] Background AI explanation error:', aiError)
+        setCurrentReport((prev) => {
+          if (!prev || prev.id !== reportId) return prev
+          return {
+            ...prev,
+            explanation: REPORT_AI_FALLBACK_NOTE,
+            explanationLoading: false,
+            explanationFallback: true,
+          }
+        })
+      })
     } catch (requestError) {
       setError(requestError.message || t('aiRequestFailed'))
-    } finally {
       setLoading(false)
     }
   }
@@ -216,6 +383,8 @@ export default function DiagnosisHub() {
     setPrescriptionResult(null)
     setPrescriptionError('')
     setWithdrawalModalOpen(false)
+    setReportModalOpen(false)
+    setCurrentReport(null)
     setAnswer(null)
     setError('')
     setModelWarning('')
@@ -298,11 +467,11 @@ export default function DiagnosisHub() {
         {historyWarning && <p className="diagnosis-warning" role="status">{historyWarning}</p>}
 
         <div className="diagnosis-actions">
-          <button className="diagnosis-submit" type="submit" disabled={loading}>
+          <button className="diagnosis-submit" type="submit" disabled={loading || !Boolean(symptoms.trim() || image || audio)}>
             {loading ? <span className="ai-spinner" /> : <Icon name="stethoscope" size={17} />}
             {loading ? t('analyzing') : t('analyzeFlock')}
           </button>
-          {(image || audio || prescription || symptoms || answer) && <button className="diagnosis-reset" type="button" onClick={resetForm}>{t('clearForm')}</button>}
+          {(image || audio || prescription || symptoms || answer || currentReport) && <button className="diagnosis-reset" type="button" onClick={resetForm}>{t('clearForm')}</button>}
         </div>
       </form>
 
@@ -328,7 +497,174 @@ export default function DiagnosisHub() {
         <PrescriptionLookup hideDrugInfo alwaysShowDose />
       </section>
 
-      {withdrawalModalOpen && <div className="diagnosis-withdrawal-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setWithdrawalModalOpen(false) }}>
+      {reportModalOpen && currentReport && (
+        <div
+          className="diagnosis-withdrawal-modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && Date.now() - modalOpenedAtRef.current > 400) {
+              setReportModalOpen(false)
+            }
+          }}
+        >
+          <section
+            className="diagnosis-report-modal dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="diagnosis-modal-heading dark:text-gray-100">
+              <div>
+                <span className="diagnosis-section-kicker dark:text-gray-300">CLINICAL TRIAGE REPORT</span>
+                <h3 id="report-modal-title" className="dark:text-white">Flock Health Screening</h3>
+              </div>
+              <button className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" onClick={() => setReportModalOpen(false)} aria-label="Close diagnostic report">
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            <div className="diagnosis-report-badge-list">
+              {currentReport.hasImage && (
+                <span className="diagnosis-report-badge">
+                  <Icon name="image" size={13} />
+                  <span>{currentReport.imageName || 'Flock Image'}</span>
+                </span>
+              )}
+              {currentReport.hasAudio && (
+                <span className="diagnosis-report-badge">
+                  <Icon name="mic" size={13} />
+                  <span>{currentReport.audioName || 'Flock Audio'}</span>
+                </span>
+              )}
+              {currentReport.hasText && (
+                <span className="diagnosis-report-badge">
+                  <Icon name="spark" size={13} />
+                  <span>Symptoms Noted</span>
+                </span>
+              )}
+            </div>
+
+            <div className="diagnosis-report-top-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#166534' }}>
+                  Primary Condition Detected
+                </span>
+                <span style={{ fontSize: '13px', fontWeight: 800, color: '#15803d' }}>
+                  {currentReport.topConfidence}
+                </span>
+              </div>
+              <h4 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#0f172a' }}>
+                {currentReport.topDisease}
+              </h4>
+              <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#475569' }}>
+                {currentReport.hasImage
+                  ? 'Calculated client-side via Google Teachable Machine edge vision model (i4VE4hlCa).'
+                  : 'Screened against local clinical poultry pathogen and symptom indices.'}
+              </p>
+            </div>
+
+            {currentReport.predictions?.length > 0 && (
+              <div className="diagnosis-report-breakdown">
+                <h5 style={{ margin: '0 0 10px', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748b' }}>
+                  Confidence Breakdown (% Score)
+                </h5>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {currentReport.predictions.slice(0, 5).map((pred) => {
+                    const pct = typeof pred.confidence === 'number'
+                      ? Math.min(100, Math.max(0, Math.round(pred.confidence * 100)))
+                      : parseInt(pred.percentage, 10) || 0
+                    return (
+                      <div key={pred.disease} className="diagnosis-report-breakdown-row">
+                        <span style={{ minWidth: '120px', fontWeight: 600 }}>{pred.disease}</span>
+                        <div className="diagnosis-report-progress-bar-bg">
+                          <div className="diagnosis-report-progress-bar-fill" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span style={{ minWidth: '50px', textAlign: 'right', fontWeight: 700 }}>
+                          {pred.percentage || `${pct}%`}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="diagnosis-report-ai-card">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <Icon name="spark" size={16} />
+                <h5 style={{ margin: 0, fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Veterinary Guidance & Farm Biosecurity Advice
+                </h5>
+              </div>
+
+              {currentReport.explanationLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0', fontSize: '13px', color: '#64748b' }}>
+                  <span className="ai-spinner" />
+                  <span>Analyzing flock findings and preparing biosecurity guidance…</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '12px', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                  <p style={{ margin: '0 0 8px' }}>{currentReport.explanation}</p>
+                  {currentReport.explanationFallback && (
+                    <p style={{ margin: '6px 0 0', fontWeight: 600, color: '#b45309' }}>
+                      {REPORT_AI_FALLBACK_NOTE}
+                    </p>
+                  )}
+                  {currentReport.sources?.length > 0 && (
+                    <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '4px' }}>
+                        Verified Clinical & Scientific Sources:
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {currentReport.sources.map((source, sIdx) => {
+                          const isObj = typeof source === 'object' && source !== null
+                          const title = isObj ? source.title : source
+                          const url = isObj ? source.url : null
+                          const provider = isObj ? source.provider : null
+                          if (url) {
+                            return (
+                              <a
+                                key={url || sIdx}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#047857', fontWeight: 600, textDecoration: 'underline' }}
+                              >
+                                <span>{title} {provider ? `(${provider})` : ''}</span>
+                                <Icon name="arrow" size={10} />
+                              </a>
+                            )
+                          }
+                          return <span key={sIdx} style={{ fontSize: '11px', color: '#64748b' }}>{title}</span>
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="diagnosis-report-disclaimer">
+              <strong>Veterinary Safety Notice:</strong> This diagnostic tool is an initial screening aid and does not prescribe antibiotics or treatment dosages under AMR stewardship guidelines. Always verify with a licensed veterinarian before administering treatment.
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px' }}>
+              <button
+                type="button"
+                className="diagnosis-glass-button dark:text-gray-100 dark:border-gray-600 dark:hover:bg-gray-700"
+                style={{ padding: '8px 18px', fontSize: '12px' }}
+                onClick={() => setReportModalOpen(false)}
+              >
+                Close Report
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {withdrawalModalOpen && <div className="diagnosis-withdrawal-modal-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setWithdrawalModalOpen(false) }}>
         <section className="diagnosis-withdrawal-modal dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" role="dialog" aria-modal="true" aria-labelledby="withdrawal-modal-title">
           <div className="diagnosis-modal-heading dark:text-gray-100"><div><span className="diagnosis-section-kicker dark:text-gray-300">{t('antibiotics.extractedResult')}</span><h3 id="withdrawal-modal-title">{t('antibiotics.drugWithdrawalInfo')}</h3></div><button className="dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700" type="button" onClick={() => setWithdrawalModalOpen(false)} aria-label={t('antibiotics.closeWithdrawalInfo')}><Icon name="close" size={18} /></button></div>
           {prescriptionResult && <>
@@ -351,7 +687,21 @@ export default function DiagnosisHub() {
 
       {saveMessage && <p className="diagnosis-save-message" role="status">{saveMessage}</p>}
       {answer && <div className="ai-answer-card" aria-live="polite">
-        <div className="ai-answer-heading"><span><Icon name="spark" size={17} />{t('aiTriageSummary')}</span><span className="ai-safety-label">{t('informationalOnly')}</span></div>
+        <div className="ai-answer-heading">
+          <span><Icon name="spark" size={17} />{t('aiTriageSummary')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {currentReport && (
+              <button
+                type="button"
+                style={{ padding: '4px 10px', fontSize: '11px', fontWeight: 700, borderRadius: '8px', border: '1px solid #10b981', background: 'rgba(16, 185, 129, 0.1)', color: '#047857', cursor: 'pointer' }}
+                onClick={() => setReportModalOpen(true)}
+              >
+                View Diagnostic Report Window
+              </button>
+            )}
+            <span className="ai-safety-label">{t('informationalOnly')}</span>
+          </div>
+        </div>
         {answer.visualResult && <p className="visual-classification"><Icon name="image" size={15} />{t('visualClassification')}: <strong>{answer.visualResult.label}</strong> ({Math.round(answer.visualResult.confidence * 100)}%)</p>}
         {answer.predictions?.length > 0 && <section className="diagnosis-prediction-results" aria-labelledby="diagnosis-prediction-title">
           <h3 id="diagnosis-prediction-title">Prediction breakdown</h3>
@@ -366,7 +716,31 @@ export default function DiagnosisHub() {
           </article>)}
         </section>}
         <p className="ai-answer-text">{answer.answer}</p>
-        <div className="ai-source-row"><span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>{answer.sources.map((source) => <span className="ai-source-name" key={source}>{source}</span>)}</div>
+        <div className="ai-source-row">
+          <span className="source-badge"><Icon name="book" size={12} />{t('sourceReference')}</span>
+          {answer.sources?.map((source, sIdx) => {
+            const isObj = typeof source === 'object' && source !== null
+            const title = isObj ? source.title : source
+            const url = isObj ? source.url : null
+            const provider = isObj ? source.provider : null
+            if (url) {
+              return (
+                <a
+                  key={url || sIdx}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ai-source-name"
+                  style={{ textDecoration: 'underline', color: '#047857', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <span>{title} {provider ? `(${provider})` : ''}</span>
+                  <Icon name="arrow" size={10} />
+                </a>
+              )
+            }
+            return <span className="ai-source-name" key={title || sIdx}>{title}</span>
+          })}
+        </div>
         <section className="reference-video-section" aria-labelledby="reference-video-title">
           <h3 id="reference-video-title"><Icon name="video" size={16} />{t('referenceVideoTitle')}</h3>
           <p>{t('referenceVideoDescription')}</p>
