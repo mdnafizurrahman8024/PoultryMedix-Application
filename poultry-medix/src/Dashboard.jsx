@@ -11,6 +11,7 @@ import PrivacyPolicy from './veterinary/PrivacyPolicy.jsx'
 import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
 import ShedFlockManager from './veterinary/ShedFlockManager.jsx'
+import VaccineScheduleTracker from './veterinary/VaccineScheduleTracker.jsx'
 import { getSheds, evaluateAllSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import { USER_ROLES, useUser } from './context/UserContext.jsx'
@@ -723,6 +724,8 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         <DiagnosisHub />
 
         <ShedFlockManager weather={weather} />
+
+        <VaccineScheduleTracker />
 
         <section className="guidelines-section bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="guidelines-heading">
           <button
