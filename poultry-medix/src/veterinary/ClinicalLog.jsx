@@ -806,6 +806,14 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
  * Unified Details Modal for Prescriptions, Smart Diagnosis, Vet Bookings, and AI Chats
  */
 function RecordDetailModal({ record, locale, language, labels, t, onClose, onStatus }) {
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prevOverflow
+    }
+  }, [])
+
   const type = record.type
   const isPrescription = type === 'prescription'
   const isDiagnosis = type === 'diagnosis'
@@ -827,7 +835,6 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
         role="dialog"
         aria-modal="true"
         aria-labelledby="history-detail-modal-title"
-        style={{ maxWidth: 'min(680px, 100%)', width: '100%' }}
       >
         <header>
           <div>
@@ -847,17 +854,23 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                 ? safeText(record.vetName, t('historyVetNotAssigned'))
                 : record.diagnosis || record.primaryDisease || 'Clinical Details'}
             </h2>
-            <small style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+            <small style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
               <Clock size={12} /> {dateDisplay}
               {!isChat && record.district && ` · 📍 ${record.district}`}
             </small>
           </div>
-          <button type="button" aria-label={t('close')} onClick={onClose}>
+          <button
+            type="button"
+            className="history-modal-close-btn"
+            aria-label={t('close') || 'Close'}
+            title={t('close') || 'Close'}
+            onClick={onClose}
+          >
             <X size={19} />
           </button>
         </header>
 
-        <div className="history-prescription-modal-body dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700" style={{ maxHeight: '72vh', overflowY: 'auto' }}>
+        <div className="history-prescription-modal-body dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700">
           {/* PRESCRIPTION DETAIL */}
           {isPrescription && (
             <>
@@ -908,31 +921,6 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                   <strong>Follow-up Date:</strong> {record.followUpDate}
                 </p>
               )}
-
-              <div className="history-prescription-actions-row" style={{ justifyContent: 'flex-end', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  className="history-action-btn history-action-btn--primary"
-                  onClick={() => openPrintPopup(prescriptionMarkup(record), onStatus, labels)}
-                >
-                  <Printer size={14} />
-                  <span>{labels.downloadPdf}</span>
-                </button>
-                <button
-                  type="button"
-                  className="history-action-btn"
-                  onClick={() =>
-                    shareTextRecord(
-                      { title: `PoultryMedix Prescription - ${record.diagnosis || 'Prescription'}`, text: buildPrescriptionShareText(record) },
-                      onStatus,
-                      language
-                    )
-                  }
-                >
-                  <Share2 size={14} />
-                  <span>{labels.share}</span>
-                </button>
-              </div>
             </>
           )}
 
@@ -966,34 +954,6 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                 <h3>AI Clinical Guidance &amp; Biosecurity</h3>
                 <p style={{ marginTop: '6px', whiteSpace: 'pre-wrap' }}>{record.guidanceSummary || 'Consult a licensed veterinarian for clinical diagnosis.'}</p>
               </div>
-
-              <div className="history-prescription-actions-row" style={{ justifyContent: 'flex-end', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  className="history-action-btn history-action-btn--primary"
-                  onClick={() => openPrintPopup(diagnosisMarkup(record), onStatus, labels)}
-                >
-                  <Printer size={14} />
-                  <span>{labels.downloadPdf}</span>
-                </button>
-                <button
-                  type="button"
-                  className="history-action-btn"
-                  onClick={() =>
-                    shareTextRecord(
-                      {
-                        title: `PoultryMedix Triage - ${record.primaryDisease}`,
-                        text: `🔬 *PoultryMedix Smart Diagnosis*\n📅 ${dateDisplay} | 📍 ${record.district || 'Rajshahi'}\n🩺 Screened Condition: ${record.primaryDisease} (${record.confidencePercent})\n\n${record.guidanceSummary || ''}`,
-                      },
-                      onStatus,
-                      language
-                    )
-                  }
-                >
-                  <Share2 size={14} />
-                  <span>{labels.share}</span>
-                </button>
-              </div>
             </>
           )}
 
@@ -1025,34 +985,6 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
               <div>
                 <h3>{t('historyConsultationConcern') || 'Clinical Concern'}</h3>
                 <p style={{ marginTop: '4px' }}>{record.concern || 'General poultry consultation'}</p>
-              </div>
-
-              <div className="history-prescription-actions-row" style={{ justifyContent: 'flex-end', marginTop: '8px' }}>
-                <button
-                  type="button"
-                  className="history-action-btn history-action-btn--primary"
-                  onClick={() => openPrintPopup(consultationMarkup(record), onStatus, labels)}
-                >
-                  <Printer size={14} />
-                  <span>{labels.downloadPdf}</span>
-                </button>
-                <button
-                  type="button"
-                  className="history-action-btn"
-                  onClick={() =>
-                    shareTextRecord(
-                      {
-                        title: `PoultryMedix Booking - ${record.vetName}`,
-                        text: `🩺 *PoultryMedix Vet Consultation*\n👨‍⚕️ Doctor: ${record.vetName}\n📅 Date & Time: ${record.bookingDate || record.date} at ${record.bookingTime || record.time}\n👤 Farmer: ${record.farmerName} (${record.district})\n💳 Fee: ৳ ${Number(record.amount) || 500} (${record.paymentMethodLabel || record.paymentMethod})\n📝 Concern: ${record.concern}`,
-                      },
-                      onStatus,
-                      language
-                    )
-                  }
-                >
-                  <Share2 size={14} />
-                  <span>{labels.share}</span>
-                </button>
               </div>
             </>
           )}
@@ -1091,6 +1023,63 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
             </div>
           )}
         </div>
+
+        <footer className="history-prescription-modal-footer dark:bg-gray-800 dark:border-gray-700" style={{ flexWrap: 'wrap' }}>
+          {(isPrescription || isDiagnosis || isConsultation) && (
+            <>
+              <button
+                type="button"
+                className="history-action-btn history-action-btn--primary"
+                onClick={() =>
+                  openPrintPopup(
+                    isPrescription
+                      ? prescriptionMarkup(record)
+                      : isDiagnosis
+                      ? diagnosisMarkup(record)
+                      : consultationMarkup(record),
+                    onStatus,
+                    labels
+                  )
+                }
+              >
+                <Printer size={14} />
+                <span>{labels.downloadPdf}</span>
+              </button>
+              <button
+                type="button"
+                className="history-action-btn"
+                onClick={() =>
+                  shareTextRecord(
+                    isPrescription
+                      ? { title: `PoultryMedix Prescription - ${record.diagnosis || 'Prescription'}`, text: buildPrescriptionShareText(record) }
+                      : isDiagnosis
+                      ? {
+                          title: `PoultryMedix Triage - ${record.primaryDisease}`,
+                          text: `🔬 *PoultryMedix Smart Diagnosis*\n📅 ${dateDisplay} | 📍 ${record.district || 'Rajshahi'}\n🩺 Screened Condition: ${record.primaryDisease} (${record.confidencePercent})\n\n${record.guidanceSummary || ''}`,
+                        }
+                      : {
+                          title: `PoultryMedix Booking - ${record.vetName}`,
+                          text: `🩺 *PoultryMedix Vet Consultation*\n👨‍⚕️ Doctor: ${record.vetName}\n📅 Date & Time: ${record.bookingDate || record.date} at ${record.bookingTime || record.time}\n👤 Farmer: ${record.farmerName} (${record.district})\n💳 Fee: ৳ ${Number(record.amount) || 500} (${record.paymentMethodLabel || record.paymentMethod})\n📝 Concern: ${record.concern}`,
+                        },
+                    onStatus,
+                    language
+                  )
+                }
+              >
+                <Share2 size={14} />
+                <span>{labels.share}</span>
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className="history-action-btn"
+            onClick={onClose}
+          >
+            <X size={14} />
+            <span>{t('close') || (language === 'bn' ? 'বন্ধ করুন' : 'Close')}</span>
+          </button>
+        </footer>
       </section>
     </div>,
     document.body

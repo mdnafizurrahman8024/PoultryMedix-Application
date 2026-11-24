@@ -3307,6 +3307,11 @@ html[data-theme="dark"] .history-prescription-modal > header {
   border-bottom-color: #334155;
 }
 
+html[data-theme="dark"] .history-prescription-modal-footer {
+  background: #0f172a;
+  border-top-color: #334155;
+}
+
 html[data-theme="dark"] .history-prescription-modal h2,
 html[data-theme="dark"] .history-prescription-modal-body h3,
 html[data-theme="dark"] .history-medication-detail strong {
@@ -3502,12 +3507,16 @@ html[data-theme="dark"] .history-medication-detail {
 .history-modal-backdrop {
   position: fixed;
   z-index: 10000;
-  inset: 0;
-  display: grid;
-  place-items: center;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: clamp(10px, 2.5vw, 24px);
-  overflow-y: auto;
-  background: rgba(15, 23, 42, 0.45);
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.5);
   box-sizing: border-box;
 }
 
@@ -3516,7 +3525,8 @@ html[data-theme="dark"] .history-medication-detail {
   width: min(680px, 100%);
   max-width: 100%;
   min-width: 0;
-  max-height: min(90dvh, 880px);
+  height: auto;
+  max-height: 100%;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid #dce8df;
@@ -3528,11 +3538,12 @@ html[data-theme="dark"] .history-medication-detail {
 
 .history-prescription-modal > header {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  padding: 16px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid #e9efea;
   background: linear-gradient(120deg, #f1f8f4, #f8fafc);
 }
@@ -3543,7 +3554,7 @@ html[data-theme="dark"] .history-medication-detail {
 }
 
 .history-prescription-modal h2 {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   color: #345140;
   font-size: clamp(15px, 2.2vw, 18px);
   overflow-wrap: anywhere;
@@ -3551,23 +3562,31 @@ html[data-theme="dark"] .history-medication-detail {
 
 .history-prescription-modal header button {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid #dce7df;
+  border: 1px solid #cbd5e1;
   border-radius: 10px;
-  color: #617668;
+  color: #334155;
   background: #fff;
   cursor: pointer;
+}
+
+.history-prescription-modal header button:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .history-prescription-modal-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+  align-content: start;
   gap: 11px;
+  flex: 1 1 auto;
   width: 100%;
   min-width: 0;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 16px 18px 20px;
@@ -3575,6 +3594,17 @@ html[data-theme="dark"] .history-medication-detail {
   font-size: 12px;
   line-height: 1.6;
   box-sizing: border-box;
+}
+
+.history-prescription-modal-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 18px;
+  border-top: 1px solid #e9efea;
+  background: #f8fafc;
 }
 
 .history-prescription-modal-body > * {
@@ -3674,7 +3704,7 @@ html[data-theme="dark"] .history-medication-detail {
   }
 
   .history-prescription-modal {
-    max-height: 94vh;
+    max-height: 100%;
     border-radius: 14px;
   }
 }
