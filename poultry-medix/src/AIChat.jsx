@@ -524,13 +524,22 @@ export default function AIChat() {
         aria-label={t('aiChatTitle')}
         style={open && expanded ? {
           position: 'fixed',
-          inset: 0,
-          width: '100vw',
-          height: '100vh',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          maxWidth: '100vw',
+          height: '100%',
+          maxHeight: '100vh',
           zIndex: 999999,
           borderRadius: 0,
-          right: 'auto',
-          bottom: 'auto',
+          margin: 0,
+          padding: 0,
+          boxShadow: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
         } : {
           position: 'fixed',
           left: chatPosition.x !== null
@@ -539,6 +548,8 @@ export default function AIChat() {
           top: chatPosition.y !== null
             ? `${Math.max(16, Math.min(window.innerHeight - 80, chatPosition.y))}px`
             : `${Math.max(70, window.innerHeight - Math.min(560, window.innerHeight - 80) - 20)}px`,
+          right: 'auto',
+          bottom: 'auto',
           width: `${Math.min(390, window.innerWidth - 24)}px`,
           height: `${Math.min(560, window.innerHeight - 80)}px`,
           maxHeight: 'calc(100vh - 40px)',
@@ -571,21 +582,21 @@ export default function AIChat() {
               className="chat-header-action"
               type="button"
               aria-label={expanded ? t('aiExitFullscreen') : t('aiExpand')}
-              title={expanded ? t('aiExitFullscreen') : t('aiExpand')}
+              title={expanded ? (language === 'bn' ? 'ছোট উইন্ডো করুন' : 'Restore smaller window') : (language === 'bn' ? 'বড় উইন্ডো করুন' : 'Expand to full screen')}
               onClick={(event) => {
                 event.stopPropagation()
                 setExpanded((value) => !value)
               }}
             >
               {expanded ? (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="4 14 10 14 10 20" />
                   <polyline points="20 10 14 10 14 4" />
                   <line x1="14" y1="10" x2="21" y2="3" />
                   <line x1="3" y1="21" x2="10" y2="14" />
                 </svg>
               ) : (
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <polyline points="15 3 21 3 21 9" />
                   <polyline points="9 21 3 21 3 15" />
                   <line x1="21" y1="3" x2="14" y2="10" />
@@ -597,7 +608,7 @@ export default function AIChat() {
               className="chat-header-action"
               type="button"
               aria-label={t('aiClose')}
-              title={t('aiCloseTitle')}
+              title={language === 'bn' ? 'চ্যাট বন্ধ করুন' : 'Close chat'}
               onClick={(event) => {
                 event.stopPropagation()
                 setOpen(false)
