@@ -138,8 +138,6 @@ function isRestrictedPrescriptionQuery(text = '') {
     /\b(name\s+of\s+(the\s+)?(medicine|antibiotic|drug))\b/,
     /\b(ki\s+oshudh|ki\s+oushodh|kon\s+oshudh|kon\s+oushodh|oshudh\s+dibo|oushodh\s+dibo|oshudh\s+den|injection\s+dibo|dose\s+koto|koto\s+gram|chikitsha\s+ki)\b/,
     /(ওষুধ|ঔষধ|অ্যান্টিবায়োটিক|ডোজ|চিকিৎসা|কি\s+ওষুধ\s+দিব|কি\s+ঔষধ|মাত্রা)/,
-    /(दवा|एंटीबायোটিক|खुराक|इलाज|दवाई)/,
-    /(دوا|اینٹی\s*بائیوٹک|خوراک|علاج)/,
   ]
   return patterns.some((p) => p.test(normalized))
 }

@@ -44,7 +44,7 @@ function FloorPlan2D({ design, isBn }) {
       <figcaption className="blueprint-svg-caption dark:text-gray-200">
         <span>{isBn ? '২ডি আর্কিটেকচারাল ফ্লোর প্ল্যান (পূর্ব–পশ্চিম অক্ষ)' : '2D Architectural Floor Plan (East–West Axis)'}</span>
         <strong>
-          {design.lengthFt} × {design.widthFt} ft ({design.totalAreaSqFt.toLocaleString()} sq ft)
+          {design.lengthFt} × {design.widthFt} × {design.wallHeightFt}/{design.ridgeHeightFt} ft ({design.totalAreaSqFt.toLocaleString()} sq ft)
         </strong>
       </figcaption>
 
@@ -54,8 +54,8 @@ function FloorPlan2D({ design, isBn }) {
         role="img"
         aria-label={
           isBn
-            ? `${design.lengthFt} বাই ${design.widthFt} ফুটের ২ডি শেড ফ্লোর প্ল্যান`
-            : `2D poultry shed floor plan, ${design.lengthFt} ft by ${design.widthFt} ft`
+            ? `দৈর্ঘ্য ${design.lengthFt} ফু, প্রস্থ ${design.widthFt} ফু ও উচ্চতা ${design.wallHeightFt}-${design.ridgeHeightFt} ফুটের ২ডি শেড ফ্লোর প্ল্যান`
+            : `2D poultry shed floor plan, ${design.lengthFt} ft L by ${design.widthFt} ft W, wall height ${design.wallHeightFt} ft and ridge ${design.ridgeHeightFt} ft`
         }
       >
         {/* Background blueprint grid */}
@@ -93,9 +93,9 @@ function FloorPlan2D({ design, isBn }) {
           <line x1={startX} y1={startY - 16} x2={startX + drawW} y2={startY - 16} stroke="#15803d" strokeWidth="1.5" />
           <line x1={startX} y1={startY - 22} x2={startX} y2={startY - 10} stroke="#15803d" strokeWidth="1.5" />
           <line x1={startX + drawW} y1={startY - 22} x2={startX + drawW} y2={startY - 10} stroke="#15803d" strokeWidth="1.5" />
-          <rect x={startX + drawW / 2 - 64} y={startY - 26} width="128" height="18" rx="4" fill="#f0fdf4" stroke="#86efac" />
+          <rect x={startX + drawW / 2 - 78} y={startY - 26} width="156" height="18" rx="4" fill="#f0fdf4" stroke="#86efac" />
           <text x={startX + drawW / 2} y={startY - 14} textAnchor="middle" fontSize="10" fontWeight="800" fill="#166534">
-            {design.lengthFt} ft ({design.lengthM} m)
+            {isBn ? `দৈর্ঘ্য: ${design.lengthFt} ফু (${design.lengthM} মি)` : `L: ${design.lengthFt} ft (${design.lengthM} m)`}
           </text>
         </g>
 
@@ -104,9 +104,9 @@ function FloorPlan2D({ design, isBn }) {
           <line x1={startX - 18} y1={startY} x2={startX - 18} y2={startY + drawH} stroke="#15803d" strokeWidth="1.5" />
           <line x1={startX - 24} y1={startY} x2={startX - 12} y2={startY} stroke="#15803d" strokeWidth="1.5" />
           <line x1={startX - 24} y1={startY + drawH} x2={startX - 12} y2={startY + drawH} stroke="#15803d" strokeWidth="1.5" />
-          <rect x="14" y={startY + drawH / 2 - 14} width="66" height="28" rx="4" fill="#f0fdf4" stroke="#86efac" />
+          <rect x="10" y={startY + drawH / 2 - 14} width="74" height="28" rx="4" fill="#f0fdf4" stroke="#86efac" />
           <text x="47" y={startY + drawH / 2 - 2} textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#166534">
-            {design.widthFt} ft
+            {isBn ? `প্রস্থ: ${design.widthFt} ফু` : `W: ${design.widthFt} ft`}
           </text>
           <text x="47" y={startY + drawH / 2 + 10} textAnchor="middle" fontSize="8.5" fontWeight="700" fill="#15803d">
             ({design.widthM} m)
@@ -260,8 +260,18 @@ function FloorPlan2D({ design, isBn }) {
           </>
         )}
 
+        {/* Elevation / Height Callout Strip inside 2D Blueprint */}
+        <g transform={`translate(${startX + drawW / 2 - 128}, 264)`}>
+          <rect x="0" y="0" width="256" height="20" rx="5" fill="#ecfdf5" stroke="#6ee7b7" />
+          <text x="128" y="13.5" textAnchor="middle" fontSize="9.5" fontWeight="800" fill="#065f46">
+            {isBn
+              ? `উচ্চতা: পাশ ${design.wallHeightFt} ফু · মাঝের চূড়া ${design.ridgeHeightFt} ফু`
+              : `Height (Elevation): Side ${design.wallHeightFt} ft · Center Ridge ${design.ridgeHeightFt} ft`}
+          </text>
+        </g>
+
         {/* Bottom Legend Strip inside SVG */}
-        <g transform="translate(96, 304)">
+        <g transform="translate(96, 306)">
           <circle cx="8" cy="0" r="5" fill="#f59e0b" stroke="#b45309" strokeWidth="1" />
           <text x="18" y="3" fontSize="9.5" fontWeight="700" fill="#475569">
             {isBn ? `ফিডার: ${design.feedersCount}টি` : `Feeders: ${design.feedersCount}`}
@@ -312,14 +322,36 @@ function ShedIsometric3D({ design, isBn }) {
 
   const overhang = isEc ? 4 : 9
 
+  // Architectural L / W / H CAD dimension anchor points
+  const wallB = isoPoint(x0 - 14, y1 + 2, baseZ)
+  const wallT = isoPoint(x0 - 14, y1 + 2, eaveZ)
+  const wallFloorCorner = isoPoint(x0, y1, baseZ)
+  const wallEaveCorner = isoPoint(x0, y1, eaveZ)
+
+  const ridgeB = isoPoint(x1 + 26, yMid - 28, baseZ)
+  const ridgeT = isoPoint(x1 + 26, yMid - 28, ridgeZ)
+  const ridgeFloorAnchor = isoPoint(x1, yMid, baseZ)
+  const ridgePeakAnchor = isoPoint(x1, yMid, ridgeZ)
+
+  const lenA = isoPoint(x0, y1 + 20, 0)
+  const lenB = isoPoint(x1, y1 + 20, 0)
+  const lenMidX = (lenA[0] + lenB[0]) / 2
+  const lenMidY = (lenA[1] + lenB[1]) / 2
+
+  const widA = isoPoint(x1 + 20, y0, 0)
+  const widB = isoPoint(x1 + 20, y1, 0)
+  const widMidX = (widA[0] + widB[0]) / 2
+  const widMidY = (widA[1] + widB[1]) / 2
+
   return (
     <figure className="blueprint-svg-card dark:bg-gray-900 dark:border-gray-700">
       <figcaption className="blueprint-svg-caption dark:text-gray-200">
-        <span>{isBn ? '৩ডি আইসোমেট্রিক শেড মডেল (কাটঅ্যাওয়ে ভিউ)' : '3D Isometric Shed Visualizer (Cutaway View)'}</span>
+        <span>{isBn ? '৩ডি আইসোমেট্রিক শেড মডেল (দৈর্ঘ্য × প্রস্থ × উচ্চতা)' : '3D Isometric Shed Model (L × W × H Cutaway)'}</span>
         <strong>
+          {design.lengthFt} × {design.widthFt} × {design.wallHeightFt}/{design.ridgeHeightFt} ft ·{' '}
           {isEc
-            ? (isBn ? 'ইসি / টানেল শেড' : 'EC / Tunnel Controlled')
-            : (isBn ? 'খোলামেলা প্রাকৃতিক শেড' : 'Open-Sided Natural')}
+            ? (isBn ? 'ইসি / টানেল' : 'EC / Tunnel')
+            : (isBn ? 'খোলামেলা' : 'Open-Sided')}
         </strong>
       </figcaption>
 
@@ -327,7 +359,11 @@ function ShedIsometric3D({ design, isBn }) {
         viewBox="0 0 560 320"
         className="blueprint-svg-canvas"
         role="img"
-        aria-label={isBn ? 'পোল্ট্রি শেডের ৩ডি আইসোমেট্রিক চিত্র' : '3D isometric poultry shed diagram'}
+        aria-label={
+          isBn
+            ? `দৈর্ঘ্য ${design.lengthFt} ফু, প্রস্থ ${design.widthFt} ফু ও উচ্চতা ${design.wallHeightFt}-${design.ridgeHeightFt} ফুটের ৩ডি শেড চিত্র`
+            : `3D isometric poultry shed, ${design.lengthFt} ft long, ${design.widthFt} ft wide, ${design.wallHeightFt} to ${design.ridgeHeightFt} ft high`
+        }
       >
         <defs>
           <marker id="air-arrow-3d" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
@@ -559,9 +595,48 @@ function ShedIsometric3D({ design, isBn }) {
           </>
         )}
 
+        {/* 3D Architectural Dimension Lines: Length, Width, Side Wall Height & Ridge Height */}
+        <g>
+          {/* Side Wall Height (Front-Left Vertical) */}
+          <line x1={wallFloorCorner[0]} y1={wallFloorCorner[1]} x2={wallB[0]} y2={wallB[1]} stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
+          <line x1={wallEaveCorner[0]} y1={wallEaveCorner[1]} x2={wallT[0]} y2={wallT[1]} stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
+          <line x1={wallB[0]} y1={wallB[1]} x2={wallT[0]} y2={wallT[1]} stroke="#0f766e" strokeWidth="1.6" />
+          <line x1={wallB[0] - 4} y1={wallB[1]} x2={wallB[0] + 4} y2={wallB[1]} stroke="#0f766e" strokeWidth="1.6" />
+          <line x1={wallT[0] - 4} y1={wallT[1]} x2={wallT[0] + 4} y2={wallT[1]} stroke="#0f766e" strokeWidth="1.6" />
+          <rect x={Math.max(8, wallB[0] - 90)} y={(wallB[1] + wallT[1]) / 2 - 11} width="84" height="20" rx="4" fill="#ecfdf5" stroke="#6ee7b7" />
+          <text x={Math.max(50, wallB[0] - 48)} y={(wallB[1] + wallT[1]) / 2 + 2.5} textAnchor="middle" fontSize="9" fontWeight="800" fill="#065f46">
+            {isBn ? `পাশ: ${design.wallHeightFt} ফু` : `Wall H: ${design.wallHeightFt} ft`}
+          </text>
+
+          {/* Center Ridge Height (East Peak Vertical) */}
+          <line x1={ridgeFloorAnchor[0]} y1={ridgeFloorAnchor[1]} x2={ridgeB[0]} y2={ridgeB[1]} stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
+          <line x1={ridgePeakAnchor[0]} y1={ridgePeakAnchor[1]} x2={ridgeT[0]} y2={ridgeT[1]} stroke="#94a3b8" strokeWidth="1" strokeDasharray="3 2" />
+          <line x1={ridgeB[0]} y1={ridgeB[1]} x2={ridgeT[0]} y2={ridgeT[1]} stroke="#0f766e" strokeWidth="1.6" />
+          <line x1={ridgeB[0] - 4} y1={ridgeB[1]} x2={ridgeB[0] + 4} y2={ridgeB[1]} stroke="#0f766e" strokeWidth="1.6" />
+          <line x1={ridgeT[0] - 4} y1={ridgeT[1]} x2={ridgeT[0] + 4} y2={ridgeT[1]} stroke="#0f766e" strokeWidth="1.6" />
+          <rect x={Math.min(454, ridgeB[0] + 8)} y={(ridgeB[1] + ridgeT[1]) / 2 - 10} width="98" height="20" rx="4" fill="#ecfdf5" stroke="#6ee7b7" />
+          <text x={Math.min(503, ridgeB[0] + 57)} y={(ridgeB[1] + ridgeT[1]) / 2 + 3.5} textAnchor="middle" fontSize="9" fontWeight="800" fill="#065f46">
+            {isBn ? `চূড়া: ${design.ridgeHeightFt} ফু` : `Ridge H: ${design.ridgeHeightFt} ft`}
+          </text>
+
+          {/* Length Dimension (South Front Edge) */}
+          <line x1={lenA[0]} y1={lenA[1]} x2={lenB[0]} y2={lenB[1]} stroke="#15803d" strokeWidth="1.6" />
+          <rect x={lenMidX - 54} y={Math.min(296, lenMidY + 8)} width="108" height="19" rx="4" fill="#f0fdf4" stroke="#86efac" />
+          <text x={lenMidX} y={Math.min(309, lenMidY + 20.5)} textAnchor="middle" fontSize="9" fontWeight="800" fill="#166534">
+            {isBn ? `দৈর্ঘ্য: ${design.lengthFt} ফু` : `Length: ${design.lengthFt} ft`}
+          </text>
+
+          {/* Width Dimension (East End Edge) */}
+          <line x1={widA[0]} y1={widA[1]} x2={widB[0]} y2={widB[1]} stroke="#15803d" strokeWidth="1.6" />
+          <rect x={Math.min(460, widMidX + 10)} y={widMidY - 8} width="86" height="19" rx="4" fill="#f0fdf4" stroke="#86efac" />
+          <text x={Math.min(503, widMidX + 53)} y={widMidY + 4.5} textAnchor="middle" fontSize="9" fontWeight="800" fill="#166534">
+            {isBn ? `প্রস্থ: ${design.widthFt} ফু` : `Width: ${design.widthFt} ft`}
+          </text>
+        </g>
+
         {/* Key Callout Badges inside SVG */}
-        <g transform="translate(16, 22)">
-          <rect x="0" y="0" width="165" height="22" rx="6" fill="#f0fdf4" stroke="#86efac" />
+        <g transform="translate(16, 20)">
+          <rect x="0" y="0" width="174" height="22" rx="6" fill="#f0fdf4" stroke="#86efac" />
           <text x="10" y="14.5" fontSize="9.5" fontWeight="800" fill="#166534">
             {isBn
               ? `উচ্চতা: পাশ ${design.wallHeightFt} ফু / চূড়া ${design.ridgeHeightFt} ফু`
@@ -569,12 +644,12 @@ function ShedIsometric3D({ design, isBn }) {
           </text>
         </g>
 
-        <g transform="translate(362, 276)">
-          <rect x="0" y="0" width="184" height="24" rx="6" fill="#eff6ff" stroke="#bfdbfe" />
-          <text x="10" y="15.5" fontSize="9.5" fontWeight="700" fill="#1e40af">
+        <g transform="translate(358, 20)">
+          <rect x="0" y="0" width="186" height="22" rx="6" fill="#eff6ff" stroke="#bfdbfe" />
+          <text x="10" y="14.5" fontSize="9.5" fontWeight="700" fill="#1e40af">
             {isEc
               ? (isBn ? `কুলিং প্যাড (${design.coolingPadSqFt} ব.ফু) + ${design.exhaustFansCount} ফ্যান` : `Cooling Pad (${design.coolingPadSqFt} sq ft) + ${design.exhaustFansCount} Fans`)
-              : (isBn ? `৩ ফুট ইটের গাঁথুনি + ${design.overhangFt} ফুট ছাদ বাড়তি` : `3ft Brick Wall + Net + ${design.overhangFt}ft Overhang`)}
+              : (isBn ? `৩ ফুট ইটের গাঁথুনি + ${design.overhangFt} ফু কার্নিশ` : `3ft Brick Wall + Net + ${design.overhangFt}ft Overhang`)}
           </text>
         </g>
       </svg>
@@ -736,11 +811,11 @@ export default function ShedBlueprintVisualizer({
       {/* Exact Auto-Calculated Equipment & Structural Specs Strip */}
       <div className="blueprint-specs-grid">
         <div className="blueprint-spec-tile dark:bg-gray-900/60 dark:border-gray-700">
-          <span><Compass size={14} aria-hidden="true" /> {isBn ? 'মোট মেঝের মাপ ও দিক' : 'Footprint & Axis'}</span>
-          <strong>{design.lengthFt} × {design.widthFt} ft</strong>
+          <span><Compass size={14} aria-hidden="true" /> {isBn ? 'শেডের মাপ (দৈর্ঘ্য × প্রস্থ × উচ্চতা)' : 'Shed Dimensions (L × W × H)'}</span>
+          <strong>{design.lengthFt} × {design.widthFt} × {design.wallHeightFt}/{design.ridgeHeightFt} ft</strong>
           <small>
             {design.totalAreaSqFt.toLocaleString()} sq ft ({design.sqFtPerBird} sq ft/{isBn ? 'পাখি' : 'bird'}) ·{' '}
-            {isBn ? 'পূর্ব–পশ্চিম অক্ষ' : 'East–West Axis'}
+            {isBn ? 'পাশ/চূড়া · পূর্ব–পশ্চিম অক্ষ' : 'Wall/Ridge H · East–West Axis'}
           </small>
         </div>
 

@@ -1165,6 +1165,12 @@ html {
   gap: 12px;
 }
 
+.header-points-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
 .mobile-points-wrap {
   display: none;
 }
@@ -1181,23 +1187,209 @@ html {
   cursor: pointer;
 }
 
-.mobile-points-popup {
+.points-popover {
   position: absolute;
-  z-index: 101;
-  top: calc(100% + 8px);
+  z-index: 120;
+  top: calc(100% + 10px);
   right: 0;
   display: flex;
-  min-height: 48px;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
-  border: 1px solid #eee2c6;
-  border-radius: 14px;
-  color: #614a20;
-  background: #fff9e9;
-  box-shadow: 0 12px 28px rgba(45, 69, 48, 0.18);
-  white-space: nowrap;
+  width: min(320px, calc(100vw - 24px));
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e6dcc0;
+  border-radius: 16px;
+  color: #2c4330;
+  background: #ffffff;
+  box-shadow: 0 16px 36px rgba(24, 43, 28, 0.16);
   animation: mobile-points-pop 160ms ease-out both;
+}
+
+.points-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.points-popover-balance {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.points-popover-star {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid #eee2c6;
+  border-radius: 10px;
+  color: #8c6a24;
+  background: #fff9e9;
+  flex: 0 0 auto;
+}
+
+.points-popover-label {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #6b7d6f;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.points-popover-balance strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: #614a20;
+}
+
+.points-popover-balance strong span {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8c7b57;
+}
+
+.points-popover-close {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 1px solid #e2e8e0;
+  border-radius: 8px;
+  color: #556a58;
+  background: #f8faf7;
+  cursor: pointer;
+}
+
+.points-popover-rate {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #d9ead6;
+  border-radius: 10px;
+  color: #285b35;
+  background: #f2faf0;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.points-popover-history {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.points-popover-history h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5c7060;
+}
+
+.points-popover-history ul {
+  display: flex;
+  max-height: 156px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.points-popover-history li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border: 1px solid #eaefe8;
+  border-radius: 10px;
+  background: #fafcf9;
+}
+
+.points-popover-history li strong {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #233b27;
+}
+
+.points-popover-history li small {
+  display: block;
+  font-size: 10px;
+  color: #6b7d6f;
+}
+
+.points-entry-badge {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: #225431;
+  background: #e2f4df;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.points-popover-empty {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed #d5dfd3;
+  border-radius: 10px;
+  color: #617464;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.points-popover-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.points-popover-actions button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 140ms ease, background-color 140ms ease;
+}
+
+.points-action-primary {
+  border: 1px solid #2b673c;
+  color: #ffffff;
+  background: #2f7042;
+}
+
+.points-action-primary:hover {
+  background: #255a34;
+}
+
+.points-action-secondary {
+  border: 1px solid #cddcc9;
+  color: #2c5b38;
+  background: #f3f9f1;
+}
+
+.points-action-secondary:hover {
+  background: #e6f2e3;
+}
+
+@media (max-width: 767px) {
+  .points-popover {
+    position: fixed;
+    top: 68px;
+    right: 12px;
+    width: min(320px, calc(100vw - 24px));
+  }
 }
 
 @keyframes mobile-points-pop {
@@ -1514,11 +1706,71 @@ html[data-theme="dark"] .mobile-header-menu-trigger {
   box-shadow: none;
 }
 
-html[data-theme="dark"] .mobile-points-trigger,
-html[data-theme="dark"] .mobile-points-popup {
+html[data-theme="dark"] .mobile-points-trigger {
   border-color: #55492e;
   color: #f1d58c;
   background: #302a1c;
+}
+
+html[data-theme="dark"] .points-popover {
+  border-color: #3a4c3e;
+  color: #e2ece3;
+  background: #1b281f;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.42);
+}
+
+html[data-theme="dark"] .points-popover-star {
+  border-color: #55492e;
+  color: #f1d58c;
+  background: #302a1c;
+}
+
+html[data-theme="dark"] .points-popover-balance strong {
+  color: #f1d58c;
+}
+
+html[data-theme="dark"] .points-popover-balance strong span,
+html[data-theme="dark"] .points-popover-label,
+html[data-theme="dark"] .points-popover-history h4,
+html[data-theme="dark"] .points-popover-history li small,
+html[data-theme="dark"] .points-popover-empty {
+  color: #a9bdb0;
+}
+
+html[data-theme="dark"] .points-popover-close {
+  border-color: #374a3b;
+  color: #cbd9cd;
+  background: #223226;
+}
+
+html[data-theme="dark"] .points-popover-rate {
+  border-color: #2f5137;
+  color: #bce4c3;
+  background: #1d3523;
+}
+
+html[data-theme="dark"] .points-popover-history li {
+  border-color: #2c3e30;
+  background: #213024;
+}
+
+html[data-theme="dark"] .points-popover-history li strong {
+  color: #e5efe6;
+}
+
+html[data-theme="dark"] .points-entry-badge {
+  color: #bce8c5;
+  background: #224a2c;
+}
+
+html[data-theme="dark"] .points-popover-empty {
+  border-color: #35493a;
+}
+
+html[data-theme="dark"] .points-action-secondary {
+  border-color: #374f3c;
+  color: #cbe6cf;
+  background: #213627;
 }
 
 html[data-theme="dark"] .mobile-profile-control {
@@ -1627,6 +1879,15 @@ html[data-theme="dark"] .mobile-profile-control {
   color: #80642d;
   background: #fff9e9;
   font-size: 11px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+}
+
+.points-pill:hover,
+.points-pill:focus-visible {
+  border-color: #dec792;
+  background: #fff4d6;
+  outline: none;
 }
 
 .points-pill strong {

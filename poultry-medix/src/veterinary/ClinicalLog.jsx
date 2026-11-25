@@ -404,7 +404,7 @@ function openPrintPopup(html, onStatus, labels) {
 
 export default function ClinicalLog() {
   const { t, language } = useLanguage()
-  const locale = { en: 'en-BD', bn: 'bn-BD', hi: 'hi-IN', ur: 'ur-PK' }[language] || 'en-BD'
+  const locale = language === 'bn' ? 'bn-BD' : 'en-BD'
   const [activeTab, setActiveTab] = useState('unified')
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [actionStatus, setActionStatus] = useState('')

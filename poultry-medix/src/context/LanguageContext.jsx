@@ -5,7 +5,8 @@ import { LanguageContext } from './language-context.js'
 
 export function LanguageProvider({ children }) {
   const { t: rawT } = useTranslation()
-  const language = i18n.resolvedLanguage || i18n.language
+  const rawLanguage = i18n.resolvedLanguage || i18n.language
+  const language = supportedLanguages.includes(rawLanguage) ? rawLanguage : 'en'
 
   const t = useCallback((key, options) => {
     const translated = rawT(key, options)
@@ -31,7 +32,7 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = language
-    document.documentElement.dir = language === 'ur' ? 'rtl' : 'ltr'
+    document.documentElement.dir = 'ltr'
   }, [language])
 
   const value = useMemo(() => ({

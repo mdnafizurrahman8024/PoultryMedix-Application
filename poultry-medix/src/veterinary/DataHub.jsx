@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { useLanguage } from '../context/useLanguage.js'
 import Icon from '../components/Icon.jsx'
 import VoiceRecorder from '../components/VoiceRecorder.jsx'
+import { awardContributionPoints } from '../lib/pointsStore.js'
 import { dataHubTopics, supportedUploadTypes } from './dataHubTopics.js'
 
 const maxFileBytes = 8 * 1024 * 1024
@@ -270,7 +271,14 @@ export default function DataHub({ onContributionSubmitted }) {
         })
       if (insertError) throw insertError
       submissionSaved = true
-      onContributionSubmitted?.()
+      const award = awardContributionPoints({
+        source: 'research-hub',
+        title: topic,
+        detail: [antibioticName.trim() || birdInformation.birdType, birdInformation.speciesBreed]
+          .filter(Boolean)
+          .join(' · '),
+      })
+      onContributionSubmitted?.(award)
 
       setNotes('')
       setBirdInformation({ ...initialBirdInformation, observedOn: todayISODate() })

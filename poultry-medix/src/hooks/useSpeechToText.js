@@ -3,8 +3,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 const recognitionLanguages = {
   en: 'en-US',
   bn: 'bn-BD',
-  hi: 'hi-IN',
-  ur: 'ur-PK',
 }
 
 export default function useSpeechToText({ language, value, onChange, onError }) {

@@ -12,6 +12,7 @@ import {
 import { useLanguage } from '../context/useLanguage.js'
 import { saveSurveillanceLog } from '../lib/clinicalLogsStore.js'
 import { notifyAnalyticsUpdated } from '../lib/analyticsEngine.js'
+import { awardContributionPoints } from '../lib/pointsStore.js'
 import {
   DISTRICT_UPAZILAS,
   REPORTER_ROLES,
@@ -95,6 +96,11 @@ export default function SurveillanceReportModal({
     })
 
     notifyAnalyticsUpdated()
+    awardContributionPoints({
+      source: 'surveillance-map',
+      title: `${disease} — ${cleanUpazila}`,
+      detail: `${district} · ${species}`,
+    })
     onSubmitted?.(saved)
     onClose()
   }

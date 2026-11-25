@@ -16,6 +16,12 @@ import EthicalCareBar from './veterinary/EthicalCareBar.jsx'
 import UloDirectoryModal from './veterinary/UloDirectoryModal.jsx'
 import { POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, POULTRYMEDIX_OPEN_ULO_EVENT } from './lib/uloDirectory.js'
 import { getSheds, evaluateAllSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
+import {
+  POULTRYMEDIX_POINTS_UPDATED_EVENT,
+  formatPointsValue,
+  getPointsHistory,
+  getPointsTotal,
+} from './lib/pointsStore.js'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import { USER_ROLES, useUser } from './context/user-context.js'
 import './Dashboard.css'
@@ -29,36 +35,24 @@ const guidelinesData = [
     id: 1,
     title: 'Respiratory health',
     titleBn: 'শ্বাসতন্ত্রের স্বাস্থ্য',
-    titleHi: 'श्वसन स्वास्थ्य',
-    titleUr: 'تنفسی صحت',
     description: 'Observe breathing, coughing, nasal discharge, and changes in flock activity. Record when signs began and how many birds are affected. Improve ventilation and reduce dust while arranging an assessment by a veterinarian. Do not start antibiotics without a diagnosis and prescription.',
     descriptionBn: 'শ্বাস-প্রশ্বাস, কাশি, নাক দিয়ে স্রাব এবং পালের সক্রিয়তার পরিবর্তন লক্ষ্য করুন। লক্ষণ কখন শুরু হয়েছে এবং কতটি পাখি আক্রান্ত তা লিখে রাখুন। পশুচিকিৎসকের মূল্যায়নের ব্যবস্থা করার সময় বায়ু চলাচল উন্নত করুন এবং ধুলা কমান। রোগ নির্ণয় ও প্রেসক্রিপশন ছাড়া অ্যান্টিবায়োটিক শুরু করবেন না।',
-    descriptionHi: 'साँस, खाँसी, नाक से स्राव और झुंड की गतिविधि में बदलाव देखें। लक्षण कब शुरू हुए और कितने पक्षी प्रभावित हैं, दर्ज करें। पशु चिकित्सक से जाँच की व्यवस्था करते समय हवा का प्रवाह बेहतर करें और धूल घटाएँ। निदान और पर्चे के बिना एंटीबायोटिक शुरू न करें।',
-    descriptionUr: 'سانس، کھانسی، ناک کے اخراج اور ریوڑ کی سرگرمی میں تبدیلی دیکھیں۔ علامات کب شروع ہوئیں اور کتنے پرندے متاثر ہیں، درج کریں۔ ویٹرنری معائنے کا بندوبست کرتے ہوئے ہوا کی آمدورفت بہتر اور گرد کم کریں۔ تشخیص اور نسخے کے بغیر اینٹی بایوٹک شروع نہ کریں۔',
     images: [],
   },
   {
     id: 2,
     title: 'Digestive health',
     titleBn: 'পরিপাকতন্ত্রের স্বাস্থ্য',
-    titleHi: 'पाचन स्वास्थ्य',
-    titleUr: 'نظامِ ہاضمہ کی صحت',
     description: 'Track feed and water intake, droppings, and the number of birds showing signs. Keep clean water available and separate visibly unwell birds when safe to do so. Share the timeline and any recent feed or management changes with your veterinarian.',
     descriptionBn: 'খাদ্য ও পানির গ্রহণ, বিষ্ঠা এবং লক্ষণযুক্ত পাখির সংখ্যা নথিভুক্ত করুন। পরিষ্কার পানি দিন এবং নিরাপদ হলে অসুস্থ পাখিকে আলাদা রাখুন। সময়রেখা এবং খাদ্য বা ব্যবস্থাপনায় সাম্প্রতিক পরিবর্তনের তথ্য পশুচিকিৎসককে জানান।',
-    descriptionHi: 'चारे और पानी की खपत, बीट तथा लक्षण दिखाने वाले पक्षियों की संख्या दर्ज करें। साफ़ पानी उपलब्ध रखें और सुरक्षित होने पर स्पष्ट रूप से अस्वस्थ पक्षियों को अलग करें। समय-क्रम और चारे या प्रबंधन में हाल के बदलाव पशु चिकित्सक को बताएँ।',
-    descriptionUr: 'خوراک اور پانی کی مقدار، فضلے اور علامات والے پرندوں کی تعداد درج کریں۔ صاف پانی دستیاب رکھیں اور محفوظ ہونے پر واضح طور پر بیمار پرندوں کو الگ کریں۔ علامات کی ترتیب اور خوراک یا انتظام میں حالیہ تبدیلیاں ویٹرنری ڈاکٹر کو بتائیں۔',
     images: [],
   },
   {
     id: 3,
     title: 'Prevention & biosecurity',
     titleBn: 'প্রতিরোধ ও জৈব-নিরাপত্তা',
-    titleHi: 'रोकथाम और जैव-सुरक्षा',
-    titleUr: 'بچاؤ اور حیاتیاتی تحفظ',
     description: 'Limit unnecessary visitors, clean and disinfect equipment between groups, and protect feed and water from contamination. Follow local vaccination and farm biosecurity plans with veterinary guidance, and report unusual illness or mortality promptly.',
     descriptionBn: 'অপ্রয়োজনীয় দর্শনার্থী সীমিত করুন, এক দল থেকে অন্য দলে যাওয়ার আগে সরঞ্জাম পরিষ্কার ও জীবাণুমুক্ত করুন এবং খাদ্য ও পানি দূষণ থেকে রক্ষা করুন। পশুচিকিৎসকের নির্দেশনায় স্থানীয় টিকাদান ও খামারের জৈব-নিরাপত্তা পরিকল্পনা অনুসরণ করুন এবং অস্বাভাবিক অসুস্থতা বা মৃত্যুর খবর দ্রুত জানান।',
-    descriptionHi: 'अनावश्यक आगंतुक सीमित करें, समूहों के बीच उपकरण साफ़ और कीटाणुरहित करें, तथा चारे और पानी को दूषित होने से बचाएँ। पशु चिकित्सक के मार्गदर्शन में स्थानीय टीकाकरण और फार्म जैव-सुरक्षा योजना अपनाएँ और असामान्य बीमारी या मृत्यु की तुरंत सूचना दें।',
-    descriptionUr: 'غیر ضروری مہمانوں کو محدود کریں، گروہوں کے درمیان آلات صاف اور جراثیم سے پاک کریں، اور خوراک و پانی کو آلودگی سے بچائیں۔ ویٹرنری رہنمائی کے ساتھ مقامی ویکسین اور فارم کے حیاتیاتی تحفظ کے منصوبے پر عمل کریں، اور غیر معمولی بیماری یا اموات کی اطلاع فوراً دیں۔',
     images: [],
   },
 ]
@@ -162,7 +156,8 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       window.removeEventListener(POULTRYMEDIX_OPEN_ULO_EVENT, handleOpenUlo)
     }
   }, [])
-  const [points, setPoints] = useState(140)
+  const [points, setPoints] = useState(() => getPointsTotal())
+  const [pointsHistory, setPointsHistory] = useState(() => getPointsHistory())
   const [pointsToast, setPointsToast] = useState(false)
   const [fontSize, setFontSize] = useState(() => {
     const savedSize = Number(localStorage.getItem('poultry-font-size'))
@@ -340,6 +335,28 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     const timeout = window.setTimeout(() => setPointsToast(false), 3000)
     return () => window.clearTimeout(timeout)
   }, [pointsToast])
+
+  useEffect(() => {
+    function handlePointsUpdate(event) {
+      setPoints(event?.detail?.total ?? getPointsTotal())
+      setPointsHistory(event?.detail?.history ?? getPointsHistory())
+      setPointsToast(true)
+    }
+
+    function handleStorageSync(event) {
+      if (!event?.key || event.key.startsWith('poultrymedix_points_')) {
+        setPoints(getPointsTotal())
+        setPointsHistory(getPointsHistory())
+      }
+    }
+
+    window.addEventListener(POULTRYMEDIX_POINTS_UPDATED_EVENT, handlePointsUpdate)
+    window.addEventListener('storage', handleStorageSync)
+    return () => {
+      window.removeEventListener(POULTRYMEDIX_POINTS_UPDATED_EVENT, handlePointsUpdate)
+      window.removeEventListener('storage', handleStorageSync)
+    }
+  }, [])
 
   useEffect(() => {
     if (!canFetchWeather) return undefined
@@ -554,8 +571,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           {[
             ['en', 'English'],
             ['bn', 'বাংলা'],
-            ['hi', 'हिन्दी'],
-            ['ur', 'اردو'],
           ].map(([code, label]) => (
             <button className={`${language === code ? 'active' : ''} dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700`} type="button" role="menuitem" key={code} onClick={() => { setLanguage(code); setLanguageMenuOpen(false) }}>
               {label}
@@ -634,16 +649,87 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <span>Poultry<span>Medix</span></span>
         </a>
         <div className="dashboard-header-actions flex items-center gap-4">
-          <div className="points-pill header-points-pill" aria-label={`${t('points')}: ${points}`}><Icon name="star" size={14} /><strong>{points}</strong> <span>{t('points')}</span></div>
-          <div className="mobile-points-wrap" ref={pointsPopupRef}>
-            <button className="mobile-points-trigger" type="button" aria-label={`${points} ${t('points')}`} aria-expanded={showPointsPopup} onClick={() => { setIsMobileMenuOpen(false); setShowPointsPopup((current) => !current) }}>
-              <Icon name="star" size={20} />
+          <div className="header-points-wrap" ref={pointsPopupRef}>
+            <button
+              className="points-pill header-points-pill"
+              type="button"
+              aria-label={`${t('points')}: ${formatPointsValue(points)}`}
+              aria-expanded={showPointsPopup}
+              aria-haspopup="dialog"
+              onClick={() => { setIsMobileMenuOpen(false); setLanguageMenuOpen(false); setDesktopProfileMenuOpen(false); setShowPointsPopup((current) => !current) }}
+            >
+              <Icon name="star" size={14} />
+              <strong>{formatPointsValue(points)}</strong>
+              <span>{t('points')}</span>
             </button>
+            <div className="mobile-points-wrap">
+              <button
+                className="mobile-points-trigger"
+                type="button"
+                aria-label={`${formatPointsValue(points)} ${t('points')}`}
+                aria-expanded={showPointsPopup}
+                aria-haspopup="dialog"
+                onClick={() => { setIsMobileMenuOpen(false); setLanguageMenuOpen(false); setShowPointsPopup((current) => !current) }}
+              >
+                <Icon name="star" size={20} />
+              </button>
+            </div>
             {showPointsPopup && (
-              <div className="mobile-points-popup" role="status">
-                <Icon name="star" size={18} />
-                <strong>{points}</strong>
-                <span>{t('points')}</span>
+              <div className="points-popover dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="dialog" aria-label={t('pointsSummaryTitle')}>
+                <div className="points-popover-header">
+                  <div className="points-popover-balance">
+                    <span className="points-popover-star" aria-hidden="true"><Icon name="star" size={16} /></span>
+                    <div>
+                      <span className="points-popover-label">{t('pointsSummaryTitle')}</span>
+                      <strong>{formatPointsValue(points)} <span>{t('points')}</span></strong>
+                    </div>
+                  </div>
+                  <button
+                    className="points-popover-close"
+                    type="button"
+                    aria-label={t('close')}
+                    onClick={() => setShowPointsPopup(false)}
+                  >
+                    <Icon name="close" size={15} />
+                  </button>
+                </div>
+                <p className="points-popover-rate">{t('pointsRateNote')}</p>
+                <div className="points-popover-history">
+                  <h4>{t('pointsHistoryHeading')}</h4>
+                  {pointsHistory.length === 0 ? (
+                    <p className="points-popover-empty">{t('pointsEmptyNote')}</p>
+                  ) : (
+                    <ul>
+                      {pointsHistory.slice(0, 5).map((entry) => (
+                        <li key={entry.id}>
+                          <div>
+                            <strong>{entry.title || t('bottomContribute')}</strong>
+                            {entry.detail && <small>{entry.detail}</small>}
+                          </div>
+                          <span className="points-entry-badge">+{entry.points}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                <div className="points-popover-actions">
+                  <button
+                    type="button"
+                    className="points-action-primary"
+                    onClick={() => { setShowPointsPopup(false); setActiveView('data') }}
+                  >
+                    <Icon name="brain" size={14} />
+                    <span>{t('pointsGoContributeBtn')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="points-action-secondary"
+                    onClick={() => { setShowPointsPopup(false); setActiveView('map') }}
+                  >
+                    <Icon name="map" size={14} />
+                    <span>{t('pointsGoSurveillanceBtn')}</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -677,8 +763,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
                 {[
                   ['en', 'EN'],
                   ['bn', 'বাংলা'],
-                  ['hi', 'हिंदी'],
-                  ['ur', 'اردو'],
                 ].map(([code, label]) => (
                   <button
                     className={`${language === code ? 'active' : ''} dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700`}
@@ -887,16 +971,16 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             {guidelinesData.map((guideline) => (
               <article className="guideline-card dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" key={guideline.id}>
                 <div className="guideline-card-content">
-                  <h3>{guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}</h3>
-                  <p>{guideline[`description${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}</p>
+                  <h3>{guideline[`title${language === 'bn' ? 'Bn' : ''}`]}</h3>
+                  <p>{guideline[`description${language === 'bn' ? 'Bn' : ''}`]}</p>
                   {guideline.images.length > 0 && (
                     <div className="guideline-image-grid">
-                      {guideline.images.map((imagePath) => <img key={imagePath} src={imagePath} alt={guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]} />)}
+                      {guideline.images.map((imagePath) => <img key={imagePath} src={imagePath} alt={guideline[`title${language === 'bn' ? 'Bn' : ''}`]} />)}
                     </div>
                   )}
                   <EthicalCareBar
                     compact
-                    prefillConcern={guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}
+                    prefillConcern={guideline[`title${language === 'bn' ? 'Bn' : ''}`]}
                   />
                 </div>
               </article>
@@ -934,7 +1018,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
-        ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'privacy' ? <PrivacyPolicy /> : activeView === 'telemedicine' ? <Telemedicine /> : activeView === 'blueprint' ? (
+        ) : activeView === 'data' ? <DataHub /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'privacy' ? <PrivacyPolicy /> : activeView === 'telemedicine' ? <Telemedicine /> : activeView === 'blueprint' ? (
           <Suspense fallback={<div className="p-4 text-center">{t('pleaseWait')}</div>}>
             <FarmBlueprint />
           </Suspense>

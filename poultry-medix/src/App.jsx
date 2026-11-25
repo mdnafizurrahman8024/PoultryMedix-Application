@@ -13,8 +13,6 @@ import { useUser } from './context/user-context.js'
 const languages = [
   ['en', 'English', 'EN'],
   ['bn', 'বাংলা', 'BN'],
-  ['hi', 'हिंदी', 'HI'],
-  ['ur', 'اردو', 'UR'],
 ]
 
 function BrandMark({ compact = false }) {
