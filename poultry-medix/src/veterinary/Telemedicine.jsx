@@ -5,6 +5,8 @@ import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescr
 import {
   savePrescriptionLog,
   saveConsultationLog,
+  savePaymentLog,
+  saveCallSessionLog,
   getClinicalLogs,
   CLINICAL_LOGS_UPDATED_EVENT,
 } from '../lib/clinicalLogsStore.js'
@@ -12,36 +14,20 @@ import {
   consumeTelemedicinePrefill,
   POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT,
 } from '../lib/uloDirectory.js'
+import {
+  CONSULTATION_FEE_BDT,
+  PAYMENT_METHODS,
+  PAYMENT_MODE,
+  VETERINARY_DOCTORS,
+  buildDoctorWhatsAppUrl,
+  sanitizePaymentInput,
+} from '../lib/paymentAdapter.js'
 import { useUser } from '../context/user-context.js'
 import { useLanguage } from '../context/useLanguage.js'
+import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
+import DigitalReceiptModal from './DigitalReceiptModal.jsx'
+import ConsultationCallModal from './ConsultationCallModal.jsx'
 import './Telemedicine.css'
-
-const VETERINARY_DOCTORS = [
-  {
-    id: 'dr-sarah',
-    name: 'Dr. Sarah Ahmed, DVM',
-    degrees: 'DVM, MS in Avian Pathology (BAU)',
-    regNo: 'BVC-REG-10492',
-    clinic: 'Rajshahi Avian Diagnostic & Research Hospital',
-    specialty: 'Avian Pathology & Respiratory Care',
-  },
-  {
-    id: 'dr-tariqul',
-    name: 'Dr. Tariqul Islam, DVM',
-    degrees: 'DVM, MSc in Veterinary Microbiology',
-    regNo: 'BVC-REG-11284',
-    clinic: 'Bogura Poultry Health & Biosecurity Center',
-    specialty: 'AMR Stewardship & Hatchery Biosecurity',
-  },
-  {
-    id: 'dr-farhana',
-    name: 'Dr. Farhana Rahman, DVM',
-    degrees: 'DVM, MS in Poultry Medicine',
-    regNo: 'BVC-REG-09871',
-    clinic: 'Gazipur Central Avian Clinic',
-    specialty: 'Broiler & Layer Flock Management',
-  },
-]
 
 const BANGLADESH_DISTRICTS = [
   'Rajshahi',
@@ -57,23 +43,16 @@ const BANGLADESH_DISTRICTS = [
   'Barishal',
 ]
 
-const paymentMethods = [
-  { id: 'bkash', labelKey: 'bkash', detailKey: 'mobileFinancialService' },
-  { id: 'nagad', labelKey: 'nagad', detailKey: 'mobileFinancialService' },
-  { id: 'rocket', labelKey: 'rocket', detailKey: 'mobileFinancialService' },
-  { id: 'bank-card', labelKey: 'bankCard', detailKey: 'bankTransferDetail' },
-]
-
 const birdTypes = ['Broiler', 'Layer', 'Sonali', 'Breeder', 'Other']
 const formulations = ['Water soluble powder', 'Feed premix', 'Oral Liquid', 'Injection', 'Drops', 'Ointment']
 const frequencies = ['Once daily', 'Twice daily', 'Thrice daily', 'Continuous in water', 'As needed']
 
 const emptyPrescription = {
-  vetName: 'Dr. Sarah Ahmed, DVM',
-  vetDegrees: 'DVM, MS in Avian Pathology (BAU)',
-  registrationNumber: 'BVC-REG-10492',
-  bvcRegNo: 'BVC-REG-10492',
-  clinicDetails: 'Rajshahi Avian Diagnostic & Research Hospital',
+  vetName: VETERINARY_DOCTORS[0].name,
+  vetDegrees: VETERINARY_DOCTORS[0].degrees,
+  registrationNumber: VETERINARY_DOCTORS[0].regNo,
+  bvcRegNo: VETERINARY_DOCTORS[0].regNo,
+  clinicDetails: VETERINARY_DOCTORS[0].clinic,
   farmerName: '',
   farmName: '',
   district: 'Rajshahi',
@@ -169,6 +148,10 @@ export default function Telemedicine() {
   }))
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [verifiedReceipt, setVerifiedReceipt] = useState(null)
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false)
+  const [callSessionNotice, setCallSessionNotice] = useState('')
   const [recentBookings, setRecentBookings] = useState(() => loadConsultationBookings())
   const [callMode, setCallMode] = useState('')
   const [prescription, setPrescription] = useState(() => ({
@@ -182,6 +165,7 @@ export default function Telemedicine() {
   const [complaintDraft, setComplaintDraft] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  const selectedVet = VETERINARY_DOCTORS.find((doc) => doc.id === booking.vetId) || VETERINARY_DOCTORS[0]
   const canStartCall = isRegisteredVet || bookingConfirmed
 
   useEffect(() => {
@@ -223,6 +207,8 @@ export default function Telemedicine() {
     setBooking((current) => ({ ...current, [field]: value }))
     setBookingConfirmed(false)
     setBookingMessage('')
+    setVerifiedReceipt(null)
+    setCallSessionNotice('')
   }
 
   function updatePrescription(field, value) {
@@ -263,61 +249,124 @@ export default function Telemedicine() {
       : `Loaded patient booking: ${appt.farmerName || 'Farmer'} (${appt.bookingDate || ''} ${appt.bookingTime || ''})`)
   }
 
-  function confirmBooking(event) {
+  function openCheckoutModal(event) {
     event.preventDefault()
-    setBookingConfirmed(true)
+    const cleanFarmer = sanitizePaymentInput(booking.farmer, 120)
+    const cleanFarm = sanitizePaymentInput(booking.farm, 120)
+    const cleanConcern = sanitizePaymentInput(booking.concern, 300)
+    if (!cleanFarmer || !cleanFarm || !cleanConcern) return
     setCallMode('')
-    const selectedVet = VETERINARY_DOCTORS.find((doc) => doc.id === booking.vetId) || VETERINARY_DOCTORS[0]
-    const paymentMethod = paymentMethods.find(({ id }) => id === booking.payment)
-    const paymentMethodLabel = paymentMethod ? t(paymentMethod.labelKey) : booking.payment
-    const recordId = crypto.randomUUID()
-    const createdAt = new Date().toISOString()
+    setCheckoutOpen(true)
+  }
+
+  function handlePaymentVerified(receipt) {
+    setCheckoutOpen(false)
+    setVerifiedReceipt(receipt)
+    setBookingConfirmed(true)
+    setCallSessionNotice('')
 
     try {
+      savePaymentLog({
+        id: receipt.id,
+        trxId: receipt.trxId,
+        gatewayTrxRef: receipt.gatewayTrxRef,
+        timestamp: receipt.timestamp,
+        method: receipt.method,
+        paymentMethodLabel: receipt.paymentMethodLabel,
+        accountMask: receipt.accountMask,
+        amount: receipt.amount,
+        doctorName: receipt.doctorName,
+        bvcRegNo: receipt.bvcRegNo,
+        clinicDetails: receipt.clinicDetails,
+        farmerName: receipt.farmerName,
+        farmName: receipt.farmName,
+        district: receipt.district,
+        bookingDate: receipt.bookingDate,
+        bookingTime: receipt.bookingTime,
+        concern: receipt.concern,
+        paymentMode: receipt.paymentMode,
+        status: 'Completed',
+      })
+
       saveConsultationLog({
-        id: recordId,
-        vetName: selectedVet.name,
-        bvcRegNo: selectedVet.regNo,
-        clinicDetails: selectedVet.clinic,
-        farmerName: booking.farmer.trim(),
-        farmName: booking.farm.trim(),
-        district: booking.district || 'Rajshahi',
-        bookingDate: booking.date,
-        bookingTime: booking.time,
-        concern: booking.concern.trim(),
-        amount: 500,
+        id: `consult-${receipt.id}`,
+        trxId: receipt.trxId,
+        doctorName: receipt.doctorName,
+        vetName: receipt.doctorName,
+        bvcRegNo: receipt.bvcRegNo,
+        clinicDetails: receipt.clinicDetails,
+        farmerName: receipt.farmerName,
+        farmName: receipt.farmName,
+        district: receipt.district,
+        bookingDate: receipt.bookingDate,
+        bookingTime: receipt.bookingTime,
+        concern: receipt.concern,
+        amount: receipt.amount,
         currency: 'BDT',
-        paymentMethod: booking.payment,
-        paymentMethodLabel,
-        paymentStatus: 'Confirmed',
+        paymentMethod: receipt.method,
+        paymentMethodLabel: receipt.paymentMethodLabel,
+        paymentStatus: 'Completed',
       })
 
       saveHistoryEntry('appointment', {
-        id: recordId,
-        createdAt,
-        date: booking.date,
-        time: booking.time,
-        vetName: selectedVet.name,
-        bvcRegNo: selectedVet.regNo,
-        clinicDetails: selectedVet.clinic,
-        farmerName: booking.farmer.trim(),
-        farmName: booking.farm.trim(),
-        district: booking.district || 'Rajshahi',
-        concern: booking.concern.trim(),
-        amount: 500,
+        id: `consult-${receipt.id}`,
+        trxId: receipt.trxId,
+        createdAt: receipt.timestamp,
+        date: receipt.bookingDate,
+        time: receipt.bookingTime,
+        vetName: receipt.doctorName,
+        doctorName: receipt.doctorName,
+        bvcRegNo: receipt.bvcRegNo,
+        clinicDetails: receipt.clinicDetails,
+        farmerName: receipt.farmerName,
+        farmName: receipt.farmName,
+        district: receipt.district,
+        concern: receipt.concern,
+        amount: receipt.amount,
         currency: 'BDT',
-        paymentMethod: booking.payment,
-        paymentMethodLabel,
+        paymentMethod: receipt.method,
+        paymentMethodLabel: receipt.paymentMethodLabel,
         paymentStatusKey: 'historyBookingConfirmed',
       })
 
       setBookingMessage(language === 'bn'
-        ? `${selectedVet.name}-এর সাথে বুকিং নিশ্চিত হয়েছে (${booking.date}, ${booking.time})। ক্লিনিক্যাল লগের Vet Consultations অপশনে সংরক্ষণ করা হয়েছে।`
-        : `Booking confirmed with ${selectedVet.name} on ${booking.date} at ${booking.time}. Saved to Clinical Log → Vet Consultations.`)
+        ? `${receipt.doctorName}-এর সাথে পরামর্শ বুকিং ও পেমেন্ট (${receipt.trxId}) সম্পন্ন হয়েছে! অডিও/ভিডিও কল এবং হোয়াটসঅ্যাপ সেশন এখন সক্রিয়।`
+        : `Payment verified (${receipt.trxId}) & booking confirmed with ${receipt.doctorName}. Saved to Clinical Log → Payment History; Audio/Video & WhatsApp calls are now unlocked.`)
+      setReceiptModalOpen(true)
     } catch (error) {
-      console.error('Unable to save consultation booking to history.', error)
-      setBookingMessage(t('mockBookingSaveFailed', { payment: paymentMethodLabel }))
+      console.error('Unable to save verified booking to clinical logs.', error)
+      setBookingMessage(t('mockBookingSaveFailed', { payment: receipt.paymentMethodLabel }))
     }
+  }
+
+  function handleEndCall(sessionInfo) {
+    setCallMode('')
+    const doctorForSession = isRegisteredVet
+      ? {
+          name: prescription.vetName || VETERINARY_DOCTORS[0].name,
+          regNo: prescription.bvcRegNo || VETERINARY_DOCTORS[0].regNo,
+          clinic: prescription.clinicDetails || VETERINARY_DOCTORS[0].clinic,
+        }
+      : selectedVet
+
+    saveCallSessionLog({
+      bookingId: verifiedReceipt?.trxId || '',
+      doctorName: doctorForSession.name,
+      bvcRegNo: doctorForSession.regNo,
+      clinicDetails: doctorForSession.clinic,
+      callType: sessionInfo.callType,
+      duration: sessionInfo.duration,
+      durationSeconds: sessionInfo.durationSeconds,
+      timestamp: sessionInfo.timestamp,
+      farmerName: verifiedReceipt?.farmerName || sanitizePaymentInput(booking.farmer, 120) || prescription.farmerName || 'Registered Farmer',
+      farmName: verifiedReceipt?.farmName || sanitizePaymentInput(booking.farm, 120) || prescription.farmName,
+      district: booking.district || prescription.district || 'Rajshahi',
+      concern: verifiedReceipt?.concern || sanitizePaymentInput(booking.concern, 300) || prescription.diagnosis || 'Flock Consultation',
+    })
+
+    setCallSessionNotice(language === 'bn'
+      ? `${doctorForSession.name}-এর সাথে ${sessionInfo.callType === 'Video' ? 'ভিডিও' : 'অডিও'} কল (${sessionInfo.duration}) সম্পন্ন হয়ে ক্লিনিক্যাল লগের Vet Consultations-এ সংরক্ষিত হয়েছে।`
+      : `${sessionInfo.callType} consultation with ${doctorForSession.name} (${sessionInfo.duration}) completed and logged to Clinical Logs → Vet Consultations.`)
   }
 
   function printPrescription() {
@@ -360,9 +409,9 @@ export default function Telemedicine() {
         source: 'vet_issued',
         timestamp: nowIso,
         formattedDate: new Date(nowIso).toLocaleString(),
-        vetName: prescription.vetName || 'Dr. Sarah Ahmed, DVM',
-        bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber || 'BVC-REG-10492',
-        clinicDetails: prescription.clinicDetails || 'Rajshahi Avian Diagnostic Hospital',
+        vetName: prescription.vetName || VETERINARY_DOCTORS[0].name,
+        bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber || VETERINARY_DOCTORS[0].regNo,
+        clinicDetails: prescription.clinicDetails || VETERINARY_DOCTORS[0].clinic,
         farmerName: prescription.farmerName || 'Registered Farmer',
         farmName: prescription.farmName || '',
         district: prescription.district || 'Rajshahi',
@@ -441,7 +490,7 @@ export default function Telemedicine() {
           <span className="telemedicine-hero-icon"><Icon name="stethoscope" size={22} /></span>
           <div><span className="telemedicine-eyebrow">{t('remoteVeterinarySupport')}</span><h2 id="consult-booking-heading">{t('bookVetConsultation')}</h2></div>
         </div>
-        <form className="telemedicine-booking-form dark:text-gray-100" onSubmit={confirmBooking}>
+        <form className="telemedicine-booking-form dark:text-gray-100" onSubmit={openCheckoutModal}>
           <Field label={t('rxSelectVet')}>
             <select value={booking.vetId} onChange={(event) => updateBooking('vetId', event.target.value)}>
               {VETERINARY_DOCTORS.map((doc) => (
@@ -464,9 +513,9 @@ export default function Telemedicine() {
           <Field label={t('preferredDate')}><input required type="date" min={new Date().toISOString().slice(0, 10)} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
           <Field label={t('preferredTime')}><input required type="time" value={booking.time} onChange={(event) => updateBooking('time', event.target.value)} /></Field>
           <fieldset className="telemedicine-payment-options dark:border-gray-700 dark:text-gray-100">
-            <legend>{t('mockPaymentMethod')} (৳ 500)</legend>
+            <legend>{t('selectPaymentMethod')} (৳ {CONSULTATION_FEE_BDT})</legend>
             <div className="telemedicine-payment-grid">
-              {paymentMethods.map((method) => (
+              {PAYMENT_METHODS.map((method) => (
                 <label className={`telemedicine-payment-option dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700${booking.payment === method.id ? ' selected' : ''}`} key={method.id}>
                   <input type="radio" name="payment-method" value={method.id} checked={booking.payment === method.id} onChange={() => updateBooking('payment', method.id)} />
                   <span className="telemedicine-payment-mark"><Icon name={method.id === 'bank-card' ? 'creditCard' : 'phone'} size={17} /></span>
@@ -474,24 +523,72 @@ export default function Telemedicine() {
                 </label>
               ))}
             </div>
-            <p className="telemedicine-payment-note">{t('paymentDemoNotice')}</p>
+            <p className="telemedicine-payment-note">
+              {PAYMENT_MODE === 'live' ? t('paymentLiveNotice') : t('paymentSandboxNotice')}
+            </p>
           </fieldset>
-          <button className="telemedicine-primary-button" type="submit"><Icon name="check" size={17} />{t('confirmMockBooking')}</button>
+          <button className="telemedicine-primary-button" type="submit"><Icon name="lock" size={16} />{t('confirmBookingBtn')}</button>
           {bookingMessage && <p className="telemedicine-status" role="status">{bookingMessage}</p>}
+          {callSessionNotice && <p className="telemedicine-status" role="status">{callSessionNotice}</p>}
         </form>
 
         <div className="telemedicine-call-actions">
-          <div><h3>{t('consultationRoom')}</h3><p>{bookingConfirmed ? t('bookingReady') : t('confirmBookingToCall')}</p></div>
+          <div>
+            <h3>{t('consultationRoom')} — {selectedVet.name}</h3>
+            <p>
+              {bookingConfirmed
+                ? t('bookingVerifiedReady', { trxId: verifiedReceipt?.trxId || '' })
+                : t('confirmBookingToCall')}
+            </p>
+          </div>
           <div className="telemedicine-call-buttons">
-            <button type="button" className="telemedicine-audio-button" disabled={!canStartCall} onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />{t('startAudioCall')}</button>
-            <button type="button" className="telemedicine-video-button" disabled={!canStartCall} onClick={() => setCallMode('video')}><Icon name="video" size={18} />{t('startVideoCall')}</button>
+            <button type="button" className="telemedicine-audio-button" disabled={!canStartCall} onClick={() => setCallMode('audio')}>
+              <Icon name="phone" size={17} />
+              {t('startAudioCall')}
+            </button>
+            <button type="button" className="telemedicine-video-button" disabled={!canStartCall} onClick={() => setCallMode('video')}>
+              <Icon name="video" size={18} />
+              {t('startVideoCall')}
+            </button>
           </div>
         </div>
-        {callMode && <div className="telemedicine-call-panel dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" role="status">
-          <span className="telemedicine-call-pulse"><Icon name={callMode === 'audio' ? 'phone' : 'video'} size={18} /></span>
-          <div><strong>{callMode === 'audio' ? t('demoAudioCall') : t('demoVideoCall')} {t('isReady')}</strong><p>{t('noRealCall')}</p></div>
-          <button type="button" onClick={() => setCallMode('')}>{t('endDemo')}</button>
-        </div>}
+
+        {verifiedReceipt && (
+          <div className="pmx-verified-room-bar dark:bg-gray-900 dark:border-gray-700">
+            <div className="pmx-verified-room-meta">
+              <span className="pmx-verified-trx-chip">{verifiedReceipt.trxId}</span>
+              <span>{selectedVet.name} · WhatsApp: {selectedVet.whatsappDisplay}</span>
+            </div>
+            <div className="pmx-verified-room-actions">
+              <button
+                type="button"
+                className="pmx-receipt-open-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+                onClick={() => setReceiptModalOpen(true)}
+              >
+                <Icon name="file" size={15} />
+                {t('viewDigitalReceipt')}
+              </button>
+              <a
+                href={buildDoctorWhatsAppUrl({
+                  phone: selectedVet.whatsappNumber,
+                  bookingId: verifiedReceipt.trxId,
+                  doctorName: selectedVet.name,
+                  farmerName: verifiedReceipt.farmerName,
+                  farmName: verifiedReceipt.farmName,
+                  district: verifiedReceipt.district,
+                  concern: verifiedReceipt.concern,
+                  language,
+                })}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pmx-whatsapp-cta"
+              >
+                <Icon name="message" size={15} />
+                <span>{t('continueOnWhatsAppCall')}</span>
+              </a>
+            </div>
+          </div>
+        )}
 
         {recentBookings.length > 0 && (
           <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
@@ -689,12 +786,54 @@ export default function Telemedicine() {
             <button type="button" className="telemedicine-video-button" onClick={() => setCallMode('video')}><Icon name="video" size={18} />{t('startVideoCall')}</button>
           </div>
         </div>
-        {callMode && <div className="telemedicine-call-panel dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" role="status">
-          <span className="telemedicine-call-pulse"><Icon name={callMode === 'audio' ? 'phone' : 'video'} size={18} /></span>
-          <div><strong>{callMode === 'audio' ? t('demoAudioCall') : t('demoVideoCall')} {t('isReady')}</strong><p>{t('noRealCall')}</p></div>
-          <button type="button" onClick={() => setCallMode('')}>{t('endDemo')}</button>
-        </div>}
+        {callSessionNotice && <p className="telemedicine-status" style={{ marginTop: '10px' }} role="status">{callSessionNotice}</p>}
       </section>}
+
+      {checkoutOpen && (
+        <PaymentCheckoutModal
+          booking={booking}
+          doctor={selectedVet}
+          districtLabel={t(`districts.${booking.district}`, booking.district)}
+          onClose={() => setCheckoutOpen(false)}
+          onSuccess={handlePaymentVerified}
+        />
+      )}
+
+      {receiptModalOpen && verifiedReceipt && (
+        <DigitalReceiptModal
+          receipt={verifiedReceipt}
+          onClose={() => setReceiptModalOpen(false)}
+          onStartCall={(mode) => {
+            setReceiptModalOpen(false)
+            setCallMode(mode)
+          }}
+        />
+      )}
+
+      {callMode && (
+        <ConsultationCallModal
+          callType={callMode}
+          doctor={
+            isRegisteredVet
+              ? {
+                  ...VETERINARY_DOCTORS[0],
+                  name: prescription.vetName || VETERINARY_DOCTORS[0].name,
+                  degrees: prescription.vetDegrees || VETERINARY_DOCTORS[0].degrees,
+                  regNo: prescription.bvcRegNo || prescription.registrationNumber || VETERINARY_DOCTORS[0].regNo,
+                  clinic: prescription.clinicDetails || VETERINARY_DOCTORS[0].clinic,
+                }
+              : selectedVet
+          }
+          bookingContext={{
+            trxId: verifiedReceipt?.trxId || 'VET-DIRECT',
+            farmerName: verifiedReceipt?.farmerName || sanitizePaymentInput(booking.farmer, 120) || prescription.farmerName,
+            farmName: verifiedReceipt?.farmName || sanitizePaymentInput(booking.farm, 120) || prescription.farmName,
+            district: t(`districts.${booking.district || prescription.district}`, booking.district || prescription.district),
+            concern: verifiedReceipt?.concern || sanitizePaymentInput(booking.concern, 300) || prescription.diagnosis,
+          }}
+          onEndCall={handleEndCall}
+        />
+      )}
     </main>
   )
 }

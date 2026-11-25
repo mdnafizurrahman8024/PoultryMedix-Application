@@ -36,6 +36,7 @@ import {
   getZoonoticInfo,
   normalizeReporterSource,
 } from '../lib/oneHealthSurveillance.js'
+import { buildDigitalReceiptMarkup } from '../lib/paymentAdapter.js'
 
 const historyTabs = [
   { id: 'unified', labelKey: 'historyAllClinicalLogsTab' },
@@ -290,15 +291,15 @@ ${record.notes ? `📝 Notes: ${record.notes}` : ''}`
 function consultationMarkup(record) {
   const bookingDate = record.bookingDate || record.date || '—'
   const bookingTime = record.bookingTime || record.time || '—'
-  return wrapPrintDocument(`Vet Booking - ${record.vetName || 'Consultation'}`, `
+  return wrapPrintDocument(`Vet Booking - ${record.doctorName || record.vetName || 'Consultation'}`, `
     <div class="doc-header">
       <div>
         <h1 class="doc-title">VETERINARY CONSULTATION BOOKING SLIP</h1>
         <div class="doc-subtitle">PoultryMedix Telemedicine Appointment &amp; Fee Record</div>
       </div>
       <div class="doc-meta-right">
-        <div style="font-size:13px;font-weight:800;">${escapeHtml(record.vetName || 'Dr. Sarah Ahmed, DVM')}</div>
-        <div style="font-size:11px;color:#047857;">${escapeHtml(record.bvcRegNo || 'BVC-REG-10492')}</div>
+        <div style="font-size:13px;font-weight:800;">${escapeHtml(record.doctorName || record.vetName || 'Dr. Md Nafizur Rahman')}</div>
+        <div style="font-size:11px;color:#047857;">${escapeHtml(record.bvcRegNo || 'BVC-REG-11842')}</div>
       </div>
     </div>
 
@@ -308,12 +309,40 @@ function consultationMarkup(record) {
       <div class="doc-cell"><span>Farmer Name</span><strong>${escapeHtml(record.farmerName || 'Registered Farmer')}</strong></div>
       <div class="doc-cell"><span>Farm &amp; District</span><strong>${escapeHtml([record.farmName, record.district || 'Rajshahi'].filter(Boolean).join(' · '))}</strong></div>
       <div class="doc-cell"><span>Payment Method</span><strong>${escapeHtml(record.paymentMethodLabel || record.paymentMethod || 'bKash')}</strong></div>
-      <div class="doc-cell"><span>Consultation Fee</span><strong>৳ ${escapeHtml(Number(record.amount) || 500)} (${escapeHtml(record.paymentStatus || 'Confirmed')})</strong></div>
+      <div class="doc-cell"><span>Consultation Fee</span><strong>৳ ${escapeHtml(Number(record.amount) || 500)} (${escapeHtml(record.paymentStatus || 'Completed')})</strong></div>
     </div>
 
     <div class="doc-box">
       <h3>Main Clinical Concern</h3>
       <p style="margin:0;font-size:12px;">${escapeHtml(record.concern || 'General poultry consultation')}</p>
+    </div>
+  `)
+}
+
+function callSessionMarkup(record) {
+  const dateStr = record.formattedDate || new Date(record.timestamp || Date.now()).toLocaleString()
+  return wrapPrintDocument(`Consultation Call - ${record.doctorName || 'Vet'}`, `
+    <div class="doc-header">
+      <div>
+        <h1 class="doc-title">TELEMEDICINE CONSULTATION CALL LOG</h1>
+        <div class="doc-subtitle">PoultryMedix Live Veterinary Session Record</div>
+      </div>
+      <div class="doc-meta-right">
+        <div style="font-size:13px;font-weight:800;">${escapeHtml(record.doctorName || record.vetName || 'Dr. Md Nafizur Rahman')}</div>
+        <div style="font-size:11px;color:#047857;">${escapeHtml(record.bvcRegNo || 'BVC-REG-11842')}</div>
+      </div>
+    </div>
+
+    <div class="doc-grid doc-grid-4">
+      <div class="doc-cell"><span>Call Mode</span><strong>${escapeHtml(record.callType || 'Audio')} Call</strong></div>
+      <div class="doc-cell"><span>Duration</span><strong>${escapeHtml(record.duration || '00:01')}</strong></div>
+      <div class="doc-cell"><span>Booking Ref</span><strong>${escapeHtml(record.bookingId || record.trxId || 'Verified')}</strong></div>
+      <div class="doc-cell"><span>Recorded At</span><strong>${escapeHtml(dateStr)}</strong></div>
+    </div>
+
+    <div class="doc-box">
+      <h3>Farmer &amp; Flock Concern (${escapeHtml(record.farmerName || 'Registered Farmer')} · ${escapeHtml(record.district || 'Rajshahi')})</h3>
+      <p style="margin:0;font-size:12px;">${escapeHtml(record.concern || 'Telemedicine clinical consultation')}</p>
     </div>
   `)
 }
@@ -455,13 +484,37 @@ export default function ClinicalLog() {
     return merged
   }, [structuredLogs, legacyAppointments])
 
-  // Consultation tab shows Vet Bookings + Doctor-Issued Consultation Prescriptions
-  const consultationTabLogs = useMemo(() => {
-    const vetRx = prescriptionLogs.filter((p) => p.source === 'vet_issued')
-    return [...consultationBookings, ...vetRx].sort(
+  // Call sessions logged when ending Audio/Video rooms
+  const callSessionLogs = useMemo(
+    () => structuredLogs.filter((log) => log.type === 'consultation_call'),
+    [structuredLogs]
+  )
+
+  // Dedicated Payment History records (deduplicated with legacy bookings)
+  const paymentLogs = useMemo(() => {
+    const explicit = structuredLogs.filter((log) => log.type === 'payment')
+    const seenTrx = new Set(explicit.map((item) => String(item.trxId || item.id)))
+    const fallbackFromBookings = consultationBookings
+      .filter((item) => !seenTrx.has(String(item.trxId || item.id)))
+      .map((item) => ({
+        ...item,
+        type: 'payment',
+        doctorName: item.doctorName || item.vetName,
+        trxId: item.trxId || item.id,
+        status: item.paymentStatus || 'Completed',
+      }))
+    return [...explicit, ...fallbackFromBookings].sort(
       (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
     )
-  }, [consultationBookings, prescriptionLogs])
+  }, [structuredLogs, consultationBookings])
+
+  // Consultation tab shows Audio/Video Call Sessions + Vet Bookings + Doctor-Issued Prescriptions
+  const consultationTabLogs = useMemo(() => {
+    const vetRx = prescriptionLogs.filter((p) => p.source === 'vet_issued')
+    return [...callSessionLogs, ...consultationBookings, ...vetRx].sort(
+      (a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0)
+    )
+  }, [callSessionLogs, consultationBookings, prescriptionLogs])
 
   // Unified tab combines all clinical records & chat sessions chronologically
   const unifiedLogs = useMemo(() => {
@@ -535,7 +588,7 @@ export default function ClinicalLog() {
               ? consultationTabLogs.length
               : id === 'chat'
               ? legacyChats.length
-              : consultationBookings.length
+              : paymentLogs.length
 
           return (
             <button
@@ -699,12 +752,12 @@ export default function ClinicalLog() {
 
         {activeTab === 'payments' && (
           <HistoryList
-            records={consultationBookings}
+            records={paymentLogs}
             emptyText={t('historyNoPaymentHistory')}
             emptyIcon={CreditCard}
             render={(record) => (
               <SummaryCard
-                key={record.id}
+                key={`${record.type}-${record.id}`}
                 record={{ ...record, displayAsPayment: true }}
                 locale={locale}
                 language={language}
@@ -742,7 +795,9 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
   const isPrescription = type === 'prescription'
   const isDiagnosis = type === 'diagnosis'
   const isSurveillance = type === 'surveillance'
-  const isConsultation = type === 'consultation' || type === 'appointment'
+  const isPayment = type === 'payment' || Boolean(record.displayAsPayment)
+  const isCallSession = type === 'consultation_call'
+  const isConsultation = !isPayment && !isCallSession && (type === 'consultation' || type === 'appointment')
   const isChat = type === 'chat'
   const isVetIssued = record.source === 'vet_issued'
 
@@ -809,37 +864,64 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
         </span>
       )
     }
+  } else if (isPayment) {
+    const bookingDate = record.bookingDate || record.date
+    const bookingTime = record.bookingTime || record.time
+    const trxCode = record.trxId || record.id
+    title = `${safeText(record.doctorName || record.vetName, t('historyVetNotAssigned'))} — ৳ ${Number(record.amount) || 500}`
+    subtitle = [
+      trxCode,
+      record.paymentMethodLabel || record.method || record.paymentMethod || 'bKash',
+      record.accountMask,
+      bookingDate && `${bookingDate}${bookingTime ? ` ${bookingTime}` : ''}`,
+      record.farmerName || t('farmer'),
+    ].filter(Boolean).join(' · ')
+    typeLabel = language === 'bn' ? '💳 পেমেন্ট রিসিট' : '💳 Payment Receipt'
+    badgeClass = 'vet'
+    rightMetric = (
+      <span className="history-metric-pill confidence">
+        {record.status || record.paymentStatus || (language === 'bn' ? 'সম্পন্ন' : 'Completed')}
+      </span>
+    )
+  } else if (isCallSession) {
+    const callLabel = record.callType === 'Video'
+      ? (language === 'bn' ? 'ভিডিও কল' : 'Video Call')
+      : (language === 'bn' ? 'অডিও কল' : 'Audio Call')
+    title = `${safeText(record.doctorName || record.vetName, 'Dr. Md Nafizur Rahman')} · ${callLabel}`
+    subtitle = [
+      `⏱️ ${record.duration || '00:01'}`,
+      record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
+      record.concern,
+    ].filter(Boolean).join(' · ')
+    typeLabel = record.callType === 'Video'
+      ? (language === 'bn' ? '📹 ভিডিও পরামর্শ' : '📹 Video Call')
+      : (language === 'bn' ? '📞 অডিও পরামর্শ' : '📞 Audio Call')
+    badgeClass = 'vet'
+    rightMetric = (
+      <span className="history-metric-pill confidence">
+        ⏱️ {record.duration || '00:01'}
+      </span>
+    )
   } else if (isConsultation) {
     const bookingDate = record.bookingDate || record.date
     const bookingTime = record.bookingTime || record.time
     const apptDt = bookingDate ? new Date(`${bookingDate}T${bookingTime || '00:00'}`) : null
     const isUpcoming = apptDt && !Number.isNaN(apptDt.getTime()) && apptDt >= new Date()
 
-    if (record.displayAsPayment) {
-      title = `${safeText(record.vetName, t('historyVetNotAssigned'))} — ৳ ${Number(record.amount) || 500}`
-      subtitle = `${record.paymentMethodLabel || record.paymentMethod || 'bKash'} · ${bookingDate || ''} ${bookingTime || ''} · ${record.farmerName || t('farmer')}`
-      typeLabel = language === 'bn' ? '💳 পেমেন্ট রেকর্ড' : '💳 Payment Record'
-      badgeClass = 'vet'
-      rightMetric = (
-        <span className="history-metric-pill confidence">
-          {record.paymentStatus || (language === 'bn' ? 'পরিশোধিত' : 'Paid')}
-        </span>
-      )
-    } else {
-      title = safeText(record.vetName, t('historyVetNotAssigned'))
-      subtitle = [
-        bookingDate && `📅 ${bookingDate} ${bookingTime ? `⏰ ${bookingTime}` : ''}`,
-        record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
-        record.concern,
-      ].filter(Boolean).join(' · ')
-      typeLabel = language === 'bn' ? '🩺 ভেট কনসালটেশন' : '🩺 Vet Booking'
-      badgeClass = 'vet'
-      rightMetric = (
-        <span className={`history-status${isUpcoming ? ' history-status--upcoming' : ''}`}>
-          {isUpcoming ? t('historyUpcoming') : (record.paymentStatus || t('historyBookingConfirmed'))}
-        </span>
-      )
-    }
+    title = safeText(record.doctorName || record.vetName, t('historyVetNotAssigned'))
+    subtitle = [
+      record.trxId,
+      bookingDate && `📅 ${bookingDate} ${bookingTime ? `⏰ ${bookingTime}` : ''}`,
+      record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
+      record.concern,
+    ].filter(Boolean).join(' · ')
+    typeLabel = language === 'bn' ? '🩺 ভেট কনসালটেশন' : '🩺 Vet Booking'
+    badgeClass = 'vet'
+    rightMetric = (
+      <span className={`history-status${isUpcoming ? ' history-status--upcoming' : ''}`}>
+        {isUpcoming ? t('historyUpcoming') : (record.paymentStatus || t('historyBookingConfirmed'))}
+      </span>
+    )
   } else if (isChat) {
     const transcript = Array.isArray(record.transcript) ? record.transcript : []
     const lastReply = transcript.length ? transcript[transcript.length - 1].text : ''
@@ -966,7 +1048,9 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
   const isPrescription = type === 'prescription'
   const isDiagnosis = type === 'diagnosis'
   const isSurveillance = type === 'surveillance'
-  const isConsultation = type === 'consultation' || type === 'appointment'
+  const isPayment = type === 'payment' || Boolean(record.displayAsPayment)
+  const isCallSession = type === 'consultation_call'
+  const isConsultation = !isPayment && !isCallSession && (type === 'consultation' || type === 'appointment')
   const isChat = type === 'chat'
   const modalDisease = record.disease || record.primaryDisease || ''
   const zoonotic = (isDiagnosis || isSurveillance) ? getZoonoticInfo(modalDisease) : { isZoonotic: false }
@@ -996,6 +1080,10 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                 ? (language === 'bn' ? 'ওয়ান-হেলথ ফিল্ড ও ULO সার্ভেইল্যান্স' : 'One-Health Field / ULO Surveillance')
                 : isDiagnosis
                 ? (language === 'bn' ? 'স্মার্ট ডায়াগনোসিস রিপোর্ট' : 'Smart Diagnosis Report')
+                : isPayment
+                ? (language === 'bn' ? 'ডিজিটাল পেমেন্ট রিসিট' : 'Digital Payment Receipt')
+                : isCallSession
+                ? (language === 'bn' ? 'টেলিমেডিসিন কল লগ' : 'Telemedicine Call Session')
                 : isConsultation
                 ? (language === 'bn' ? 'ভেট কনসালটেশন বুকিং' : 'Vet Consultation Record')
                 : (language === 'bn' ? 'AI চ্যাট কথোপকথন' : 'AI Chat Conversation')}
@@ -1003,8 +1091,8 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
             <h2 id="history-detail-modal-title">
               {isChat
                 ? safeText(record.summary, t('historyChatTopic'))
-                : isConsultation
-                ? safeText(record.vetName, t('historyVetNotAssigned'))
+                : (isConsultation || isPayment || isCallSession)
+                ? safeText(record.doctorName || record.vetName, t('historyVetNotAssigned'))
                 : record.diagnosis || getDiseaseDisplayLabel(modalDisease, language, t) || 'Clinical Details'}
             </h2>
             <small style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
@@ -1167,29 +1255,43 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
             </>
           )}
 
-          {/* VET CONSULTATION / PAYMENT BOOKING DETAIL */}
-          {isConsultation && (
+          {/* PAYMENT RECEIPT / CALL SESSION / VET CONSULTATION DETAIL */}
+          {(isConsultation || isPayment || isCallSession) && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
-                <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyScheduledDateTime')}</small>
-                  <strong className="dark:text-white">{record.bookingDate || record.date || '—'} · {record.bookingTime || record.time || '—'}</strong>
-                </div>
+                {isCallSession ? (
+                  <div>
+                    <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{language === 'bn' ? 'কল মোড ও সময়কাল' : 'CALL MODE & DURATION'}</small>
+                    <strong className="dark:text-white">{record.callType || 'Audio'} · ⏱️ {record.duration || '00:01'}</strong>
+                    {record.bookingId && <div style={{ fontSize: '11px', color: '#047857' }}>Ref: {record.bookingId}</div>}
+                  </div>
+                ) : (
+                  <div>
+                    <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyScheduledDateTime')}</small>
+                    <strong className="dark:text-white">{record.bookingDate || record.date || '—'} · {record.bookingTime || record.time || '—'}</strong>
+                    {record.trxId && <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700 }}>{record.trxId}</div>}
+                  </div>
+                )}
                 <div>
                   <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyVetClinicUpper')}</small>
-                  <strong className="dark:text-white">{record.vetName || 'Dr. Sarah Ahmed, DVM'}</strong>
-                  <div style={{ fontSize: '11px', color: '#047857' }}>{record.clinicDetails || 'PoultryMedix Veterinary Care'}</div>
+                  <strong className="dark:text-white">{record.doctorName || record.vetName || 'Dr. Md Nafizur Rahman'}</strong>
+                  <div style={{ fontSize: '11px', color: '#047857' }}>{record.clinicDetails || 'PoultryMedix National Avian Telehealth Hub'}</div>
                 </div>
                 <div>
                   <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFarmerFarmUpper')}</small>
                   <strong className="dark:text-white">{record.farmerName || t('farmer')}</strong>
                   <div style={{ fontSize: '11px', color: '#64748b' }}>{record.farmName || t('farmName')} · {t(`districts.${record.district || 'Rajshahi'}`, record.district || 'Rajshahi')}</div>
                 </div>
-                <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFeePaymentUpper')}</small>
-                  <strong className="dark:text-white">৳ {Number(record.amount) || 500} ({record.paymentMethodLabel || record.paymentMethod || 'bKash'})</strong>
-                  <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>{record.paymentStatus || t('historyBookingConfirmed')}</div>
-                </div>
+                {!isCallSession && (
+                  <div>
+                    <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFeePaymentUpper')}</small>
+                    <strong className="dark:text-white">৳ {Number(record.amount) || 500} ({record.paymentMethodLabel || record.method || record.paymentMethod || 'bKash'})</strong>
+                    <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>
+                      {record.status || record.paymentStatus || t('historyBookingConfirmed')}
+                      {record.accountMask ? ` · ${record.accountMask}` : ''}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1235,7 +1337,7 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
         </div>
 
         <footer className="history-prescription-modal-footer dark:bg-gray-800 dark:border-gray-700" style={{ flexWrap: 'wrap' }}>
-          {(isPrescription || isDiagnosis || isConsultation || isSurveillance) && (
+          {(isPrescription || isDiagnosis || isConsultation || isSurveillance || isPayment || isCallSession) && (
             <>
               <button
                 type="button"
@@ -1248,6 +1350,10 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                       ? prescriptionMarkup(record)
                       : isDiagnosis
                       ? diagnosisMarkup(record)
+                      : isPayment
+                      ? buildDigitalReceiptMarkup(record, language)
+                      : isCallSession
+                      ? callSessionMarkup(record)
                       : consultationMarkup(record),
                     onStatus,
                     labels
@@ -1271,9 +1377,14 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                           title: `PoultryMedix Triage - ${record.primaryDisease}`,
                           text: `🔬 *PoultryMedix Smart Diagnosis*\n📅 ${dateDisplay} | 📍 ${record.district || 'Rajshahi'}\n🩺 Screened Condition: ${record.primaryDisease} (${record.confidencePercent})\n\n${record.guidanceSummary || ''}`,
                         }
+                      : isCallSession
+                      ? {
+                          title: `PoultryMedix Call Log - ${record.doctorName || record.vetName}`,
+                          text: `📞 *PoultryMedix Telemedicine Call Log*\n👨‍⚕️ Doctor: ${record.doctorName || record.vetName}\n🎧 Mode: ${record.callType || 'Audio'} | ⏱️ Duration: ${record.duration || '00:01'}\n👤 Farmer: ${record.farmerName} (${record.district})\n📝 Concern: ${record.concern}`,
+                        }
                       : {
-                          title: `PoultryMedix Booking - ${record.vetName}`,
-                          text: `🩺 *PoultryMedix Vet Consultation*\n👨‍⚕️ Doctor: ${record.vetName}\n📅 Date & Time: ${record.bookingDate || record.date} at ${record.bookingTime || record.time}\n👤 Farmer: ${record.farmerName} (${record.district})\n💳 Fee: ৳ ${Number(record.amount) || 500} (${record.paymentMethodLabel || record.paymentMethod})\n📝 Concern: ${record.concern}`,
+                          title: `PoultryMedix Receipt - ${record.trxId || record.vetName}`,
+                          text: `💳 *PoultryMedix Vet Payment / Booking*\n🔖 Receipt ID: ${record.trxId || record.id}\n👨‍⚕️ Doctor: ${record.doctorName || record.vetName}\n📅 Date & Time: ${record.bookingDate || record.date || dateDisplay}\n👤 Farmer: ${record.farmerName} (${record.district})\n💳 Fee: ৳ ${Number(record.amount) || 500} (${record.paymentMethodLabel || record.method || record.paymentMethod}) — ${record.status || record.paymentStatus || 'Completed'}\n📝 Concern: ${record.concern}`,
                         },
                     onStatus,
                     language

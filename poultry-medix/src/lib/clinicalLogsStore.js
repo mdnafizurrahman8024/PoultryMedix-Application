@@ -284,9 +284,11 @@ export function savePrescriptionLog({
  */
 export function saveConsultationLog({
   id,
-  vetName = 'Dr. Sarah Ahmed, DVM',
-  bvcRegNo = 'BVC-REG-10492',
-  clinicDetails = 'Rajshahi Avian Diagnostic & Research Hospital',
+  trxId = '',
+  vetName = 'Dr. Md Nafizur Rahman',
+  doctorName = '',
+  bvcRegNo = 'BVC-REG-11842',
+  clinicDetails = 'PoultryMedix National Avian Telehealth Hub',
   farmerName = 'Registered Farmer',
   farmName = '',
   district = 'Rajshahi',
@@ -299,10 +301,13 @@ export function saveConsultationLog({
   currency = 'BDT',
   paymentStatus = 'Confirmed',
 }) {
+  const resolvedDoctor = doctorName || vetName || 'Dr. Md Nafizur Rahman'
   return saveClinicalLog({
     id: id || crypto.randomUUID(),
+    trxId,
     type: 'consultation',
-    vetName,
+    doctorName: resolvedDoctor,
+    vetName: resolvedDoctor,
     bvcRegNo,
     clinicDetails,
     farmerName: farmerName || 'Registered Farmer',
@@ -318,6 +323,103 @@ export function saveConsultationLog({
     amount: Number(amount) || 500,
     currency: currency || 'BDT',
     paymentStatus,
+    syncedToCloud: false,
+  })
+}
+
+/**
+ * Saves a verified consultation payment record under Clinical Logs > Payment History.
+ */
+export function savePaymentLog({
+  id,
+  trxId,
+  gatewayTrxRef = '',
+  timestamp,
+  method = 'bkash',
+  paymentMethodLabel = 'bKash',
+  accountMask = '',
+  amount = 500,
+  currency = 'BDT',
+  doctorName = 'Dr. Md Nafizur Rahman',
+  bvcRegNo = 'BVC-REG-11842',
+  clinicDetails = 'PoultryMedix National Avian Telehealth Hub',
+  farmerName = 'Registered Farmer',
+  farmName = '',
+  district = 'Rajshahi',
+  bookingDate = '',
+  bookingTime = '',
+  concern = '',
+  paymentMode = 'sandbox',
+  status = 'Completed',
+}) {
+  const safeTrxId = trxId || id || `PMX-TRX-${Date.now()}`
+  return saveClinicalLog({
+    id: id || safeTrxId,
+    trxId: safeTrxId,
+    gatewayTrxRef,
+    type: 'payment',
+    timestamp: timestamp || new Date().toISOString(),
+    method,
+    paymentMethod: method,
+    paymentMethodLabel,
+    accountMask,
+    amount: Number(amount) || 500,
+    currency: currency || 'BDT',
+    doctorName: doctorName || 'Dr. Md Nafizur Rahman',
+    vetName: doctorName || 'Dr. Md Nafizur Rahman',
+    bvcRegNo,
+    clinicDetails,
+    farmerName: farmerName || 'Registered Farmer',
+    farmName,
+    district: district || 'Rajshahi',
+    bookingDate,
+    bookingTime,
+    concern,
+    paymentMode,
+    status: status || 'Completed',
+    paymentStatus: status || 'Completed',
+    syncedToCloud: false,
+  })
+}
+
+/**
+ * Saves a completed Audio or Video consultation call session under Clinical Logs > Vet Consultations.
+ */
+export function saveCallSessionLog({
+  id,
+  bookingId = '',
+  doctorName = 'Dr. Md Nafizur Rahman',
+  bvcRegNo = 'BVC-REG-11842',
+  clinicDetails = 'PoultryMedix National Avian Telehealth Hub',
+  callType = 'Audio',
+  duration = '00:01',
+  durationSeconds = 1,
+  timestamp,
+  farmerName = 'Registered Farmer',
+  farmName = '',
+  district = 'Rajshahi',
+  concern = '',
+}) {
+  const normalizedType = callType === 'Video' ? 'Video' : 'Audio'
+  return saveClinicalLog({
+    id: id || `call-${crypto.randomUUID()}`,
+    bookingId,
+    trxId: bookingId,
+    type: 'consultation_call',
+    doctorName: doctorName || 'Dr. Md Nafizur Rahman',
+    vetName: doctorName || 'Dr. Md Nafizur Rahman',
+    bvcRegNo,
+    clinicDetails,
+    callType: normalizedType,
+    duration: duration || '00:01',
+    durationSeconds: Math.max(0, Number(durationSeconds) || 0),
+    timestamp: timestamp || new Date().toISOString(),
+    farmerName: farmerName || 'Registered Farmer',
+    farmName,
+    district: district || 'Rajshahi',
+    concern: concern || `${normalizedType} Telemedicine Consultation`,
+    status: 'Completed',
+    paymentStatus: 'Completed',
     syncedToCloud: false,
   })
 }
