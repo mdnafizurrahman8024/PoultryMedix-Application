@@ -8,7 +8,7 @@ import { getCountries } from './data/countries.js'
 import './App.css'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import OnboardingScreen from './OnboardingScreen.jsx'
-import { useUser } from './context/UserContext.jsx'
+import { useUser } from './context/user-context.js'
 
 const languages = [
   ['en', 'English', 'EN'],

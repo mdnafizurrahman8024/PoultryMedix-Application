@@ -12,7 +12,7 @@ import {
   consumeTelemedicinePrefill,
   POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT,
 } from '../lib/uloDirectory.js'
-import { useUser } from '../context/UserContext.jsx'
+import { useUser } from '../context/user-context.js'
 import { useLanguage } from '../context/useLanguage.js'
 import './Telemedicine.css'
 

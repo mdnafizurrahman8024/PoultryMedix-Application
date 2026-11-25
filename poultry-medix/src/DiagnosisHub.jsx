@@ -385,7 +385,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
         language,
       }).then((aiResult) => {
         try {
-          const explanationText = aiResult?.explanation || REPORT_AI_FALLBACK_NOTE
+          const explanationText = aiResult?.explanation || getReportAiFallbackNote(language)
           const aiSources = aiResult?.sources || getVerifiedVeterinarySources(topDisease)
           const isFallback = Boolean(aiResult?.isFallback)
 
@@ -469,7 +469,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
           if (!prev || prev.id !== reportId) return prev
           return {
             ...prev,
-            explanation: REPORT_AI_FALLBACK_NOTE,
+            explanation: getReportAiFallbackNote(language),
             explanationLoading: false,
             explanationFallback: true,
           }
@@ -615,7 +615,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
           {historyWarning && <p className="diagnosis-warning" role="status">{historyWarning}</p>}
 
           <div className="diagnosis-actions">
-            <button className="diagnosis-submit" type="submit" disabled={loading || !Boolean(symptoms.trim() || image || audio)}>
+            <button className="diagnosis-submit" type="submit" disabled={loading || !(symptoms.trim() || image || audio)}>
               {loading ? <span className="ai-spinner" /> : <Icon name="stethoscope" size={17} />}
               {loading ? t('analyzing') : t('analyzeFlock')}
             </button>

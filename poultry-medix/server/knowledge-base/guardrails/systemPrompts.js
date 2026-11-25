@@ -24,6 +24,6 @@ CORE OPERATIONAL MANDATES:
    - Always append an explicit "References & Verification" section citing retrieved PubMed IDs (PMIDs), national guidelines, or local verified datasets.
 `.trim()
 
-export function getProviderSystemPrompt(provider = 'claude') {
+export function getProviderSystemPrompt() {
   return VETERINARY_EVIDENCE_SYSTEM_PROMPT
 }

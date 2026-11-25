@@ -29,7 +29,7 @@ import {
 } from '../lib/oneHealthSurveillance.js'
 import { DLS_EMERGENCY_HELPLINE, requestUloDirectoryModal } from '../lib/uloDirectory.js'
 import { useLanguage } from '../context/useLanguage.js'
-import { useUser } from '../context/UserContext.jsx'
+import { useUser } from '../context/user-context.js'
 import SurveillanceReportModal from './SurveillanceReportModal.jsx'
 
 const bangladeshCenter = [23.685, 90.3563]

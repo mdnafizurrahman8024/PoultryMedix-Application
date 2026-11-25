@@ -289,7 +289,7 @@ async function geminiGenerateContent(parts, generationConfig) {
       code: error.code || null,
       response: error.response?.data?.error || null,
     })
-    throw new Error(`Gemini prescription analysis failed${status ? ` (${status})` : ''}: ${apiMessage || error.message || 'Check the server network connection, model, API key, and image.'}`)
+    throw new Error(`Gemini prescription analysis failed${status ? ` (${status})` : ''}: ${apiMessage || error.message || 'Check the server network connection, model, API key, and image.'}`, { cause: error })
   }
 }
 

@@ -349,7 +349,7 @@ export function fileToDataUrl(file) {
 export async function analyzePrescriptionImage(file, language = 'en') {
   if (!file) throw new Error('No file provided for prescription analysis.')
 
-  let dataUrl = ''
+  let dataUrl
   try {
     dataUrl = await fileToDataUrl(file)
   } catch {
@@ -429,7 +429,7 @@ Do NOT include markdown backticks or extra commentary. Return valid JSON only.`
           // Attempt JSON block extraction
           const match = raw.match(/\{[\s\S]*\}/)
           if (match) {
-            try { parsed = JSON.parse(match[0]) } catch {}
+            try { parsed = JSON.parse(match[0]) } catch { /* ignore invalid JSON */ }
           }
         }
 
@@ -441,7 +441,7 @@ Do NOT include markdown backticks or extra commentary. Return valid JSON only.`
           } catch {
             const jsonMatch = content.match(/\{[\s\S]*\}/)
             if (jsonMatch) {
-              try { extracted = JSON.parse(jsonMatch[0]) } catch {}
+              try { extracted = JSON.parse(jsonMatch[0]) } catch { /* ignore invalid JSON */ }
             }
           }
 

@@ -11,11 +11,7 @@ export {
   notifyAnalyticsUpdated as notifyPrescriptionDataChanged,
 } from '../lib/analyticsEngine.js'
 
-import {
-  getLiveAntibioticAnalytics,
-  defaultPrescriptionSeeds,
-  notifyAnalyticsUpdated,
-} from '../lib/analyticsEngine.js'
+import { defaultPrescriptionSeeds } from '../lib/analyticsEngine.js'
 
 export function readPrescriptionSources() {
   return {

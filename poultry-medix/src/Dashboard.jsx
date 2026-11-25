@@ -17,7 +17,7 @@ import UloDirectoryModal from './veterinary/UloDirectoryModal.jsx'
 import { POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, POULTRYMEDIX_OPEN_ULO_EVENT } from './lib/uloDirectory.js'
 import { getSheds, evaluateAllSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
 import ThemeToggle from './components/ThemeToggle.jsx'
-import { USER_ROLES, useUser } from './context/UserContext.jsx'
+import { USER_ROLES, useUser } from './context/user-context.js'
 import './Dashboard.css'
 import './VeterinaryFeatures.css'
 
@@ -95,17 +95,20 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const mobileLanguageMenuRef = useRef(null)
   const headerRef = useRef(null)
   const pointsPopupRef = useRef(null)
+  const hasGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
+  const canFetchWeather = Boolean(hasGeolocation && openWeatherApiKey)
   const [weather, setWeather] = useState(null)
   const [weatherError, setWeatherError] = useState('')
-  const [weatherLoadingState, setWeatherLoading] = useState(true)
+  const [weatherLoadingState, setWeatherLoading] = useState(() => canFetchWeather)
   const [weatherRefresh, setWeatherRefresh] = useState(0)
-  const hasGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
-  const weatherLoading = Boolean(hasGeolocation && weatherLoadingState)
+  const weatherLoading = Boolean(canFetchWeather && weatherLoadingState)
   const weatherErrorMessage = !hasGeolocation
       ? t('geoUnavailable')
-      : weatherError
-        ? t(weatherError)
-        : ''
+      : !openWeatherApiKey
+        ? t('weatherKeyMissing')
+        : weatherError
+          ? t(weatherError)
+          : ''
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileAction, setProfileAction] = useState('')
   const [sosOpen, setSosOpen] = useState(false)
@@ -327,22 +330,20 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   }, [showPointsPopup])
 
   useEffect(() => {
+    if (!shareMessage) return undefined
+    const timeout = window.setTimeout(() => setShareMessage(''), 3000)
+    return () => window.clearTimeout(timeout)
+  }, [shareMessage])
+
+  useEffect(() => {
     if (!pointsToast) return undefined
     const timeout = window.setTimeout(() => setPointsToast(false), 3000)
     return () => window.clearTimeout(timeout)
   }, [pointsToast])
 
   useEffect(() => {
+    if (!canFetchWeather) return undefined
     let active = true
-    if (!navigator.geolocation) {
-      setWeatherLoading(false)
-      return () => { active = false }
-    }
-    if (!openWeatherApiKey) {
-      setWeatherError('weatherKeyMissing')
-      setWeatherLoading(false)
-      return () => { active = false }
-    }
 
     navigator.geolocation.getCurrentPosition(async ({ coords }) => {
       try {
@@ -396,7 +397,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 600000 })
 
     return () => { active = false }
-  }, [language, t, weatherRefresh])
+  }, [canFetchWeather, language, t, weatherRefresh])
 
   useEffect(() => {
     if (!settingsOpen && !sosOpen && !profileAction) return undefined
@@ -944,6 +945,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         )}
       </div>
       {pointsToast && <div className="points-toast" role="status">{t('pointsEarnedToast')}</div>}
+      {shareMessage && <div className="points-toast" role="status">{shareMessage}</div>}
 
       <nav className="bottom-navigation" aria-label={t('featureNavigation')}>
         <div className="bottom-navigation-items">

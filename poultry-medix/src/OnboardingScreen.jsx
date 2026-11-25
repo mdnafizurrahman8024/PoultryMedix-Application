@@ -1,5 +1,5 @@
 import Icon from './components/Icon.jsx'
-import { USER_ROLES, useUser } from './context/UserContext.jsx'
+import { USER_ROLES, useUser } from './context/user-context.js'
 import { useLanguage } from './context/useLanguage.js'
 import './OnboardingScreen.css'
 

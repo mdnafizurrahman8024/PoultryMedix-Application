@@ -1,4 +1,3 @@
-import axios from 'axios'
 import * as tmImage from '@teachablemachine/image'
 import diseaseSigns from '../data/poultry-disease-signs.json'
 

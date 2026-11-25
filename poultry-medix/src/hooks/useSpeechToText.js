@@ -15,8 +15,10 @@ export default function useSpeechToText({ language, value, onChange, onError }) 
   const onErrorRef = useRef(onError)
   const [listening, setListening] = useState(false)
 
-  onChangeRef.current = onChange
-  onErrorRef.current = onError
+  useEffect(() => {
+    onChangeRef.current = onChange
+    onErrorRef.current = onError
+  }, [onChange, onError])
 
   const stop = useCallback(() => {
     if (permissionRequestRef.current) {

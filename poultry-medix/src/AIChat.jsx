@@ -178,9 +178,10 @@ export default function AIChat() {
     return () => document.removeEventListener('keydown', closeOnEscape)
   }, [open])
 
+  const stopSpeech = speech.stop
   useEffect(() => {
-    if (!open) speech.stop()
-  }, [open, speech.stop])
+    if (!open) stopSpeech()
+  }, [open, stopSpeech])
 
   useEffect(() => () => {
     const drag = dragRef.current

@@ -30,7 +30,7 @@ export function getReportAiFallbackNote(language = 'en') {
     : REPORT_AI_FALLBACK_NOTE
 }
 
-const BANGLISH_REGEX = /\b(murgi|murgir|murga|morgir|hash|hasher|kobutor|kobutorer|khamar|khamarer|rokto|rakta|amashoy|amasha|paykhana|paikhana|chuna|kashi|shordi|sordi|thanda|shashkoshto|ghar|baka|fowla|fola|chokh|naak|pani|panishunnota|khabar|khay|khacche|khay na|mora|morche|marche|morbe|shed e|bachcha|dim|mangsho|oshudh|oushodh|osud|chikitsha|chikitsa|dibo|korbo|koro|keno|hocche|hoise|hobe|bhalo|kharap|patla|sobuj|sada|jhor|jhorche|dana|jhule|jhuti|kalche|pa|paya|ghaa|guti|boshonto|bosonto|kora|lagbe|bolen|bolo|janan|amake|amar)\b/i
+const BANGLISH_REGEX = /\b(murgi|murgir|murga|morgir|morog|morag|hash|haser|hasher|hans|kobutor|kobutorer|khamar|khamarer|rokto|rakta|amashoy|amasha|paykhana|paikhana|chuna|kashi|shordi|sordi|thanda|shashkoshto|ghar|baka|fowla|fola|chokh|chokhe|naak|nak|pani|panishunnota|khabar|khay|khacche|khay na|mora|morche|marche|morbe|shed|bachcha|dim|mangsho|oshudh|oushodh|osud|chikitsha|chikitsa|dibo|korbo|kore|koro|keno|hocche|hoise|hobe|hoye|bhalo|kharap|patla|sobuj|sada|jhor|jhorche|dana|jhule|jhuti|kalche|pa|paya|pakhna|ghaa|guti|boshonto|bosonto|tika|tikar|lagbe|bolen|bolo|janan|amake|amar|ki|kemon|daktar|vai|bhai)\b/i
 
 /**
  * Detects reply language dynamically from user input:
@@ -388,12 +388,12 @@ export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '
     else if (td.includes('gumboro') || td.includes('bursal') || td.includes('ibd')) matchedDisease = 'gumboro'
     else if (td.includes('crd') || td.includes('respiratory') || td.includes('mycoplasma')) matchedDisease = 'crd'
     else if (td.includes('pox')) matchedDisease = 'pox'
-    else if (td.includes('salmonell') || td.includes('cholera') || td.includes('typhoid') || td.includes('pullorum')) matchedDisease = 'salmonella'
-    else if (td.includes('bumblefoot')) matchedDisease = 'bumblefoot'
+    else if (td.includes('salmonell') || td.includes('cholera') || td.includes('typhoid') || td.includes('pullorum') || td.includes('colibacill') || td.includes('campylobacter')) matchedDisease = 'salmonella'
     else if (td.includes('influenza') || td.includes('bird flu')) matchedDisease = 'influenza'
+    else if (td.includes('bumblefoot')) matchedDisease = 'bumblefoot'
     else if (td.includes('healthy') || td.includes('normal')) matchedDisease = 'healthy'
   } else {
-    if (/\b(coryza|coriza|swollen face|chokh fola|chokh fowla|naak die pani|চোখ ফোলা|নাক দিয়ে পানি|করাইজা)\b/i.test(normalizedQuery)) {
+    if (/\b(coryza|coriza|swollen face|chokh fola|chokh fowla|naak die pani|chokhe pani|চোখ ফোলা|নাক দিয়ে পানি|করাইজা)\b/i.test(normalizedQuery)) {
       matchedDisease = 'coryza'
     } else if (/\b(blood|bloody|coccidi|rokto|rakta|amashoy|amasha|রক্ত|আমাশয়|রক্ত পায়খানা|রক্ত আমাশয়)\b/i.test(normalizedQuery)) {
       matchedDisease = 'coccidiosis'
@@ -405,7 +405,7 @@ export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '
       matchedDisease = 'crd'
     } else if (/\b(pox|scab|wart|boshonto|bosonto|guti|বসন্ত|গুটি|পক্স)\b/i.test(normalizedQuery)) {
       matchedDisease = 'pox'
-    } else if (/\b(green diarrhea|cholera|salmonell|typhoid|sobuj paykhana|patla paykhana|পায়খানা|কলেরা|সবুজ পায়খানা)\b/i.test(normalizedQuery)) {
+    } else if (/\b(green diarrhea|cholera|salmonell|typhoid|colibacill|campylobacter|sobuj paykhana|patla paykhana|পায়খানা|কলেরা|সবুজ পায়খানা)\b/i.test(normalizedQuery)) {
       matchedDisease = 'salmonella'
     } else if (/\b(bumblefoot|foot|lame|pa fola|pae ghaa|পা ফোলা|খোঁড়া)\b/i.test(normalizedQuery)) {
       matchedDisease = 'bumblefoot'

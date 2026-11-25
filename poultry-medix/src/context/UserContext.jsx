@@ -1,9 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { USER_ROLES, UserContext } from './user-context.js'
 
-export const USER_ROLES = ['FARMER', 'VET_STUDENT', 'REGISTERED_VET']
 const roleStorageKey = 'poultry-medix-user-role'
-
-const UserContext = createContext(null)
 
 function getStoredRole() {
   try {
@@ -42,10 +40,4 @@ export function UserProvider({ children }) {
   }), [setLoggedIn, setRole, userContext])
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>
-}
-
-export function useUser() {
-  const context = useContext(UserContext)
-  if (!context) throw new Error('useUser must be used within a UserProvider')
-  return context
 }
