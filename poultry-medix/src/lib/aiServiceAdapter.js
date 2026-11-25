@@ -1,4 +1,3 @@
-import diseaseSigns from '../data/poultry-disease-signs.json'
 import { getVerifiedVeterinarySources } from './veterinarySources.js'
 
 /**
@@ -16,8 +15,37 @@ import { getVerifiedVeterinarySources } from './veterinarySources.js'
 export const POLITE_EXHAUSTION_MESSAGE =
   'At this time, the AI consultation service is temporarily unavailable due to high demand. Please try again in a few hours.'
 
+export function getPoliteExhaustionMessage(language = 'en') {
+  return language === 'bn'
+    ? 'এই মুহূর্তে অতিরিক্ত ব্যবহারের কারণে এআই পরামর্শ সেবা সাময়িকভাবে ব্যস্ত রয়েছে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।'
+    : POLITE_EXHAUSTION_MESSAGE
+}
+
 export const REPORT_AI_FALLBACK_NOTE =
   'Detailed AI explanation is temporarily busy, please review the diagnostic confidence scores above and consult a veterinarian.'
+
+export function getReportAiFallbackNote(language = 'en') {
+  return language === 'bn'
+    ? 'বিস্তারিত এআই বিশ্লেষণ এই মুহূর্তে ব্যস্ত রয়েছে; অনুগ্রহ করে উপরের রোগের ঝুঁকির শতকরা হার দেখুন এবং নিবন্ধিত পশুচিকিৎসকের পরামর্শ নিন।'
+    : REPORT_AI_FALLBACK_NOTE
+}
+
+const BANGLISH_REGEX = /\b(murgi|murgir|murga|morgir|hash|hasher|kobutor|kobutorer|khamar|khamarer|rokto|rakta|amashoy|amasha|paykhana|paikhana|chuna|kashi|shordi|sordi|thanda|shashkoshto|ghar|baka|fowla|fola|chokh|naak|pani|panishunnota|khabar|khay|khacche|khay na|mora|morche|marche|morbe|shed e|bachcha|dim|mangsho|oshudh|oushodh|osud|chikitsha|chikitsa|dibo|korbo|koro|keno|hocche|hoise|hobe|bhalo|kharap|patla|sobuj|sada|jhor|jhorche|dana|jhule|jhuti|kalche|pa|paya|ghaa|guti|boshonto|bosonto|kora|lagbe|bolen|bolo|janan|amake|amar)\b/i
+
+/**
+ * Detects reply language dynamically from user input:
+ * - Bengali script or Banglish -> natural Bangladeshi Bangla ('bn')
+ * - English text -> English ('en')
+ * - Image/attachment only -> falls back to appLanguage
+ */
+export function detectMessageReplyLanguage(userText = '', appLanguage = 'en') {
+  const trimmed = String(userText || '').trim()
+  if (!trimmed) return appLanguage === 'bn' ? 'bn' : 'en'
+  if (/[\u0980-\u09FF]/.test(trimmed)) return 'bn'
+  if (BANGLISH_REGEX.test(trimmed)) return 'bn'
+  if (/[a-zA-Z]{2,}/.test(trimmed)) return 'en'
+  return appLanguage === 'bn' ? 'bn' : 'en'
+}
 
 // High-reliability curated fallback sequence strictly containing valid zero-cost IDs
 const CURATED_FREE_MODELS = [
@@ -81,7 +109,7 @@ export async function getAvailableFreeModels() {
         return discoveredFreeModels
       }
     }
-  } catch (err) {
+  } catch {
     console.info('[ai-adapter] Dynamic model discovery using built-in rotation list')
   }
 
@@ -108,6 +136,7 @@ function isRestrictedPrescriptionQuery(text = '') {
     /\b(suggest|recommend|prescribe|give)\s+(a\s+|some\s+)?(medicine|drug|antibiotic|dose|dosage|injection)\b/,
     /\b(dose|dosage|how\s+much\s+(mg|ml|gram|packet|drop))\b/,
     /\b(name\s+of\s+(the\s+)?(medicine|antibiotic|drug))\b/,
+    /\b(ki\s+oshudh|ki\s+oushodh|kon\s+oshudh|kon\s+oushodh|oshudh\s+dibo|oushodh\s+dibo|oshudh\s+den|injection\s+dibo|dose\s+koto|koto\s+gram|chikitsha\s+ki)\b/,
     /(ওষুধ|ঔষধ|অ্যান্টিবায়োটিক|ডোজ|চিকিৎসা|কি\s+ওষুধ\s+দিব|কি\s+ঔষধ|মাত্রা)/,
     /(दवा|एंटीबायোটিক|खुराक|इलाज|दवाई)/,
     /(دوا|اینٹی\s*بائیوٹک|خوراک|علاج)/,
@@ -177,8 +206,11 @@ CLINICAL & ETHICAL PROTOCOLS:
 5. ON-DEVICE EDGE VISION INTEGRATION:
    - When an "[Attached Image Observation]" or "[ON-DEVICE AVIAN VISION SCREENING FINDING]" is present, this is verified edge vision screening from the farmer's flock photo. NEVER say you cannot view or analyze images. Directly discuss the detected condition and follow these protocols.
 
-6. NATURAL MULTILINGUAL COMMUNICATION:
-   - Provide answers in the farmer's requested language (Bengali বাংলা, English, Hindi हिंदी, Urdu اردو, or Banglish). Keep the tone supportive, professional, and clear.
+6. NATURAL MULTILINGUAL COMMUNICATION (CRITICAL LANGUAGE RULE):
+   - Always detect the farmer's message language dynamically:
+     * If the farmer writes in Bengali script (বাংলা) OR Banglish (Bengali words typed in English letters like "murgir rokto amashoy", "chokh fola", "kashi hocche"), reply ENTIRELY in natural, warm, everyday Bangladeshi Bangla (বাংলা) suited for rural poultry farmers.
+     * If the farmer writes in English, reply ENTIRELY in clear, simple English (even if the app toggle is set to BN).
+     * Keep tone supportive, respectful, practical, and easy to follow.
 `.trim()
 
 /**
@@ -190,21 +222,27 @@ export async function sendChatMessage({
   contextPrompt = '',
   visualResult = null,
   images = [],
+  forceLanguage = '',
 }) {
   const latestMessage = messages[messages.length - 1]?.content || ''
+  const replyLanguage = forceLanguage || detectMessageReplyLanguage(latestMessage, language)
   const searchCondition = visualResult?.label || latestMessage
 
   // Clinical safety interception
   if (isRestrictedPrescriptionQuery(latestMessage)) {
     return {
-      answer: getSafetyAdvisory(language),
+      answer: getSafetyAdvisory(replyLanguage),
       sources: getVerifiedVeterinarySources(searchCondition),
       visualResult,
     }
   }
 
   // Prepend visual screening context if an image was examined on-device
-  let augmentedContext = contextPrompt || ''
+  const replyDirective = replyLanguage === 'bn'
+    ? '[REPLY LANGUAGE INSTRUCTION]: Respond entirely in natural, friendly, everyday Bangladeshi Bangla (বাংলা script). No complex jargon.'
+    : '[REPLY LANGUAGE INSTRUCTION]: Respond entirely in clear, natural English.'
+
+  let augmentedContext = contextPrompt ? `${replyDirective}\n\n${contextPrompt}` : replyDirective
   if (visualResult) {
     const predictionsSummary = visualResult.predictions?.length
       ? visualResult.predictions.map((p) => `${p.disease} (${Math.round((p.confidence || 0) * 100)}%)`).join(', ')
@@ -231,7 +269,7 @@ export async function sendChatMessage({
   if (mode === 'direct') {
     result = await executeDirectAiCall({ messages, contextPrompt: augmentedContext, visualResult })
   } else {
-    result = await executeProxyWithSilentRotation({ messages, contextPrompt: augmentedContext, visualResult, images, language })
+    result = await executeProxyWithSilentRotation({ messages, contextPrompt: augmentedContext, visualResult, images, language: replyLanguage })
   }
 
   const verifiedSources = getVerifiedVeterinarySources(searchCondition)
@@ -336,11 +374,12 @@ async function executeProxyWithSilentRotation({ messages, contextPrompt, visualR
  * Delivers immediate, authoritative, localized veterinary supportive care & biosecurity guidance
  * whenever remote proxy endpoints are unavailable or returning non-JSON website responses.
  */
-export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '', language = 'en' }) {
+export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '', language = 'en', forceLanguage = '' }) {
   const normalizedQuery = (query + ' ' + topDisease).toLowerCase().trim()
-  const isBengali = language === 'bn'
+  const effectiveLang = forceLanguage || detectMessageReplyLanguage(query, language)
+  const isBengali = effectiveLang === 'bn'
 
-  let matchedDisease = 'coccidiosis'
+  let matchedDisease = 'general'
   if (topDisease) {
     const td = topDisease.toLowerCase()
     if (td.includes('coryza')) matchedDisease = 'coryza'
@@ -354,25 +393,25 @@ export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '
     else if (td.includes('influenza') || td.includes('bird flu')) matchedDisease = 'influenza'
     else if (td.includes('healthy') || td.includes('normal')) matchedDisease = 'healthy'
   } else {
-    if (/\b(coryza|coriza|swollen face|চোখ ফোলা|নাক দিয়ে পানি|করাইজা)\b/i.test(normalizedQuery)) {
+    if (/\b(coryza|coriza|swollen face|chokh fola|chokh fowla|naak die pani|চোখ ফোলা|নাক দিয়ে পানি|করাইজা)\b/i.test(normalizedQuery)) {
       matchedDisease = 'coryza'
-    } else if (/\b(blood|bloody|coccidi|রক্ত|আমাশয়|রক্ত পায়খানা|রক্ত আমাশয়)\b/i.test(normalizedQuery)) {
+    } else if (/\b(blood|bloody|coccidi|rokto|rakta|amashoy|amasha|রক্ত|আমাশয়|রক্ত পায়খানা|রক্ত আমাশয়)\b/i.test(normalizedQuery)) {
       matchedDisease = 'coccidiosis'
-    } else if (/\b(neck|twist|torticollis|newcastle|ranikhet|রানীক্ষেত|ঘাড় বাঁকা)\b/i.test(normalizedQuery)) {
+    } else if (/\b(neck|twist|torticollis|newcastle|ranikhet|ghar baka|matha ghorano|রানীক্ষেত|ঘাড় বাঁকা)\b/i.test(normalizedQuery)) {
       matchedDisease = 'newcastle'
-    } else if (/\b(white diarrhea|gumboro|ibd|bursal|vent|গামবোরো|সাদা পায়খানা)\b/i.test(normalizedQuery)) {
+    } else if (/\b(white diarrhea|gumboro|ibd|bursal|vent|sada paykhana|sada paikhana|গামবোরো|সাদা পায়খানা)\b/i.test(normalizedQuery)) {
       matchedDisease = 'gumboro'
-    } else if (/\b(cough|coughing|gasp|sneeze|crd|respiratory|ঠাণ্ডা|সর্দি|কাশি|শ্বাসকষ্ট|ঘরঘর)\b/i.test(normalizedQuery)) {
+    } else if (/\b(cough|coughing|gasp|sneeze|crd|respiratory|thanda|shordi|sordi|kashi|shashkoshto|ghorghor|ঠাণ্ডা|সর্দি|কাশি|শ্বাসকষ্ট|ঘড়ঘড়)\b/i.test(normalizedQuery)) {
       matchedDisease = 'crd'
-    } else if (/\b(pox|scab|wart|বসন্ত|গুটি|পক্স)\b/i.test(normalizedQuery)) {
+    } else if (/\b(pox|scab|wart|boshonto|bosonto|guti|বসন্ত|গুটি|পক্স)\b/i.test(normalizedQuery)) {
       matchedDisease = 'pox'
-    } else if (/\b(green diarrhea|cholera|salmonell|typhoid|পায়খানা|কলেরা|সবুজ পায়খানা)\b/i.test(normalizedQuery)) {
+    } else if (/\b(green diarrhea|cholera|salmonell|typhoid|sobuj paykhana|patla paykhana|পায়খানা|কলেরা|সবুজ পায়খানা)\b/i.test(normalizedQuery)) {
       matchedDisease = 'salmonella'
-    } else if (/\b(bumblefoot|foot|lame|পা ফোলা|খোঁড়া)\b/i.test(normalizedQuery)) {
+    } else if (/\b(bumblefoot|foot|lame|pa fola|pae ghaa|পা ফোলা|খোঁড়া)\b/i.test(normalizedQuery)) {
       matchedDisease = 'bumblefoot'
-    } else if (/\b(flu|influenza|bird flu|বার্ড ফ্লু)\b/i.test(normalizedQuery)) {
+    } else if (/\b(flu|influenza|bird flu|morche|sudden death|বার্ড ফ্লু)\b/i.test(normalizedQuery)) {
       matchedDisease = 'influenza'
-    } else if (/\b(care|feed|water|healthy|পরিচর্যা|খাবার|সুস্থ)\b/i.test(normalizedQuery)) {
+    } else if (/\b(care|feed|water|healthy|khamar|পরিচর্যা|খাবার|সুস্থ)\b/i.test(normalizedQuery)) {
       matchedDisease = 'healthy'
     }
   }
@@ -502,6 +541,58 @@ export function generateLocalClinicalKnowledgeReply({ query = '', topDisease = '
         sources: getVerifiedVeterinarySources('bumblefoot'),
       }
     }
+    if (matchedDisease === 'pox') {
+      return {
+        answer: `ক্লিনিকাল মূল্যায়ন: ফাউল পক্স বা মুরগির বসন্ত (Fowl Pox)
+
+সম্ভাব্য রোগ ও পূর্বাভাস:
+• প্রধান ঝুঁকি: ফাউল পক্স ভাইরাস (ত্বক ও মুখের ভেতরে বসন্তের গুটি বা ফুসকুড়ি)
+• প্রধান লক্ষণ: ঝুঁটি, ওয়াটল, চোখের পাতা ও পায়ে কালচে গুটি বা খোসপাঁচড়া; মুখে সাদাটে-হলুদ আবরণ থাকলে শ্বাসকষ্ট ও খেতে কষ্ট হয়।
+• সেকেন্ডারি ঝুঁকি: মুখগহ্বরের সংক্রমণ বা সেকেন্ডারি ব্যাকটেরিয়াল জটিলতা।
+
+জরুরি সহায়ক পরিচর্যা প্রোটোকল:
+১. তাৎক্ষণিক আলাদা রাখা: আক্রান্ত পাখিকে সুস্থ পাল থেকে আলাদা করুন।
+২. মশা-মাছি নিয়ন্ত্রণ: এই রোগ মূলত মশার মাধ্যমে ছড়ায়; তাই শেডে মশারি, ধোঁয়া বা নিরাপদ মশা তাড়ানোর ব্যবস্থা নিন।
+৩. ঘা পরিচর্যা: গুটি বা খোস জোর করে তুলবেন না—এতে রক্তপাত ও সংক্রমণ বাড়ে। নরম ও শুষ্ক লিটারে রাখুন এবং পানিতে ভিটামিন-এ ও ইলেক্ট্রোলাইট দিন।
+৪. জৈবনিরাপত্তা: সুস্থ বাকি পাখিদের জন্য পশুচিকিৎসকের পরামর্শে ফাউল পক্স টিকা দেওয়া যায় কিনা যাচাই করুন।
+
+⚠️ জরুরি ভেটেরিনারি রেফারাল ও এএমআর (AMR) নোটিশ:
+এটি ভাইরাসজনিত রোগ; অনুমতি ছাড়া অ্যান্টিবায়োটিক দেবেন না। সঠিক সহায়তার জন্য নিবন্ধিত পশুচিকিৎসকের পরামর্শ নিন।`,
+        sources: getVerifiedVeterinarySources('fowl pox'),
+      }
+    }
+    if (matchedDisease === 'salmonella' || matchedDisease === 'influenza') {
+      return {
+        answer: matchedDisease === 'influenza'
+          ? `ক্লিনিকাল মূল্যায়ন: উচ্চ-ঝুঁকিপূর্ণ শ্বাসতন্ত্র / এভিয়ান ইনফ্লুয়েঞ্জা সতর্কতা
+
+সম্ভাব্য রোগ ও পূর্বাভাস:
+• প্রধান ঝুঁকি: এভিয়ান ইনফ্লুয়েঞ্জা (বার্ড ফ্লু) বা তীব্র রানীক্ষেত-জাতীয় ভাইরাস সংক্রমণ
+• প্রধান লক্ষণ: হঠাৎ অধিক মৃত্যু, ঝুঁটি-পা নীলচে হওয়া, মাথা ফোলা, তীব্র শ্বাসকষ্ট ও খাদ্য-পানি গ্রহণ পুরোপুরি বন্ধ হয়ে যাওয়া।
+
+জরুরি সহায়ক ও বায়োসিকিউরিটি প্রোটোকল:
+১. খামার সম্পূর্ণ লকডাউন: শেডে বাইরের মানুষ, গাড়ী বা অন্যান্য পাখির প্রবেশ অবিলম্বে বন্ধ করুন।
+২. অসুস্থ পাখি ও মৃতদেহ ব্যবস্থাপনা: অসুস্থ পাখি নাড়াচাড়া করার পর হাত, পোশাক ও জুতা জীবাণুমুক্ত করুন। মৃত পাখি গভীর গর্তে চুন দিয়ে পুঁতে ফেলুন—কোথাও খোলা জায়গায় ফেলবেন না।
+৩. পরিষ্কার পানি ও ইলেক্ট্রোলাইট: সুস্থ শেডগুলোতে আলাদা পাত্রে বিশুদ্ধ পানি ও স্যালাইন দিন এবং এক শেডের সরঞ্জাম অন্য শেডে নেবেন না।
+
+⚠️ জরুরি সরকারি প্রাণিসম্পদ ও ভেটেরিনারি রিপোর্টিং:
+হঠাৎ অধিক মৃত্যু দেখা দিলে অবিলম্বে নিকটস্থ উপজেলা প্রাণিসম্পদ কর্মকর্তা (ULO) বা নিবন্ধিত ভেটেরিনারি চিকিৎসককে জানান।`
+          : `ক্লিনিকাল মূল্যায়ন: সালমোনেলোসিস / ফাউল কলেরা ঝুঁকি (Salmonellosis / Fowl Cholera)
+
+সম্ভাব্য রোগ ও পূর্বাভাস:
+• প্রধান ঝুঁকি: ব্যাকটেরিয়াজনিত অন্ত্র ও রক্তের সংক্রমণ (সালমোনেলোসিস বা ফাউল কলেরা)
+• প্রধান লক্ষণ: সবুজ বা সাদা-চুনা পাতলা পায়খানা, ঝিমিয়ে পড়া, পানি বেশি খাওয়া ও হঠাৎ মৃত্যু।
+
+জরুরি সহায়ক পরিচর্যা প্রোটোকল:
+১. আক্রান্ত পাখি আলাদা করা: অসুস্থ পাখিকে দ্রুত সুস্থ পাল থেকে পৃথক করে পরিষ্কার ও শুকনো জায়গায় রাখুন।
+২. বিশুদ্ধ পানি ও ইলেকট্রোলাইট: খাবার পানির সাথে ওরাল স্যালাইন দিন এবং পানির পাত্র দিনে অন্তত ২ বার পরিষ্কার করে জীবাণুমুক্ত করুন।
+৩. লিটার ও জীবাণুনাশক: পায়খানায় ভেজা লিটার সরিয়ে ফেলুন এবং শেডের প্রবেশমুখে পটাশ বা ব্লিচিং ফুটবাথ ব্যবহার করুন।
+
+⚠️ জরুরি ভেটেরিনারি রেফারাল ও এএমআর (AMR) নোটিশ:
+খামারি মোডে এআই কোনো অ্যান্টিবায়োটিক বা ওষুধের ডোজ নির্ধারণ করে না। সঠিক ল্যাব পরীক্ষা ও বৈধ প্রেসক্রিপশনের জন্য নিবন্ধিত পশুচিকিৎসকের পরামর্শ নিন।`,
+        sources: getVerifiedVeterinarySources(matchedDisease),
+      }
+    }
     return {
       answer: `ক্লিনিকাল মূল্যায়ন ও ফ্লক স্বাস্থ্য পরামর্শ
 
@@ -609,6 +700,60 @@ Invasive surgical lancing or random antibiotic dosing without a licensed veterin
     }
   }
 
+  if (matchedDisease === 'pox') {
+    return {
+      answer: `Clinical Assessment: Fowl Pox
+
+Predicted Condition & Screening Profile:
+• Primary Risk: Avian Poxvirus (Cutaneous or Diphtheritic Fowl Pox)
+• Clinical Signs: Nodular scabs on comb, wattles, eyelids, and legs; wet pox causes yellow plaques inside the mouth and throat.
+• Secondary / Differential Conditions: Secondary bacterial skin infection and infectious coryza.
+
+Detailed Supportive Management Protocols:
+1. Immediate Isolation: Separate affected birds promptly from healthy flocks.
+2. Vector Control: Mosquitoes and biting insects spread fowl pox—install fine screening, remove standing water, and use safe vector control.
+3. Lesion Care: Do NOT peel scabs forcefully, as bleeding spreads virus; provide soft litter and water fortified with vitamins A, C, and electrolytes.
+4. Farm Biosecurity: Sanitize feeders and drinkers daily and discuss emergency wing-web vaccination of healthy flocks with your vet.
+
+⚠️ Veterinary Referral & AMR Notice:
+Viral disease. Consult a licensed poultry veterinarian before using any medications.`,
+      sources: getVerifiedVeterinarySources('fowl pox'),
+    }
+  }
+
+  if (matchedDisease === 'salmonella' || matchedDisease === 'influenza') {
+    return {
+      answer: matchedDisease === 'influenza'
+        ? `Clinical Assessment: High-Priority Respiratory / Avian Influenza Alert
+
+Predicted Condition & Screening Profile:
+• Primary Alert: Suspected Avian Influenza / Severe Newcastle Triage
+• Clinical Signs: Sudden cluster mortality, bluish-purple comb discoloration (cyanosis), facial edema, respiratory distress, and sharp drop in feed/water intake.
+
+Immediate Biosecurity & Containment Protocols:
+1. Strict Farm Lockdown: Halt all visitor access, outside transport, and inter-shed movement immediately.
+2. Protective Hygiene & Disposal: Wear gloves/boots when checking birds; bury mortalities deep with quicklime—never discard carcasses openly.
+3. Hydration & Isolation: Keep healthy sheds serviced with separate tools, fresh water, and oral electrolytes.
+
+⚠️ Mandatory Veterinary & DLS Notification:
+Report sudden high mortality immediately to your registered veterinarian or Upazila Livestock Officer (ULO).`
+        : `Clinical Assessment: Salmonellosis / Fowl Cholera Risk
+
+Predicted Condition & Screening Profile:
+• Primary Risk: Bacterial Enteric/Systemic Infection (Salmonellosis or Fowl Cholera)
+• Clinical Signs: Greenish or chalky white watery diarrhea, weakness, ruffled feathers, darkened/pale comb, and sudden deaths.
+
+Detailed Supportive Management Protocols:
+1. Flock Separation: Quarantine sick birds immediately in a warm, dry pen.
+2. Hydration & Sanitization: Provide clean drinking water with balanced electrolytes and scrub waterers/feeders daily with disinfectant.
+3. Litter & Footbaths: Replace soiled damp litter promptly and enforce disinfectant footbaths at shed doors.
+
+⚠️ Veterinary Referral & AMR Stewardship Notice:
+Automated AI does not prescribe antibiotics in Farmer Mode. Consult a licensed poultry veterinarian for culture/sensitivity testing and treatment.`,
+      sources: getVerifiedVeterinarySources(matchedDisease),
+    }
+  }
+
   return {
     answer: `Clinical Health Guidance: Avian Flock Assessment
 
@@ -679,6 +824,7 @@ export async function generateDiagnosticExplanation({
     const response = await sendChatMessage({
       messages: [{ role: 'user', content: prompt }],
       language: activeLanguage,
+      forceLanguage: activeLanguage,
       visualResult: { label: topDisease, confidence, predictions },
     })
 
@@ -697,6 +843,7 @@ export async function generateDiagnosticExplanation({
     query: symptoms,
     topDisease,
     language: activeLanguage,
+    forceLanguage: activeLanguage,
   })
 
   return {

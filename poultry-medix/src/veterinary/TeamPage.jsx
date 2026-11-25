@@ -142,9 +142,9 @@ export default function TeamPage() {
             <article className="team-member-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" key={member.id}>
               <MemberPhoto member={member} />
               <div className="team-member-details">
-                <span className="team-member-number">MEMBER {index + 1}</span>
+                <span className="team-member-number">{t('teamMemberNumber', { number: index + 1 })}</span>
                 <h3>{member.name}</h3>
-                <p className="team-member-role">{member.role}</p>
+                <p className="team-member-role">{t(`teamMemberRoles.${member.id}`, member.role)}</p>
                 {member.bioKey && <p className="team-member-bio">{t(member.bioKey)}</p>}
               </div>
             </article>

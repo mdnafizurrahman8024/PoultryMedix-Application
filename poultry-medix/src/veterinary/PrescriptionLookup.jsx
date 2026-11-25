@@ -58,7 +58,7 @@ export default function PrescriptionLookup({ hideDrugInfo = false, hideDose = fa
         {(drugInfoExpanded || alwaysShowDrugInfo) && (
           <div className="drug-info-accordion-content dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" id="drug-withdrawal-details">
             <p className="drug-info-source">
-              Illustrative mock analysis results; the attached file has not been read and the listed medicines are not verified.
+              {t('antibiotics.mockAnalysisNotice')}
             </p>
             {detectedDrugs.map((drug, index) => (
               <article className="drug-info-accordion drug-info-result-card is-expanded dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700" aria-labelledby={`drug-withdrawal-title-${index}`} key={drug.name}>
@@ -73,11 +73,11 @@ export default function PrescriptionLookup({ hideDrugInfo = false, hideDose = fa
                   <div className="withdrawal-guidelines">
                     <article className="withdrawal-local">
                       <strong>{t('localGuidelines')}</strong>
-                      <p>Meat: {drug.localMeat}, Eggs: {drug.localEggs}</p>
+                      <p>{t('meatShort', 'Meat')}: {drug.localMeat}, {t('eggShort', 'Eggs')}: {drug.localEggs}</p>
                     </article>
                     <article className="withdrawal-international">
                       <strong>{t('internationalGuidelines')}</strong>
-                      <p>Meat: {drug.intlMeat}, Eggs: {drug.intlEggs}</p>
+                      <p>{t('meatShort', 'Meat')}: {drug.intlMeat}, {t('eggShort', 'Eggs')}: {drug.intlEggs}</p>
                     </article>
                   </div>
                   <p className="drug-info-source">{t('verifyProductGuidance')}</p>
@@ -114,7 +114,7 @@ export default function PrescriptionLookup({ hideDrugInfo = false, hideDose = fa
             </form>
             {doseMg !== null && (
               <output className="dose-calculation" aria-live="polite">
-                {t('doseCalculated').replace('{amount}', formattedDose)}
+                {t('doseCalculated', { amount: formattedDose })}
               </output>
             )}
             <p className="dose-safety-warning">{t('doseSafety')}</p>

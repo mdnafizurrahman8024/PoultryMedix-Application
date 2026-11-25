@@ -644,23 +644,50 @@
     "Bogura": "Bogura",
     "Gazipur": "Gazipur",
     "Mymensingh": "Mymensingh",
-    "Cumilla": "Cumilla"
+    "Cumilla": "Cumilla",
+    "Dhaka": "Dhaka",
+    "Chattogram": "Chattogram",
+    "Sylhet": "Sylhet",
+    "Khulna": "Khulna",
+    "Rangpur": "Rangpur",
+    "Barishal": "Barishal",
+    "Cox's Bazar": "Cox's Bazar",
+    "Jashore": "Jashore",
+    "Dinajpur": "Dinajpur",
+    "Pabna": "Pabna",
+    "Tangail": "Tangail",
+    "Kishoreganj": "Kishoreganj",
+    "Faridpur": "Faridpur",
+    "Narayanganj": "Narayanganj",
+    "Brahmanbaria": "Brahmanbaria",
+    "Noakhali": "Noakhali",
+    "Sirajganj": "Sirajganj",
+    "Natore": "Natore",
+    "Kushtia": "Kushtia"
   },
   "diseases": {
     "Avian Influenza": "Avian Influenza",
     "Newcastle / Ranikhet": "Newcastle / Ranikhet",
     "Gumboro": "Gumboro",
-    "Coccidiosis": "Coccidiosis"
+    "Coccidiosis": "Coccidiosis",
+    "Infectious Coryza": "Infectious Coryza",
+    "CRD": "CRD",
+    "Bumblefoot": "Bumblefoot",
+    "Fowl Pox": "Fowl Pox",
+    "Salmonellosis": "Salmonellosis"
   },
   "risks": {
+    "Critical AMR risk": "Critical AMR risk",
     "High AMR risk": "High AMR risk",
     "Elevated AMR risk": "Elevated AMR risk",
-    "Moderate AMR risk": "Moderate AMR risk"
+    "Moderate AMR risk": "Moderate AMR risk",
+    "Low / Monitored AMR risk": "Low / Monitored AMR risk"
   },
   "severity": {
     "Critical": "Critical",
     "High": "High",
-    "Moderate": "Moderate"
+    "Moderate": "Moderate",
+    "Watch": "Watch"
   },
   "affectedFarms": "affected farms",
   "prescriptions": "prescriptions",
@@ -728,7 +755,7 @@
   "farmFlockPlaceholder": "Farm or flock name",
   "concernPlaceholder": "Briefly describe the concern",
   "mockPaymentMethod": "Mock payment method",
-  "paymentDemoNotice": "Demo only ? no charge, transaction, or payment credentials are collected.",
+  "paymentDemoNotice": "Demo only — no charge, transaction, or payment credentials are collected.",
   "confirmMockBooking": "Confirm mock booking",
   "consultationRoom": "Consultation room",
   "bookingReady": "Your mock booking is ready. Choose a call mode to open a demo call state.",
@@ -785,7 +812,7 @@
   "bankTransferDetail": "Debit, credit, or bank transfer",
   "mockBookingConfirmed": "Mock booking confirmed with {payment}. No payment was processed.",
   "mockBookingSaveFailed": "Mock booking confirmed with {payment}, but it could not be saved to history.",
-  "prescriptionSavedDevice": "Prescription saved to this device?s simulated Farmer Clinical History.",
+  "prescriptionSavedDevice": "Prescription saved to this device’s simulated Farmer Clinical History.",
   "prescriptionSaveError": "Could not save prescription: {message}",
   "birdTypes": {
     "Broiler": "Broiler",
@@ -808,5 +835,148 @@
     "Thrice daily": "Thrice daily",
     "Continuous in water": "Continuous in water",
     "As needed": "As needed"
+  },
+  "aboutUs": "About Us",
+  "privacySecurity": "Privacy & Security",
+  "fontStyleFamily": "Font style / family",
+  "fontDefaultSystem": "Default (System UI)",
+  "pointsEarnedToast": "+10 Points earned for your contribution!",
+  "remove": "Remove",
+  "whoAwareRatios": "WHO AWaRe Classification Ratios",
+  "allSurveillanceDistricts": "All Surveillance Districts",
+  "filteredByDistrict": "Filtered: {district}",
+  "clearFilterDistrict": "Clear Filter ({district})",
+  "liveLogsBadge": "+{count} live logs",
+  "liveBadge": "+{count} live",
+  "amrResistanceRisk": "AMR Resistance Risk",
+  "meatShort": "Meat",
+  "eggShort": "Egg",
+  "awareCategories": {
+    "Access": "Access",
+    "Watch": "Watch",
+    "Reserve": "Reserve"
+  },
+  "generationsMap": {
+    "Not recorded": "Not recorded",
+    "1st Gen": "1st Gen",
+    "2nd Gen": "2nd Gen",
+    "3rd Gen": "3rd Gen",
+    "4th Gen": "4th Gen",
+    "5th Gen": "5th Gen"
+  },
+  "dataHubTopicsMap": {
+    "Clinical Signs & Symptoms": "Clinical Signs & Symptoms",
+    "Post-mortem Findings": "Post-mortem Findings",
+    "Antibiotic Prescribing Patterns": "Antibiotic Prescribing Patterns",
+    "Treatment Failure & Drug Efficacy Logs": "Treatment Failure & Drug Efficacy Logs",
+    "Bacterial Culture & AST Results": "Bacterial Culture & AST Results",
+    "Farmer Self-Medication / OTC Usage": "Farmer Self-Medication / OTC Usage",
+    "Withdrawal Period Compliance": "Withdrawal Period Compliance"
+  },
+  "rxInvestigationsAdvice": "Investigations & advice",
+  "rxRecommendedTests": "Diagnostic tests recommended",
+  "rxRecommendedTestsPlaceholder": "Recommended tests",
+  "rxManagementAdvice": "Management & biosecurity advice",
+  "rxManagementAdvicePlaceholder": "Care, management, and biosecurity guidance",
+  "rxFollowUpDate": "Follow-up date",
+  "rxLivePreview": "Live print-ready preview",
+  "rxPreviewBadge": "PREVIEW",
+  "rxPadHeader": "POULTRY VETERINARY PRESCRIPTION",
+  "rxClinicDefault": "Veterinary Clinic",
+  "rxVetDefault": "Veterinarian name & degrees",
+  "rxRegPrefix": "Reg. No.",
+  "rxRegDefault": "Registration number",
+  "rxTitleUpper": "VETERINARY PRESCRIPTION",
+  "rxFarmerUpper": "FARMER",
+  "rxFarmDistrictUpper": "FARM / DISTRICT",
+  "rxBirdTypeUpper": "BIRD TYPE",
+  "rxAgeUpper": "AGE",
+  "rxFlockSizeUpper": "FLOCK SIZE",
+  "rxAvgWeightUpper": "AVERAGE WEIGHT",
+  "rxComplaintsHeading": "Chief complaints & symptoms",
+  "rxNoSymptoms": "No symptoms entered",
+  "rxDiagnosisHeading": "Diagnosis",
+  "rxNotEntered": "Not entered",
+  "rxMedicineNameDefault": "Medicine name",
+  "rxWithdrawalPrefix": "Withdrawal",
+  "rxFollowUpUpper": "FOLLOW-UP",
+  "rxDisclaimerFooter": "For veterinary use. Follow the veterinarian’s instructions and the approved product label.",
+  "rxSignatureDefault": "Veterinarian signature",
+  "rxSignatureSeal": "Signature & seal",
+  "rxSyncNote": "Saved on this device for this prototype; immediately synced to Farmer Clinical Log.",
+  "rxSelectVet": "Select Veterinarian",
+  "rxDistrict": "District",
+  "rxGenericName": "Generic Name",
+  "rxGenericPlaceholder": "e.g. Doxycycline",
+  "rxSendSaveToLog": "Send / Save to Farmer Clinical Log",
+  "rxSendToFarmerLog": "Send to Farmer’s Clinical Log",
+  "rxScheduledBookings": "Your Scheduled Vet Bookings",
+  "rxDoctorQueue": "Farmer Consultation Bookings (Doctor Queue)",
+  "rxBookingsCount": "{count} bookings",
+  "rxLoadIntoBuilder": "Load into Rx Builder",
+  "rxDoctorOnlyNote": "Note: Digital Prescription authoring and sending to Farmer Clinical Logs is restricted to Registered Veterinarians (Doctor Mode). Received prescriptions appear under Clinical Log → Prescriptions.",
+  "historyPredictionBreakdown": "Prediction Breakdown",
+  "historyAiClinicalGuidance": "AI Clinical Guidance & Biosecurity",
+  "historyConfidenceLabel": "Confidence",
+  "historyModalityImage": "Image Vision",
+  "historyModalityAudio": "Audio Cough",
+  "historyModalitySymptoms": "Clinical Symptoms",
+  "historyScheduledDateTime": "SCHEDULED DATE & TIME",
+  "historyVetClinicUpper": "VETERINARIAN & CLINIC",
+  "historyFarmerFarmUpper": "FARMER & FARM",
+  "historyFeePaymentUpper": "FEE & PAYMENT",
+  "historyVeterinarianUpper": "VETERINARIAN",
+  "historyFarmerFlockUpper": "FARMER & FLOCK",
+  "historyAdviceHeading": "Advice & Biosecurity Instructions",
+  "historyFollowUpHeading": "Follow-up Date",
+  "teamMemberRoles": {
+    "sojib": "Intern Doctor, AMR Researcher, Field Data Collector, Database & Information Collector, Data Management & Validation, Research Documentation, Application Development Support.",
+    "fathynul": "Veterinary Student, AMR Researcher, Field Data Collector, Database & Information Collector, Data Management & Validation, Research Documentation, Application Development Support.",
+    "tika": "Veterinary Student, AMR Researcher, Field Data Collector, Database & Information Collector, Data Management & Validation, Research Documentation, Application Development Support.",
+    "afia-anjum-eisha": "Dedicated and compassionate third-year Doctor of Veterinary Medicine (DVM) student at University of Rajshahi. Operational proficiency assisting in small animal clinical settings, emergency triage, and basic diagnostic procedures."
+  },
+  "privacyPolicyContent": {
+    "title": "Privacy & Security",
+    "subtitle": "PoultryMedix: Privacy, Security, and Terms of Use Policy",
+    "sections": [
+      {
+        "heading": "1. App Ownership and Intellectual Property",
+        "body": "PoultryMedix is an independent digital veterinary health platform integrating modern data analytics with poultry medicine. All intellectual property, algorithms, and design are protected under applicable copyright laws."
+      },
+      {
+        "heading": "2. Medical Disclaimer & Telemedicine Ethics",
+        "bullets": [
+          "Not a Substitute for Clinical Diagnosis: Smart Diagnosis provides preliminary triage guidance and never replaces an in-person veterinary examination.",
+          "Prescription & Treatment: In compliance with the Bangladesh Veterinary Council (BVC) and international telehealth standards, final prescriptions and antimicrobial usage must be authorized by a registered veterinarian.",
+          "Dose & Withdrawal Safety: Always verify drug doses, meat withdrawal days, and egg withdrawal periods against approved labels and local veterinary authority regulations."
+        ]
+      },
+      {
+        "heading": "3. Data Collection and Informed Consent",
+        "bullets": [
+          "Farm & Flock Information: District/upazila location (for outbreak tracking), flock species, bird count, and reported symptoms.",
+          "Media Inputs: Uploaded flock photos, respiratory audio notes, and prescription files used during AI triage and analysis.",
+          "Profile Preferences: Selected role (Farmer, Vet Student, or Registered Veterinarian) to tailor workspace tools."
+        ]
+      },
+      {
+        "heading": "4. Academic Research & One Health Stewardship",
+        "bullets": [
+          "Research Consent: Anonymized clinical and antibiotic surveillance records contribute to epidemiological research and antimicrobial stewardship.",
+          "Anonymity: De-identified data only; personal farmer details are never published or sold to pharmaceutical or marketing parties."
+        ]
+      },
+      {
+        "heading": "5. Privacy, Data Security, and Storage",
+        "bullets": [
+          "Encrypted Channels: Data transfers use HTTPS encryption, with local device storage for offline flock, shed, and vaccine tracking.",
+          "Third-Party APIs: Weather and map tile providers receive only the minimum geographic coordinates needed to render local weather and maps."
+        ]
+      },
+      {
+        "heading": "6. User Rights and Policy Updates",
+        "body": "You may request deletion of personal profile data at any time. Previously de-identified aggregate statistics remain part of epidemiological summaries. Significant updates are communicated directly through the dashboard."
+      }
+    ]
   }
 }

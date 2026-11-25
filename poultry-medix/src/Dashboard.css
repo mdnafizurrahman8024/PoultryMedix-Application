@@ -472,7 +472,8 @@
   border-radius: 9999px;
   text-transform: uppercase;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   line-height: 1.3;
   text-align: left;
 }
@@ -633,7 +634,8 @@
   font-size: 10px;
   font-weight: 700;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
   line-height: 1.35;
   text-align: left;
 }
@@ -831,12 +833,13 @@ html[data-theme="dark"] .row-banned {
 .diagnosis-withdrawal-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 10010;
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(15, 23, 42, 0.36);
-  backdrop-filter: blur(8px);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .diagnosis-report-modal-backdrop {
@@ -2604,14 +2607,15 @@ html[data-theme="dark"] .mobile-profile-control {
 
 .modal-backdrop {
   position: fixed;
-  z-index: 40;
+  z-index: 10020;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background: rgba(23, 39, 27, 0.46);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   animation: modal-backdrop-enter 180ms ease both;
 }
 
@@ -5073,7 +5077,8 @@ html[data-theme="dark"] .mobile-profile-control {
   .veterinary-page article {
     min-width: 0;
     max-width: 100%;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
 
   .dashboard-content p,
@@ -5084,7 +5089,6 @@ html[data-theme="dark"] .mobile-profile-control {
   .dashboard-content span,
   .dashboard-content strong,
   .dashboard-content small,
-  .dashboard-content a,
   .veterinary-page p,
   .veterinary-page h1,
   .veterinary-page h2,
@@ -5092,7 +5096,12 @@ html[data-theme="dark"] .mobile-profile-control {
   .veterinary-page h4,
   .veterinary-page span,
   .veterinary-page strong,
-  .veterinary-page small,
+  .veterinary-page small {
+    overflow-wrap: break-word;
+    word-break: normal;
+  }
+
+  .dashboard-content a,
   .veterinary-page a {
     overflow-wrap: anywhere;
   }

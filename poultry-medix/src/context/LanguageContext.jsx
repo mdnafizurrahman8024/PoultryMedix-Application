@@ -4,8 +4,20 @@ import i18n, { languageStorageKey, supportedLanguages } from '../i18n.js'
 import { LanguageContext } from './language-context.js'
 
 export function LanguageProvider({ children }) {
-  const { t } = useTranslation()
+  const { t: rawT } = useTranslation()
   const language = i18n.resolvedLanguage || i18n.language
+
+  const t = useCallback((key, options) => {
+    const translated = rawT(key, options)
+    if (!options || typeof options !== 'object' || typeof translated !== 'string') {
+      return translated
+    }
+    return translated.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, token) => (
+      Object.prototype.hasOwnProperty.call(options, token) && options[token] !== undefined
+        ? String(options[token])
+        : match
+    ))
+  }, [rawT])
 
   const setLanguage = useCallback((nextLanguage) => {
     if (!supportedLanguages.includes(nextLanguage)) return

@@ -321,7 +321,7 @@ export default function DataHub({ onContributionSubmitted }) {
         <label className="veterinary-field">
           <span>{t('dataHubTopic')}</span>
           <select value={topic} onChange={(event) => setTopic(event.target.value)}>
-            {dataHubTopics.map((value) => <option value={value} key={value}>{value}</option>)}
+            {dataHubTopics.map((value) => <option value={value} key={value}>{t(`dataHubTopicsMap.${value}`, value)}</option>)}
           </select>
         </label>
 
@@ -446,7 +446,7 @@ export default function DataHub({ onContributionSubmitted }) {
             <div className="data-hub-field-grid">
               <label className="veterinary-field"><span>{t('dataHubDrugClass')}</span><input maxLength={120} value={antibioticClass} onChange={(event) => setAntibioticClass(event.target.value)} placeholder={t('dataHubDrugClassPlaceholder')} /></label>
               <label className="veterinary-field"><span>{t('dataHubDrugName')}</span><input maxLength={120} value={antibioticName} onChange={(event) => setAntibioticName(event.target.value)} placeholder={t('dataHubDrugNamePlaceholder')} /></label>
-              <label className="veterinary-field"><span>{t('dataHubGeneration')}</span><select value={generation} onChange={(event) => setGeneration(event.target.value)}>{generationOptions.map((value) => <option key={value}>{value}</option>)}</select></label>
+              <label className="veterinary-field"><span>{t('dataHubGeneration')}</span><select value={generation} onChange={(event) => setGeneration(event.target.value)}>{generationOptions.map((value) => <option key={value} value={value}>{t(`generationsMap.${value}`, value)}</option>)}</select></label>
             </div>
           </section>
         )}
@@ -518,7 +518,7 @@ export default function DataHub({ onContributionSubmitted }) {
         <div className="veterinary-section-heading"><span className="veterinary-section-icon"><Icon name="chart" size={18} /></span><div><h2 id="recent-contributions-title">{t('recentContributions')}</h2><p>{t('recentContributionsPrivacy')}</p></div></div>
         {loadingHistory ? <p className="veterinary-hint">{t('dataHubHistoryLoading')}</p> : historyError ? <p className="veterinary-error" role="alert">{historyError}</p> : submissions.length === 0 ? <p className="veterinary-hint">{t('dataHubHistoryEmpty')}</p> : (
           <ul className="contribution-list">{submissions.map((submission) => (
-            <li key={submission.id}><span><strong>{submission.topic}</strong><small>{new Date(submission.created_at).toLocaleDateString()}</small></span><span className={`submission-status submission-status--${submission.status}`}>{t(`submission_${submission.status}`)}</span></li>
+            <li key={submission.id}><span><strong>{t(`dataHubTopicsMap.${submission.topic}`, submission.topic)}</strong><small>{new Date(submission.created_at).toLocaleDateString()}</small></span><span className={`submission-status submission-status--${submission.status}`}>{t(`submission_${submission.status}`)}</span></li>
           ))}</ul>
         )}
       </section>

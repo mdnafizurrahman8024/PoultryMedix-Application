@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from './lib/supabase.js'
 import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription, canonicalDiseaseName } from './lib/ai.js'
 import { BANGLADESH_POULTRY_DRUG_DATABASE } from './lib/prescriptionRAG.js'
 import { saveDiagnosisLog, savePrescriptionLog } from './lib/clinicalLogsStore.js'
-import { generateDiagnosticExplanation, REPORT_AI_FALLBACK_NOTE } from './lib/aiServiceAdapter.js'
+import { generateDiagnosticExplanation, getReportAiFallbackNote } from './lib/aiServiceAdapter.js'
 import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
@@ -89,6 +90,20 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
   const [, setClinicalLogs] = useState([])
   const [reportModalOpen, setReportModalOpen] = useState(false)
   const [currentReport, setCurrentReport] = useState(null)
+
+  useEffect(() => {
+    if (!reportModalOpen) return undefined
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setReportModalOpen(false)
+    }
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [reportModalOpen])
   const modalOpenedAtRef = useRef(0)
   const [prescriptionLoading, setPrescriptionLoading] = useState(false)
   const [prescriptionError, setPrescriptionError] = useState('')
@@ -965,7 +980,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
         )}
       </section>
 
-      {reportModalOpen && currentReport && (
+      {reportModalOpen && currentReport && createPortal(
         <div
           className="diagnosis-report-modal-backdrop"
           role="presentation"
@@ -1095,7 +1110,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
                     <p style={{ margin: 0 }}>{currentReport.explanation}</p>
                     {currentReport.explanationFallback && (
                       <p style={{ margin: '6px 0 0', fontWeight: 600, color: '#b45309' }}>
-                        {REPORT_AI_FALLBACK_NOTE}
+                        {getReportAiFallbackNote(language)}
                       </p>
                     )}
                   </div>
@@ -1155,7 +1170,8 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
               </button>
             </div>
           </section>
-        </div>
+        </div>,
+        document.body
       )}
 
 

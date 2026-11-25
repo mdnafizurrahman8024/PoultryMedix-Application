@@ -32,7 +32,8 @@ import {
 } from '../lib/vaccineManager.js'
 import './VaccineScheduleTracker.css'
 
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const WEEKDAYS_BN = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহঃ', 'শুক্র', 'শনি']
 
 function statusMeta(status, isBn) {
   switch (status) {
@@ -281,9 +282,11 @@ export default function VaccineScheduleTracker({ isOpen, onToggle }) {
                   <div className="vaccine-alarm-meta">
                     <span className="shed-serial-num">#{alarm.shedSerial}</span>
                     <strong>{alarm.shedName}</strong>
-                    <span className="shed-species-pill">{alarm.species}</span>
+                    <span className="shed-species-pill">
+                      {isBn ? SHED_SPECIES.find((sp) => sp.id === alarm.species)?.labelBn || alarm.species : alarm.species}
+                    </span>
                     <span>→ <strong>{isBn ? alarm.nameBn : alarm.name}</strong> ({isBn ? alarm.routeBn : alarm.route})</span>
-                    {alarm.isBooster && <span className="vaccine-booster-badge">BOOSTER</span>}
+                    {alarm.isBooster && <span className="vaccine-booster-badge">{isBn ? 'বুস্টার' : 'BOOSTER'}</span>}
                     <span className={`vaccine-status-pill ${meta.pillClass}`}>{meta.label}</span>
                   </div>
 
@@ -353,16 +356,19 @@ export default function VaccineScheduleTracker({ isOpen, onToggle }) {
             >
               {isBn ? `সব শেড (${sheds.length})` : `All Sheds (${sheds.length})`}
             </button>
-            {sheds.map((shed) => (
-              <button
-                type="button"
-                key={shed.id}
-                className={`vaccine-filter-pill${selectedShedFilter === shed.id ? ' is-active' : ''}`}
-                onClick={() => setSelectedShedFilter(shed.id)}
-              >
-                #{shed.serialNumber} {shed.name} ({shed.species})
-              </button>
-            ))}
+            {sheds.map((shed) => {
+              const speciesObj = SHED_SPECIES.find((s) => s.id === shed.species)
+              return (
+                <button
+                  type="button"
+                  key={shed.id}
+                  className={`vaccine-filter-pill${selectedShedFilter === shed.id ? ' is-active' : ''}`}
+                  onClick={() => setSelectedShedFilter(shed.id)}
+                >
+                  #{shed.serialNumber} {shed.name} ({isBn ? speciesObj?.labelBn || shed.species : shed.species})
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
@@ -434,7 +440,7 @@ export default function VaccineScheduleTracker({ isOpen, onToggle }) {
                               <span className="vaccine-row-title">
                                 {item.dayLabel}: {isBn ? item.nameBn : item.name}
                               </span>
-                              {item.isBooster && <span className="vaccine-booster-badge">BOOSTER</span>}
+                              {item.isBooster && <span className="vaccine-booster-badge">{isBn ? 'বুস্টার' : 'BOOSTER'}</span>}
                             </div>
                             <div className="vaccine-row-sub">
                               <span>{isBn ? 'প্রয়োগ পদ্ধতি:' : 'Route:'} <strong>{isBn ? item.routeBn : item.route}</strong></span>
@@ -564,7 +570,7 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
               {isBn ? 'মাল্টি-শেড ভ্যাকসিন ক্যালেন্ডার' : 'Multi-Shed Vaccine Schedule Calendar'}
             </h2>
           </div>
-          <button type="button" className="vaccine-calendar-close" aria-label="Close calendar" onClick={onClose}>
+          <button type="button" className="vaccine-calendar-close" aria-label={isBn ? 'ক্যালেন্ডার বন্ধ করুন' : 'Close calendar'} onClick={onClose}>
             <X size={18} />
           </button>
         </header>
@@ -577,7 +583,7 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
                 type="button"
                 className="vaccine-btn vaccine-btn--small"
                 onClick={() => setCursorDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
-                aria-label="Previous month"
+                aria-label={isBn ? 'পূর্ববর্তী মাস' : 'Previous month'}
               >
                 <ChevronLeft size={14} />
               </button>
@@ -586,7 +592,7 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
                 type="button"
                 className="vaccine-btn vaccine-btn--small"
                 onClick={() => setCursorDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
-                aria-label="Next month"
+                aria-label={isBn ? 'পরবর্তী মাস' : 'Next month'}
               >
                 <ChevronRight size={14} />
               </button>
@@ -604,13 +610,16 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
             </div>
 
             <label className="shed-field" style={{ flex: '0 1 220px' }}>
-              <select value={shedFilter} onChange={(e) => setShedFilter(e.target.value)} aria-label="Select shed calendar filter">
+              <select value={shedFilter} onChange={(e) => setShedFilter(e.target.value)} aria-label={isBn ? 'শেড ক্যালেন্ডার ফিল্টার' : 'Select shed calendar filter'}>
                 <option value="all">{isBn ? `সব শেড (${sheds.length})` : `All Sheds (${sheds.length})`}</option>
-                {sheds.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    #{s.serialNumber} {s.name} ({s.species})
-                  </option>
-                ))}
+                {sheds.map((s) => {
+                  const sObj = SHED_SPECIES.find((sp) => sp.id === s.species)
+                  return (
+                    <option key={s.id} value={s.id}>
+                      #{s.serialNumber} {s.name} ({isBn ? sObj?.labelBn || s.species : s.species})
+                    </option>
+                  )
+                })}
               </select>
             </label>
           </div>
@@ -623,7 +632,7 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
             </span>
             <span className="vaccine-legend-item">
               <span className="vaccine-legend-dot" style={{ background: '#9333ea' }} />
-              {isBn ? 'বুস্টার (BOOSTER)' : 'Booster'}
+              {isBn ? 'বুস্টার' : 'Booster'}
             </span>
             <span className="vaccine-legend-item">
               <span className="vaccine-legend-dot" style={{ background: '#dc2626' }} />
@@ -641,7 +650,7 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
 
           {/* Monthly Calendar Grid */}
           <div className="vaccine-calendar-grid">
-            {WEEKDAYS.map((day) => (
+            {(isBn ? WEEKDAYS_BN : WEEKDAYS_EN).map((day) => (
               <div className="vaccine-weekday-head" key={day}>{day}</div>
             ))}
 
@@ -660,9 +669,9 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
                       <span
                         key={ev.recordKey}
                         className={`vaccine-cal-chip ${meta.chipClass}`}
-                        title={`#${ev.shedSerial} ${ev.shedName}: ${ev.name}`}
+                        title={`#${ev.shedSerial} ${ev.shedName}: ${isBn ? ev.nameBn : ev.name}`}
                       >
-                        {ev.isCompleted ? '✓ ' : ev.isBooster ? 'BOOSTER ' : ''}
+                        {ev.isCompleted ? '✓ ' : ev.isBooster ? (isBn ? 'বুস্টার ' : 'BOOSTER ') : ''}
                         #{ev.shedSerial}
                       </span>
                     )
@@ -696,9 +705,11 @@ function VaccineCalendarModal({ sheds, completedMap, initialFilter, isBn, onTogg
                         <div className="vaccine-row-title-line">
                           <span className="shed-serial-num">#{ev.shedSerial}</span>
                           <strong>{ev.shedName}</strong>
-                          <span className="shed-species-pill">{ev.species}</span>
+                          <span className="shed-species-pill">
+                            {isBn ? SHED_SPECIES.find((sp) => sp.id === ev.species)?.labelBn || ev.species : ev.species}
+                          </span>
                           <span className="vaccine-row-title">{isBn ? ev.nameBn : ev.name}</span>
-                          {ev.isBooster && <span className="vaccine-booster-badge">BOOSTER</span>}
+                          {ev.isBooster && <span className="vaccine-booster-badge">{isBn ? 'বুস্টার' : 'BOOSTER'}</span>}
                         </div>
                         <div className="vaccine-row-sub">
                           {ev.dayLabel} · {isBn ? 'পদ্ধতি:' : 'Route:'} <strong>{isBn ? ev.routeBn : ev.route}</strong> · {meta.label}

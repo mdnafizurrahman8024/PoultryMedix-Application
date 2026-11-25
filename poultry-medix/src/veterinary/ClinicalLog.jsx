@@ -638,11 +638,11 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
   if (isPrescription) {
     const meds = Array.isArray(record.medications) ? record.medications : []
     const medNames = meds.map((m) => m.tradeName || m.name).filter(Boolean).slice(0, 3).join(', ')
-    title = record.diagnosis || (meds[0]?.tradeName ? `Prescription: ${meds[0].tradeName}` : 'Prescription Record')
+    title = record.diagnosis || (meds[0]?.tradeName ? `${language === 'bn' ? 'প্রেসক্রিপশন' : 'Prescription'}: ${meds[0].tradeName}` : t('historyPrescriptionTitle'))
     subtitle = [
-      record.vetName || (isVetIssued ? 'Dr. Sarah Ahmed, DVM' : 'Prescription Scan'),
-      record.farmerName && `Farmer: ${record.farmerName}`,
-      meds.length ? `${meds.length} med${meds.length > 1 ? 's' : ''}: ${medNames}` : '',
+      record.vetName || (isVetIssued ? 'Dr. Sarah Ahmed, DVM' : (language === 'bn' ? 'প্রেসক্রিপশন স্ক্যান' : 'Prescription Scan')),
+      record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
+      meds.length ? `${meds.length} ${t('historyMedicationCount')}: ${medNames}` : '',
     ].filter(Boolean).join(' · ')
     typeLabel = isVetIssued
       ? (language === 'bn' ? '👨‍⚕️ ডাক্তার প্রেরিত প্রেসক্রিপশন' : '👨‍⚕️ Doctor Prescription')
@@ -651,16 +651,16 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
     if (meds[0]) {
       rightMetric = (
         <span className="history-metric-pill withdrawal">
-          Meat: {meds[0].meatWithdrawalDays || meds[0].withdrawal || '7 days'}
+          {t('meatShort', 'Meat')}: {meds[0].meatWithdrawalDays || meds[0].withdrawal || '7 days'}
         </span>
       )
     }
   } else if (isDiagnosis) {
-    title = record.primaryDisease || 'Clinical Screening'
+    title = record.primaryDisease || t('historyDiagnosisLabel')
     subtitle = record.guidanceSummary
       ? record.guidanceSummary.replace(/\s+/g, ' ').slice(0, 120) + (record.guidanceSummary.length > 120 ? '…' : '')
-      : `Modalities: ${(record.inputModalities || ['text']).join(', ')}`
-    typeLabel = language === 'bn' ? '🔬 স্মার্ট ডায়াগনোসিস' : '🔬 Smart Diagnosis'
+      : (record.inputModalities || ['text']).join(', ')
+    typeLabel = language === 'bn' ? '🔬 স্মার্ট ডায়াগনোসিস' : '🔬 Smart Diagnosis'
     badgeClass = 'diagnosis'
     if (record.confidencePercent) {
       rightMetric = (
@@ -677,19 +677,19 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
 
     if (record.displayAsPayment) {
       title = `${safeText(record.vetName, t('historyVetNotAssigned'))} — ৳ ${Number(record.amount) || 500}`
-      subtitle = `${record.paymentMethodLabel || record.paymentMethod || 'bKash'} · ${bookingDate || ''} ${bookingTime || ''} · ${record.farmerName || 'Farmer'}`
+      subtitle = `${record.paymentMethodLabel || record.paymentMethod || 'bKash'} · ${bookingDate || ''} ${bookingTime || ''} · ${record.farmerName || t('farmer')}`
       typeLabel = language === 'bn' ? '💳 পেমেন্ট রেকর্ড' : '💳 Payment Record'
       badgeClass = 'vet'
       rightMetric = (
         <span className="history-metric-pill confidence">
-          {record.paymentStatus || 'Paid'}
+          {record.paymentStatus || (language === 'bn' ? 'পরিশোধিত' : 'Paid')}
         </span>
       )
     } else {
       title = safeText(record.vetName, t('historyVetNotAssigned'))
       subtitle = [
         bookingDate && `📅 ${bookingDate} ${bookingTime ? `⏰ ${bookingTime}` : ''}`,
-        record.farmerName && `Farmer: ${record.farmerName}`,
+        record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
         record.concern,
       ].filter(Boolean).join(' · ')
       typeLabel = language === 'bn' ? '🩺 ভেট কনসালটেশন' : '🩺 Vet Booking'
@@ -707,7 +707,7 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
     subtitle = lastReply
       ? lastReply.replace(/\s+/g, ' ').slice(0, 115) + (lastReply.length > 115 ? '…' : '')
       : t('historyNoDetails')
-    typeLabel = language === 'bn' ? '💬 AI চ্যাট' : '💬 AI Chat'
+    typeLabel = language === 'bn' ? '💬 এআই চ্যাট' : '💬 AI Chat'
     badgeClass = 'diagnosis'
     rightMetric = (
       <span className="history-metric-pill" style={{ background: '#e0f2fe', color: '#0369a1' }}>
@@ -737,7 +737,7 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
           {!isChat && (
             <span className="history-badge-district dark:bg-gray-900 dark:text-emerald-400">
               <MapPin size={12} />
-              {district}
+              {t(`districts.${district}`, district)}
             </span>
           )}
           <span className={`history-badge-type ${badgeClass} dark:bg-gray-900`}>
@@ -876,14 +876,14 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
                 <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>VETERINARIAN</small>
-                  <strong className="dark:text-white">{record.vetName || 'Registered Veterinarian'}</strong>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyVeterinarianUpper')}</small>
+                  <strong className="dark:text-white">{record.vetName || t('historyVeterinarian')}</strong>
                   <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>{record.bvcRegNo || 'BVC-REG-10492'}</div>
                 </div>
                 <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>FARMER &amp; FLOCK</small>
-                  <strong className="dark:text-white">{record.farmerName || 'Registered Farmer'}</strong>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>📍 {record.district || 'Rajshahi'} · {record.flockType || 'Broiler'}</div>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFarmerFlockUpper')}</small>
+                  <strong className="dark:text-white">{record.farmerName || t('farmer')}</strong>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>📍 {t(`districts.${record.district || 'Rajshahi'}`, record.district || 'Rajshahi')} · {t(`birdTypes.${record.flockType || 'Broiler'}`, record.flockType || 'Broiler')}</div>
                 </div>
               </div>
 
@@ -896,29 +896,29 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                       {item.genericName && <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '6px' }}>({item.genericName})</span>}
                     </div>
                     <span className="prescription-status-pill is-approved" style={{ fontSize: '10px' }}>
-                      {item.antibioticClass || 'Antimicrobial'}
+                      {item.antibioticClass || t('antibioticBadge')}
                     </span>
                   </div>
                   <p style={{ margin: '4px 0', fontSize: '12px' }}>
                     {[item.formulation, item.dosage, item.frequency, item.duration].filter(Boolean).join(' · ')}
                   </p>
                   <div style={{ display: 'flex', gap: '8px', marginTop: '6px', flexWrap: 'wrap' }}>
-                    <span className="badge-pill meat">Meat: {item.meatWithdrawalDays || item.withdrawal || '7 days'}</span>
-                    <span className="badge-pill egg">Eggs: {item.eggWithdrawalDays || 'Not for layers'}</span>
+                    <span className="badge-pill meat">{t('meatShort', 'Meat')}: {item.meatWithdrawalDays || item.withdrawal || '7 days'}</span>
+                    <span className="badge-pill egg">{t('eggShort', 'Eggs')}: {item.eggWithdrawalDays || (language === 'bn' ? 'লেয়ারের জন্য নয়' : 'Not for layers')}</span>
                   </div>
                 </article>
               ))}
 
               {(record.advice || record.transcription) && (
                 <div style={{ padding: '10px 14px', background: '#fafafa', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
-                  <strong style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>Advice &amp; Biosecurity Instructions:</strong>
+                  <strong style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>{t('historyAdviceHeading')}:</strong>
                   <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5 }}>{record.advice || record.transcription}</p>
                 </div>
               )}
 
               {record.followUpDate && (
                 <p style={{ fontSize: '12px', color: '#1d4ed8' }}>
-                  <strong>Follow-up Date:</strong> {record.followUpDate}
+                  <strong>{t('historyFollowUpHeading')}:</strong> {record.followUpDate}
                 </p>
               )}
             </>
@@ -928,17 +928,17 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
           {isDiagnosis && (
             <>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-                <span className="history-metric-pill confidence">Confidence: {record.confidencePercent || '—'}</span>
+                <span className="history-metric-pill confidence">{t('historyConfidenceLabel')}: {record.confidencePercent || '—'}</span>
                 {(record.inputModalities || []).map((mod) => (
                   <span key={mod} className="history-modality-pill dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">
-                    {mod === 'image' ? '🖼️ Image Vision' : mod === 'audio' ? '🎤 Audio Cough' : '📝 Clinical Symptoms'}
+                    {mod === 'image' ? `🖼️ ${t('historyModalityImage')}` : mod === 'audio' ? `🎤 ${t('historyModalityAudio')}` : `📝 ${t('historyModalitySymptoms')}`}
                   </span>
                 ))}
               </div>
 
               {Array.isArray(record.breakdown) && record.breakdown.length > 0 && (
                 <div>
-                  <h3>Prediction Breakdown</h3>
+                  <h3>{t('historyPredictionBreakdown')}</h3>
                   <div style={{ display: 'grid', gap: '6px', marginTop: '6px' }}>
                     {record.breakdown.slice(0, 6).map((b, idx) => (
                       <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 10px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
@@ -951,8 +951,8 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
               )}
 
               <div>
-                <h3>AI Clinical Guidance &amp; Biosecurity</h3>
-                <p style={{ marginTop: '6px', whiteSpace: 'pre-wrap' }}>{record.guidanceSummary || 'Consult a licensed veterinarian for clinical diagnosis.'}</p>
+                <h3>{t('historyAiClinicalGuidance')}</h3>
+                <p style={{ marginTop: '6px', whiteSpace: 'pre-wrap' }}>{record.guidanceSummary || t('veterinarySafetyDisclaimer')}</p>
               </div>
             </>
           )}
@@ -962,29 +962,29 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
             <>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
                 <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>SCHEDULED DATE &amp; TIME</small>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyScheduledDateTime')}</small>
                   <strong className="dark:text-white">{record.bookingDate || record.date || '—'} · {record.bookingTime || record.time || '—'}</strong>
                 </div>
                 <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>VETERINARIAN &amp; CLINIC</small>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyVetClinicUpper')}</small>
                   <strong className="dark:text-white">{record.vetName || 'Dr. Sarah Ahmed, DVM'}</strong>
                   <div style={{ fontSize: '11px', color: '#047857' }}>{record.clinicDetails || 'PoultryMedix Veterinary Care'}</div>
                 </div>
                 <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>FARMER &amp; FARM</small>
-                  <strong className="dark:text-white">{record.farmerName || 'Registered Farmer'}</strong>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>{record.farmName || 'Poultry Farm'} · {record.district || 'Rajshahi'}</div>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFarmerFarmUpper')}</small>
+                  <strong className="dark:text-white">{record.farmerName || t('farmer')}</strong>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>{record.farmName || t('farmName')} · {t(`districts.${record.district || 'Rajshahi'}`, record.district || 'Rajshahi')}</div>
                 </div>
                 <div>
-                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>FEE &amp; PAYMENT</small>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFeePaymentUpper')}</small>
                   <strong className="dark:text-white">৳ {Number(record.amount) || 500} ({record.paymentMethodLabel || record.paymentMethod || 'bKash'})</strong>
-                  <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>{record.paymentStatus || 'Confirmed'}</div>
+                  <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>{record.paymentStatus || t('historyBookingConfirmed')}</div>
                 </div>
               </div>
 
               <div>
-                <h3>{t('historyConsultationConcern') || 'Clinical Concern'}</h3>
-                <p style={{ marginTop: '4px' }}>{record.concern || 'General poultry consultation'}</p>
+                <h3>{t('historyConsultationConcern')}</h3>
+                <p style={{ marginTop: '4px' }}>{record.concern || t('historyNoDetails')}</p>
               </div>
             </>
           )}

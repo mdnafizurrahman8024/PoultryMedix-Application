@@ -461,8 +461,8 @@
   "birdTypeDual": "দ্বৈত উদ্দেশ্য",
   "birdAge": "পাখির বয়স",
   "birdAgeUnit": "বয়সের একক",
-  "days": "Days",
-  "weeks": "Weeks",
+  "days": "দিন",
+  "weeks": "সপ্তাহ",
   "speciesBreed": "প্রজাতি ও জাত",
   "sex": "লিঙ্গ",
   "male": "পুরুষ",
@@ -647,26 +647,53 @@
     "Bogura": "বগুড়া",
     "Gazipur": "গাজীপুর",
     "Mymensingh": "ময়মনসিংহ",
-    "Cumilla": "কুমিল্লা"
+    "Cumilla": "কুমিল্লা",
+    "Dhaka": "ঢাকা",
+    "Chattogram": "চট্টগ্রাম",
+    "Sylhet": "সিলেট",
+    "Khulna": "খুলনা",
+    "Rangpur": "রংপুর",
+    "Barishal": "বরিশাল",
+    "Cox's Bazar": "কক্সবাজার",
+    "Jashore": "যশোর",
+    "Dinajpur": "দিনাজপুর",
+    "Pabna": "পাবনা",
+    "Tangail": "টাঙ্গাইল",
+    "Kishoreganj": "কিশোরগঞ্জ",
+    "Faridpur": "ফরিদপুর",
+    "Narayanganj": "নারায়ণগঞ্জ",
+    "Brahmanbaria": "ব্রাহ্মণবাড়িয়া",
+    "Noakhali": "নোয়াখালী",
+    "Sirajganj": "সিরাজগঞ্জ",
+    "Natore": "নাটোর",
+    "Kushtia": "কুষ্টিয়া"
   },
   "diseases": {
-    "Avian Influenza": "এভিয়ান ইনফ্লুয়েঞ্জা",
-    "Newcastle / Ranikhet": "নিউক্যাসল / রানীক্ষেত",
-    "Gumboro": "গামবোরো",
-    "Coccidiosis": "কক্সিডিওসিস"
+    "Avian Influenza": "এভিয়ান ইনফ্লুয়েঞ্জা (বার্ড ফ্লু)",
+    "Newcastle / Ranikhet": "রানীক্ষেত (নিউক্যাসল)",
+    "Gumboro": "গামবোরো (IBD)",
+    "Coccidiosis": "রক্ত আমাশয় (কক্সিডিওসিস)",
+    "Infectious Coryza": "ইনফেকশাস করাইজা (চোখ-মুখ ফোলা)",
+    "CRD": "সিআরডি (সংক্রামক সর্দি-কাশি)",
+    "Bumblefoot": "বাম্বলফুট (পায়ে ঘা)",
+    "Fowl Pox": "ফাউল পক্স (মুরগির বসন্ত)",
+    "Salmonellosis": "সালমোনেলোসিস"
   },
   "risks": {
+    "Critical AMR risk": "অতি উচ্চ এএমআর ঝুঁকি",
     "High AMR risk": "উচ্চ এএমআর ঝুঁকি",
     "Elevated AMR risk": "বর্ধিত এএমআর ঝুঁকি",
-    "Moderate AMR risk": "মাঝারি এএমআর ঝুঁকি"
+    "Moderate AMR risk": "মাঝারি এএমআর ঝুঁকি",
+    "Low / Monitored AMR risk": "কম / পর্যবেক্ষণাধীন এএমআর ঝুঁকি"
   },
   "severity": {
-    "Critical": "সংকটাপন্ন",
-    "High": "উচ্চ",
-    "Moderate": "মাঝারি"
+    "Critical": "জরুরি সংকট",
+    "High": "উচ্চ ঝুঁকি",
+    "Moderate": "মাঝারি ঝুঁকি",
+    "Watch": "পর্যবেক্ষণ"
   },
   "affectedFarms": "আক্রান্ত খামার",
-  "prescriptions": "prescriptions",
+  "prescriptions": "টি প্রেসক্রিপশন",
   "currentLocation": "আপনার বর্তমান অবস্থান",
   "antibiotics": {
     "classes": {
@@ -674,6 +701,9 @@
       "Beta-lactams / Cephalosporins": "বিটা-ল্যাকটাম / সেফালোস্পোরিন",
       "Fluoroquinolones": "ফ্লুরোকুইনোলোন",
       "Macrolides": "ম্যাক্রোলাইড",
+      "Polymyxins": "পলিমিক্সিন",
+      "Sulfonamides": "সালফোনামাইড",
+      "Aminoglycosides": "অ্যামাইনোগ্লাইকোসাইড",
       "Other antibiotics": "অন্যান্য অ্যান্টিবায়োটিক"
     },
     "generics": {
@@ -791,25 +821,168 @@
   "prescriptionSavedDevice": "এই ডিভাইসের সিমুলেটেড Farmer Clinical History-তে প্রেসক্রিপশন সংরক্ষিত হয়েছে।",
   "prescriptionSaveError": "প্রেসক্রিপশন সংরক্ষণ করা যায়নি: {message}",
   "birdTypes": {
-    "Broiler": "Broiler",
-    "Layer": "Layer",
-    "Sonali": "Sonali",
-    "Breeder": "Breeder",
-    "Other": "Other"
+    "Broiler": "ব্রয়লার",
+    "Layer": "লেয়ার",
+    "Sonali": "সোনালী",
+    "Breeder": "ব্রিডার / প্যারেন্ট স্টক",
+    "Other": "অন্যান্য"
   },
   "formulations": {
-    "Water soluble powder": "Water soluble powder",
-    "Feed premix": "Feed premix",
-    "Oral Liquid": "Oral Liquid",
-    "Injection": "Injection",
-    "Drops": "Drops",
-    "Ointment": "Ointment"
+    "Water soluble powder": "পানিতে মিশ্রণযোগ্য পাউডার",
+    "Feed premix": "খাবারের প্রিমিক্স",
+    "Oral Liquid": "তরল ওষুধ",
+    "Injection": "ইনজেকশন",
+    "Drops": "চোখে বা নাকে ফোঁটা",
+    "Ointment": "মলম"
   },
   "frequencies": {
-    "Once daily": "Once daily",
-    "Twice daily": "Twice daily",
-    "Thrice daily": "Thrice daily",
-    "Continuous in water": "Continuous in water",
-    "As needed": "As needed"
+    "Once daily": "দিনে ১ বার",
+    "Twice daily": "দিনে ২ বার",
+    "Thrice daily": "দিনে ৩ বার",
+    "Continuous in water": "খাবার পানিতে সারাক্ষণ",
+    "As needed": "প্রয়োজন অনুযায়ী"
+  },
+  "aboutUs": "আমাদের সম্পর্কে",
+  "privacySecurity": "গোপনীয়তা ও নিরাপত্তা",
+  "fontStyleFamily": "ফন্টের ধরন",
+  "fontDefaultSystem": "ডিফল্ট (সিস্টেম ফন্ট)",
+  "pointsEarnedToast": "তথ্য প্রদানের জন্য +১০ পয়েন্ট যুক্ত হয়েছে!",
+  "remove": "সরান",
+  "whoAwareRatios": "WHO AWaRe অ্যান্টিবায়োটিক শ্রেণিবিন্যাস অনুপাত",
+  "allSurveillanceDistricts": "নজরদারির সব জেলা",
+  "filteredByDistrict": "নির্বাচিত জেলা: {district}",
+  "clearFilterDistrict": "ফিল্টার সরান ({district})",
+  "liveLogsBadge": "+{count}টি লাইভ লগ",
+  "liveBadge": "+{count} লাইভ",
+  "amrResistanceRisk": "এএমআর (AMR) ঝুঁকি",
+  "meatShort": "মাংস",
+  "eggShort": "ডিম",
+  "awareCategories": {
+    "Access": "অ্যাক্সেস (Access)",
+    "Watch": "সতর্ক (Watch)",
+    "Reserve": "রিজার্ভ (Reserve)"
+  },
+  "generationsMap": {
+    "Not recorded": "উল্লেখ নেই",
+    "1st Gen": "১ম প্রজন্ম",
+    "2nd Gen": "২য় প্রজন্ম",
+    "3rd Gen": "৩য় প্রজন্ম",
+    "4th Gen": "৪র্থ প্রজন্ম",
+    "5th Gen": "৫ম প্রজন্ম"
+  },
+  "dataHubTopicsMap": {
+    "Clinical Signs & Symptoms": "রোগের লক্ষণ ও উপসর্গ",
+    "Post-mortem Findings": "ময়নাতদন্তের ফলাফল",
+    "Antibiotic Prescribing Patterns": "অ্যান্টিবায়োটিক ব্যবহারের ধরন",
+    "Treatment Failure & Drug Efficacy Logs": "চিকিৎসার কার্যকারিতা ও ব্যর্থতার তথ্য",
+    "Bacterial Culture & AST Results": "ব্যাকটেরিয়াল কালচার ও অ্যান্টিবায়োগ্রাম (AST)",
+    "Farmer Self-Medication / OTC Usage": "নিজ উদ্যোগে / ডাক্তার ছাড়া ওষুধ প্রয়োগ",
+    "Withdrawal Period Compliance": "উইথড্রয়াল সময়সীমা অনুসরণ"
+  },
+  "rxInvestigationsAdvice": "পরীক্ষা-নিরীক্ষা ও পরামর্শ",
+  "rxRecommendedTests": "প্রয়োজনীয় ল্যাব পরীক্ষা",
+  "rxRecommendedTestsPlaceholder": "যেমন: কালচার ও এএসটি, পোস্টমর্টেম পরীক্ষা",
+  "rxManagementAdvice": "ব্যবস্থাপনা ও জৈব-নিরাপত্তা পরামর্শ",
+  "rxManagementAdvicePlaceholder": "পরিচর্যা, খাবার-পানি ও জৈব-নিরাপত্তা নির্দেশনা লিখুন",
+  "rxFollowUpDate": "পরবর্তী সাক্ষাতের তারিখ",
+  "rxLivePreview": "লাইভ প্রিন্ট-প্রস্তুত প্রিভিউ",
+  "rxPreviewBadge": "প্রিভিউ",
+  "rxPadHeader": "পোল্ট্রি ভেটেরিনারি প্রেসক্রিপশন",
+  "rxClinicDefault": "ভেটেরিনারি ক্লিনিক",
+  "rxVetDefault": "পশুচিকিৎসকের নাম ও ডিগ্রি",
+  "rxRegPrefix": "রেজিঃ নং",
+  "rxRegDefault": "রেজিস্ট্রেশন নম্বর",
+  "rxTitleUpper": "ভেটেরিনারি প্রেসক্রিপশন",
+  "rxFarmerUpper": "খামারি",
+  "rxFarmDistrictUpper": "খামার / জেলা",
+  "rxBirdTypeUpper": "পাখির ধরন",
+  "rxAgeUpper": "বয়স",
+  "rxFlockSizeUpper": "পাখির সংখ্যা",
+  "rxAvgWeightUpper": "গড় ওজন",
+  "rxComplaintsHeading": "মূল সমস্যা ও লক্ষণসমূহ",
+  "rxNoSymptoms": "কোনো লক্ষণ লেখা হয়নি",
+  "rxDiagnosisHeading": "রোগ নির্ণয়",
+  "rxNotEntered": "উল্লেখ করা হয়নি",
+  "rxMedicineNameDefault": "ওষুধের নাম",
+  "rxWithdrawalPrefix": "উইথড্রয়াল",
+  "rxFollowUpUpper": "ফলো-আপ",
+  "rxDisclaimerFooter": "শুধুমাত্র পশুচিকিৎসায় ব্যবহারের জন্য। চিকিৎসকের পরামর্শ ও পণ্যের নির্দেশনা মেনে চলুন।",
+  "rxSignatureDefault": "পশুচিকিৎসকের স্বাক্ষর",
+  "rxSignatureSeal": "স্বাক্ষর ও সিল",
+  "rxSyncNote": "ডিভাইসে সংরক্ষিত এবং তাৎক্ষণিকভাবে খামারির ক্লিনিক্যাল লগে যুক্ত হয়েছে।",
+  "rxSelectVet": "পশুচিকিৎসক নির্বাচন করুন",
+  "rxDistrict": "জেলা",
+  "rxGenericName": "জেনেরিক নাম",
+  "rxGenericPlaceholder": "যেমন: ডক্সিসাইক্লিন",
+  "rxSendSaveToLog": "খামারির লগে পাঠান / সংরক্ষণ",
+  "rxSendToFarmerLog": "খামারির ক্লিনিক্যাল লগে পাঠান",
+  "rxScheduledBookings": "আপনার নির্ধারিত পরামর্শ বুকিংসমূহ",
+  "rxDoctorQueue": "খামারির পরামর্শ বুকিং তালিকা (ডক্টর কিউ)",
+  "rxBookingsCount": "{count}টি বুকিং",
+  "rxLoadIntoBuilder": "রোগীর তথ্য Rx ফর্মে লোড করুন",
+  "rxDoctorOnlyNote": "বিশেষ দ্রষ্টব্য: ডিজিটাল প্রেসক্রিপশন তৈরি ও খামারির লগে পাঠানোর সুবিধা শুধু নিবন্ধিত পশুচিকিৎসকদের (Doctor Mode) জন্য সক্রিয়। পাঠানো প্রেসক্রিপশন ক্লিনিক্যাল লগ → প্রেসক্রিপশন অংশে দেখা যাবে।",
+  "historyPredictionBreakdown": "সম্ভাব্য রোগের শতকরা হিসাব",
+  "historyAiClinicalGuidance": "এআই ক্লিনিক্যাল ও জৈব-নিরাপত্তা পরামর্শ",
+  "historyConfidenceLabel": "সম্ভাব্যতা",
+  "historyModalityImage": "ছবি বিশ্লেষণ",
+  "historyModalityAudio": "অডিও শ্বাস-শব্দ",
+  "historyModalitySymptoms": "রোগের লক্ষণ",
+  "historyScheduledDateTime": "নির্ধারিত তারিখ ও সময়",
+  "historyVetClinicUpper": "চিকিৎসক ও ক্লিনিক",
+  "historyFarmerFarmUpper": "খামারি ও খামার",
+  "historyFeePaymentUpper": "ফি ও পেমেন্ট",
+  "historyVeterinarianUpper": "পশুচিকিৎসক",
+  "historyFarmerFlockUpper": "খামারি ও পাল",
+  "historyAdviceHeading": "পরামর্শ ও জৈব-নিরাপত্তা নির্দেশনা",
+  "historyFollowUpHeading": "পরবর্তী সাক্ষাতের তারিখ",
+  "teamMemberRoles": {
+    "sojib": "ইন্টার্ন পশুচিকিৎসক, এএমআর গবেষক, মাঠপর্যায়ের তথ্য সংগ্রাহক, ডেটাবেস ও তথ্য ব্যবস্থাপক এবং অ্যাপ উন্নয়ন সহায়ক।",
+    "fathynul": "ভেটেরিনারি শিক্ষার্থী, এএমআর গবেষক, মাঠপর্যায়ের তথ্য সংগ্রাহক, ডেটা ব্যবস্থাপনা ও যাচাই এবং অ্যাপ উন্নয়ন সহায়ক।",
+    "tika": "ভেটেরিনারি শিক্ষার্থী, এএমআর গবেষক, মাঠপর্যায়ের তথ্য সংগ্রাহক, ডেটা যাচাই, গবেষণা নথিপত্র ও অ্যাপ উন্নয়ন সহায়ক।",
+    "afia-anjum-eisha": "রাজশাহী বিশ্ববিদ্যালয়ের ডক্টর অব ভেটেরিনারি মেডিসিন (DVM)-এর তৃতীয় বর্ষের নিবেদিতপ্রাণ শিক্ষার্থী। ক্লিনিক্যাল ট্রায়াজ, প্রাণী পরিচর্যা ও প্রাথমিক রোগ নির্ণয়ে অভিজ্ঞ।"
+  },
+  "privacyPolicyContent": {
+    "title": "গোপনীয়তা ও নিরাপত্তা",
+    "subtitle": "পোল্ট্রিমেডিক্স: ব্যক্তিগত তথ্য সুরক্ষা ও ব্যবহারের নীতিমালা",
+    "sections": [
+      {
+        "heading": "১. মালিকানা ও মেধাস্বত্ব",
+        "body": "পোল্ট্রিমেডিক্স একটি স্বাধীন ডিজিটাল পোল্ট্রি স্বাস্থ্যসেবা প্ল্যাটফর্ম, যা আধুনিক ডেটা বিশ্লেষণ ও পশুচিকিৎসা বিজ্ঞানকে একত্রিত করেছে। অ্যাপের সব অ্যালগরিদম, সোর্স কোড ও ডিজাইনের স্বত্ব প্রযোজ্য আইন দ্বারা সংরক্ষিত।"
+      },
+      {
+        "heading": "২. চিকিৎসা সংক্রান্ত সীমাবদ্ধতা ও টেলিমেডিসিন নীতি",
+        "bullets": [
+          "সরাসরি পরীক্ষার বিকল্প নয়: স্মার্ট রোগ নির্ণয় কেবল প্রাথমিক দিকনির্দেশনা দেয়; এটি কোনো অভিজ্ঞ পশুচিকিৎসকের সরাসরি পরীক্ষার বিকল্প নয়।",
+          "প্রেসক্রিপশন ও অ্যান্টিবায়োটিক নীতি: বাংলাদেশ ভেটেরিনারি কাউন্সিল (BVC) ও আন্তর্জাতিক নির্দেশিকা অনুযায়ী চূড়ান্ত চিকিৎসা ও ওষুধের প্রেসক্রিপশন শুধু নিবন্ধিত পশুচিকিৎসক দিতে পারবেন।",
+          "ডোজ ও উইথড্রয়াল নিরাপত্তা: ওষুধ প্রয়োগের আগে পণ্যের মোড়কের নিয়ম এবং মাংস ও ডিম বাজারজাতকরণের বিরতি (উইথড্রয়াল সময়) অবশ্যই মেনে চলুন।"
+        ]
+      },
+      {
+        "heading": "৩. তথ্য সংগ্রহ ও সম্মতি",
+        "bullets": [
+          "খামার ও পালের তথ্য: রোগের প্রাদুর্ভাব মানচিত্রের জন্য জেলা/উপজেলার তথ্য, পাখির ধরন, সংখ্যা ও লক্ষণ।",
+          "ছবি, অডিও ও প্রেসক্রিপশন ফাইল: এআই ট্রায়াজ ও প্রেসক্রিপশন বিশ্লেষণের জন্য আপলোড করা মিডিয়া।",
+          "ব্যবহারকারীর ভূমিকা: খামারি, ভেটেরিনারি শিক্ষার্থী অথবা নিবন্ধিত চিকিৎসক অনুযায়ী ড্যাশবোর্ড সাজানো হয়।"
+        ]
+      },
+      {
+        "heading": "৪. গবেষণা ও ওয়ান হেলথ (One Health) উদ্যোগ",
+        "bullets": [
+          "বেনামি গবেষণা তথ্য: পরিচয় গোপন রেখে রোগের প্রাদুর্ভাব ও অ্যান্টিবায়োটিক ব্যবহারের ধরন এএমআর প্রতিরোধ গবেষণায় ব্যবহৃত হয়।",
+          "ব্যক্তিগত গোপনীয়তা: খামারির নাম বা ব্যক্তিগত পরিচয় কখনোই প্রকাশ বা বাণিজ্যিক প্রতিষ্ঠানের কাছে বিক্রি করা হয় না।"
+        ]
+      },
+      {
+        "heading": "৫. ডেটা সুরক্ষা ও সংরক্ষণ",
+        "bullets": [
+          "সুরক্ষিত সংযোগ: সব তথ্য এনক্রিপ্টেড মাধ্যমে আদান-প্রদান হয় এবং আপনার শেড, ভ্যাকসিন ও ক্লিনিক্যাল নোট নিরাপদে সংরক্ষিত থাকে।",
+          "আবহাওয়া ও মানচিত্র সেবা: স্থানীয় আবহাওয়া ও মানচিত্র দেখাতে শুধু আনুমানিক ভৌগোলিক অবস্থান ব্যবহৃত হয়।"
+        ]
+      },
+      {
+        "heading": "৬. ব্যবহারকারীর অধিকার ও নীতিমালা হালনাগাদ",
+        "body": "আপনি যেকোনো সময় আপনার ব্যক্তিগত প্রোফাইলের তথ্য মুছে ফেলার অনুরোধ করতে পারবেন। নীতিমালায় গুরুত্বপূর্ণ পরিবর্তন হলে অ্যাপের মাধ্যমেই জানানো হবে।"
+      }
+    ]
   }
 }

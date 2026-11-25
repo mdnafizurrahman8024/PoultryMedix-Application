@@ -105,6 +105,25 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileAction, setProfileAction] = useState('')
   const [sosOpen, setSosOpen] = useState(false)
+
+  function openSettingsModal() {
+    setProfileAction('')
+    setSosOpen(false)
+    setSettingsMessage('')
+    setSettingsOpen(true)
+  }
+
+  function openProfileActionModal(action) {
+    setSettingsOpen(false)
+    setSosOpen(false)
+    setProfileAction(action)
+  }
+
+  function openSosModal() {
+    setSettingsOpen(false)
+    setProfileAction('')
+    setSosOpen(true)
+  }
   const [points, setPoints] = useState(140)
   const [pointsToast, setPointsToast] = useState(false)
   const [fontSize, setFontSize] = useState(() => {
@@ -498,13 +517,13 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       {languageMenuOpen && (
         <div className="dashboard-language-dropdown absolute z-50 rounded shadow-lg dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="menu" aria-label={t('language')}>
           {[
-            ['en', 'EN'],
-            ['bn', 'à¦¬à¦¾à¦‚à¦²à¦¾'],
-            ['hi', 'à¤¹à¤¿à¦‚à¦¦à¥€'],
-            ['ur', 'Ø§Ø±Ø¯Ùˆ'],
-          ].map(([code]) => (
+            ['en', 'English'],
+            ['bn', 'বাংলা'],
+            ['hi', 'हिन्दी'],
+            ['ur', 'اردو'],
+          ].map(([code, label]) => (
             <button className={`${language === code ? 'active' : ''} dark:text-gray-100 dark:hover:bg-gray-700 dark:focus:bg-gray-700`} type="button" role="menuitem" key={code} onClick={() => { setLanguage(code); setLanguageMenuOpen(false) }}>
-              {({ en: 'English', bn: '\u09ac\u09be\u0982\u09b2\u09be', hi: '\u0939\u093f\u0928\u094d\u0926\u0940', ur: '\u0627\u0631\u062f\u0648' })[code]}
+              {label}
             </button>
           ))}
         </div>
@@ -522,7 +541,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   )
 
   const renderProfileControl = () => (
-    <button className="mobile-profile-control" type="button" onClick={() => { setIsMobileMenuOpen(false); setSettingsOpen(true); setSettingsMessage('') }} aria-label={t('profileSettings')}>
+    <button className="mobile-profile-control" type="button" onClick={() => { setIsMobileMenuOpen(false); openSettingsModal() }} aria-label={t('profileSettings')}>
       <span className="mobile-profile-avatar">{avatar ? <img src={avatar} alt="" /> : <Icon name="user" size={19} />}</span>
       <span>{t('settings')}</span>
     </button>
@@ -537,14 +556,14 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const renderAboutUsControl = () => (
     <button className="header-menu-item" type="button" onClick={openAboutUs}>
       <Icon name="users" size={18} />
-      <span>About Us</span>
+      <span>{t('aboutUs')}</span>
     </button>
   )
 
   const renderPrivacyControl = () => (
     <button className="header-menu-item" type="button" onClick={() => { setIsMobileMenuOpen(false); setDesktopProfileMenuOpen(false); setActiveView('privacy') }}>
       <Icon name="shield" size={18} />
-      <span>Privacy &amp; Security</span>
+      <span>{t('privacySecurity')}</span>
     </button>
   )
 
@@ -554,7 +573,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   }
 
   const renderProfileActions = () => <>
-    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); setProfileAction('manual') }}>
+    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); openProfileActionModal('manual') }}>
       <Icon name="book" size={18} />
       <span>{t('userManual')}</span>
     </button>
@@ -562,7 +581,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
       <Icon name="share" size={18} />
       <span>{t('shareApp')}</span>
     </button>
-    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); setProfileAction('feedback') }}>
+    <button className="header-menu-item" type="button" role="menuitem" onClick={() => { closeProfileMenus(); openProfileActionModal('feedback') }}>
       <Icon name="message" size={18} />
       <span>{t('feedbackTitle')}</span>
     </button>
@@ -657,7 +676,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             </button>
             {desktopProfileMenuOpen && (
               <div className="desktop-profile-menu" role="menu">
-                <button className="header-menu-item" type="button" role="menuitem" onClick={() => { setDesktopProfileMenuOpen(false); setSettingsOpen(true); setSettingsMessage('') }}>
+                <button className="header-menu-item" type="button" role="menuitem" onClick={() => { setDesktopProfileMenuOpen(false); openSettingsModal() }}>
                   <Icon name="settings" size={18} />
                   <span>{t('settings')}</span>
                 </button>
@@ -866,7 +885,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <p className="notice-disclaimer">{t('noticeDisclaimer')}</p>
         </section>
 
-        <button className="sos-button" type="button" onClick={() => setSosOpen(true)}>
+        <button className="sos-button" type="button" onClick={openSosModal}>
           <span className="sos-symbol"><Icon name="sos" size={19} /></span>
           <span><strong>{t('emergencySos')}</strong><small>{t('emergencySubtitle')}</small></span>
           <Icon name="arrow" size={18} />
@@ -882,7 +901,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           </Suspense>
         )}
       </div>
-      {pointsToast && <div className="points-toast" role="status">+10 Point earned for your contribution!</div>}
+      {pointsToast && <div className="points-toast" role="status">{t('pointsEarnedToast')}</div>}
 
       <nav className="bottom-navigation" aria-label={t('featureNavigation')}>
         <div className="bottom-navigation-items">
@@ -930,15 +949,15 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
               <section className="settings-block">
                <div className="settings-block-heading"><span className="settings-icon"><Icon name="globe" size={17} /></span><div><h3>{t('fontSize')}</h3><p>{t('fontSizeDescription')}</p></div></div>
                <label className="settings-label" htmlFor="font-size-range">
-                 Font size: <strong>{fontSize}px</strong>
+                 {t('fontSize')}: <strong>{fontSize}px</strong>
                  <input id="font-size-range" type="range" min="14" max="24" step="1" value={fontSize} onChange={updateFontSize} />
                  <span className="settings-range-labels"><span>14px</span><span>24px</span></span>
                </label>
                <label className="settings-label" htmlFor="font-family-select">
-                 Font style / family
+                 {t('fontStyleFamily')}
                  <select id="font-family-select" value={fontFamily} onChange={updateFontFamily}>
-                   <option value="system">Default (System UI)</option>
-                   <option value="hind-siliguri">Hind Siliguri (English + Bengali)</option>
+                   <option value="system">{t('fontDefaultSystem')}</option>
+                   <option value="hind-siliguri">Hind Siliguri (English + বাংলা)</option>
                    <option value="noto-bengali">Noto Sans Bengali</option>
                    <option value="inter">Inter</option>
                    <option value="poppins">Poppins</option>

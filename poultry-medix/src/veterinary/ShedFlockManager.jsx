@@ -366,7 +366,7 @@ export default function ShedFlockManager({ weather, isOpen, onToggle }) {
                 maxLength={80}
                 value={shedName}
                 onChange={(e) => setShedName(e.target.value)}
-                placeholder={`Shed #${editingId ? '' : sheds.length + 1} (e.g. North Shed)`}
+                placeholder={isBn ? `শেড #${editingId ? '' : sheds.length + 1} (যেমন: উত্তর শেড)` : `Shed #${editingId ? '' : sheds.length + 1} (e.g. North Shed)`}
               />
             </label>
 
@@ -596,7 +596,7 @@ export default function ShedFlockManager({ weather, isOpen, onToggle }) {
           </span>
           <span className="shed-sim-drawer-badge">
             {isBn
-              ? `${quickSpecies} · ${quickAge} দিন · ${quickCheckEval.targets.minTempC}–${quickCheckEval.targets.maxTempC}°C`
+              ? `${SHED_SPECIES.find((s) => s.id === quickSpecies)?.labelBn || quickSpecies} · ${quickAge} দিন · ${quickCheckEval.targets.minTempC}–${quickCheckEval.targets.maxTempC}°C`
               : `${quickSpecies} · Day ${quickAge} · ${quickCheckEval.targets.minTempC}–${quickCheckEval.targets.maxTempC}°C`}
           </span>
         </button>

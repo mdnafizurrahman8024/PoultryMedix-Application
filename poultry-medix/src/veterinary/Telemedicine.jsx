@@ -384,7 +384,7 @@ export default function Telemedicine() {
           <div><span className="telemedicine-eyebrow">{t('remoteVeterinarySupport')}</span><h2 id="consult-booking-heading">{t('bookVetConsultation')}</h2></div>
         </div>
         <form className="telemedicine-booking-form dark:text-gray-100" onSubmit={confirmBooking}>
-          <Field label={language === 'bn' ? 'পশুচিকিৎসক নির্বাচন করুন' : 'Select Veterinarian'}>
+          <Field label={t('rxSelectVet')}>
             <select value={booking.vetId} onChange={(event) => updateBooking('vetId', event.target.value)}>
               {VETERINARY_DOCTORS.map((doc) => (
                 <option key={doc.id} value={doc.id}>
@@ -393,10 +393,10 @@ export default function Telemedicine() {
               ))}
             </select>
           </Field>
-          <Field label={language === 'bn' ? 'জেলা' : 'District'}>
+          <Field label={t('rxDistrict')}>
             <select value={booking.district} onChange={(event) => updateBooking('district', event.target.value)}>
               {BANGLADESH_DISTRICTS.map((dist) => (
-                <option key={dist} value={dist}>{dist}</option>
+                <option key={dist} value={dist}>{t(`districts.${dist}`, dist)}</option>
               ))}
             </select>
           </Field>
@@ -438,7 +438,7 @@ export default function Telemedicine() {
         {recentBookings.length > 0 && (
           <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
             <h3 className="mb-2.5 text-sm font-bold text-gray-800 dark:text-gray-100">
-              {language === 'bn' ? 'সাম্প্রতিক বুকিং তালিকা' : 'Your Scheduled Vet Bookings'}
+              {t('rxScheduledBookings')}
             </h3>
             <div className="grid gap-2 sm:grid-cols-2">
               {recentBookings.slice(0, 4).map((item) => (
@@ -446,11 +446,11 @@ export default function Telemedicine() {
                   <div className="flex items-center justify-between gap-2 font-bold text-emerald-800 dark:text-emerald-400">
                     <span>{item.vetName}</span>
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                      {item.bookingDate || 'Scheduled'} · {item.bookingTime || '--:--'}
+                      {item.bookingDate || t('today')} · {item.bookingTime || '--:--'}
                     </span>
                   </div>
                   <p className="mt-1 text-gray-600 dark:text-gray-300">
-                    <strong>{item.farmerName || 'Farmer'}</strong> ({item.district || 'Rajshahi'}) — {item.concern}
+                    <strong>{item.farmerName || t('farmer')}</strong> ({t(`districts.${item.district || 'Rajshahi'}`, item.district || 'Rajshahi')}) — {item.concern}
                   </p>
                 </div>
               ))}
@@ -459,9 +459,7 @@ export default function Telemedicine() {
         )}
 
         <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-          {language === 'bn'
-            ? 'নোট: ডিজিটাল প্রেসক্রিপশন লেখা এবং ফার্মারের লগে পাঠানোর সুবিধাটি শুধুমাত্র রেজিস্টার্ড ভেটেরিনারিয়ান (Doctor Mode) মোডে সক্রিয় থাকে।'
-            : 'Note: Digital Prescription authoring and sending to Farmer Clinical Logs is restricted to Registered Veterinarians (Doctor Mode). Received prescriptions appear under Clinical Log → Prescriptions.'}
+          {t('rxDoctorOnlyNote')}
         </p>
       </section>}
 
@@ -470,10 +468,10 @@ export default function Telemedicine() {
           <div className="mb-5 rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
-                {language === 'bn' ? 'ফার্মার কনসালটেশন বুকিং তালিকা (Doctor Queue)' : 'Farmer Consultation Bookings (Doctor Queue)'}
+                {t('rxDoctorQueue')}
               </h3>
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {recentBookings.length} {language === 'bn' ? 'টি বুকিং' : 'bookings'}
+                {t('rxBookingsCount', { count: recentBookings.length })}
               </span>
             </div>
             <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -481,12 +479,12 @@ export default function Telemedicine() {
                 <div key={appt.id} className="flex flex-col justify-between rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
                   <div>
                     <div className="flex items-center justify-between gap-2">
-                      <strong className="text-gray-900 dark:text-white">{appt.farmerName || 'Farmer'}</strong>
+                      <strong className="text-gray-900 dark:text-white">{appt.farmerName || t('farmer')}</strong>
                       <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                        {appt.bookingDate || 'Today'} {appt.bookingTime || ''}
+                        {appt.bookingDate || t('today')} {appt.bookingTime || ''}
                       </span>
                     </div>
-                    <p className="mt-1 text-gray-600 dark:text-gray-300">{appt.farmName || 'Poultry Farm'} · {appt.district || 'Rajshahi'}</p>
+                    <p className="mt-1 text-gray-600 dark:text-gray-300">{appt.farmName || t('farmName')} · {t(`districts.${appt.district || 'Rajshahi'}`, appt.district || 'Rajshahi')}</p>
                     <p className="mt-1 line-clamp-2 text-gray-500 dark:text-gray-400">{appt.concern}</p>
                   </div>
                   <button
@@ -494,7 +492,7 @@ export default function Telemedicine() {
                     onClick={() => loadBookingIntoPrescription(appt)}
                     className="mt-2.5 w-full rounded-lg border border-emerald-600 bg-emerald-600/10 py-1.5 font-semibold text-emerald-800 transition-colors hover:bg-emerald-600 hover:text-white dark:text-emerald-300"
                   >
-                    {language === 'bn' ? 'রোগীর তথ্য Rx-এ লোড করুন' : 'Load into Rx Builder'}
+                    {t('rxLoadIntoBuilder')}
                   </button>
                 </div>
               ))}
@@ -507,7 +505,7 @@ export default function Telemedicine() {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
             <button className="telemedicine-save-button" type="button" onClick={savePrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
               <Icon name="send" size={17} />
-              {language === 'bn' ? 'ফার্মারের লগে পাঠান / সংরক্ষণ' : 'Send / Save to Farmer Clinical Log'}
+              {t('rxSendSaveToLog')}
             </button>
             <button className="telemedicine-print-button" type="button" onClick={printPrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
               <Icon name="pdf" size={17} />
@@ -531,15 +529,15 @@ export default function Telemedicine() {
               <div className="telemedicine-fields-grid">
                 <Field label={t('farmerName')}><input value={prescription.farmerName} onChange={(event) => updatePrescription('farmerName', event.target.value)} /></Field>
                 <Field label={t('farmName')}><input value={prescription.farmName} onChange={(event) => updatePrescription('farmName', event.target.value)} /></Field>
-                <Field label={language === 'bn' ? 'জেলা' : 'District'}>
+                <Field label={t('rxDistrict')}>
                   <select value={prescription.district} onChange={(event) => updatePrescription('district', event.target.value)}>
-                    {BANGLADESH_DISTRICTS.map((dist) => <option key={dist} value={dist}>{dist}</option>)}
+                    {BANGLADESH_DISTRICTS.map((dist) => <option key={dist} value={dist}>{t(`districts.${dist}`, dist)}</option>)}
                   </select>
                 </Field>
                 <Field label={t('age')}><input type="text" value={prescription.age} onChange={(event) => updatePrescription('age', event.target.value)} placeholder={t('agePlaceholder')} /></Field>
                 <Field label={t('flockSize')}><input type="number" min="0" value={prescription.flockSize} onChange={(event) => updatePrescription('flockSize', event.target.value)} /></Field>
                 <Field label={t('averageWeight')}><input type="number" min="0" step="any" value={prescription.averageWeight} onChange={(event) => updatePrescription('averageWeight', event.target.value)} placeholder={t('kg')} /></Field>
-                <Field label={t('birdType')}><select value={prescription.birdType} onChange={(event) => updatePrescription('birdType', event.target.value)}>{birdTypes.map((type) => <option key={type} value={type}>{t(`birdTypes.${type}`)}</option>)}</select></Field>
+                <Field label={t('birdType')}><select value={prescription.birdType} onChange={(event) => updatePrescription('birdType', event.target.value)}>{birdTypes.map((type) => <option key={type} value={type}>{t(`birdTypes.${type}`, type)}</option>)}</select></Field>
               </div>
             </FormSection>
 
@@ -548,7 +546,7 @@ export default function Telemedicine() {
                 <Field label={t('chiefComplaints')}><input value={complaintDraft} onChange={(event) => setComplaintDraft(event.target.value)} placeholder={t('symptomPlaceholder')} /></Field>
                 <button type="button" className="telemedicine-add-button" onClick={addComplaint}><Icon name="plus" size={15} />{t('add')}</button>
               </div>
-              {prescription.complaints.length > 0 && <div className="telemedicine-tags">{prescription.complaints.map((complaint) => <span key={complaint}>{complaint}<button type="button" aria-label={`Remove ${complaint}`} onClick={() => updatePrescription('complaints', prescription.complaints.filter((item) => item !== complaint))}><Icon name="close" size={13} /></button></span>)}</div>}
+              {prescription.complaints.length > 0 && <div className="telemedicine-tags">{prescription.complaints.map((complaint) => <span key={complaint}>{complaint}<button type="button" aria-label={t('removeFile', { name: complaint })} onClick={() => updatePrescription('complaints', prescription.complaints.filter((item) => item !== complaint))}><Icon name="close" size={13} /></button></span>)}</div>}
               <Field label={t('tentativeDiagnosis')}><input value={prescription.diagnosis} onChange={(event) => updatePrescription('diagnosis', event.target.value)} placeholder={t('diagnosisPlaceholder')} /></Field>
             </FormSection>
 
@@ -557,13 +555,13 @@ export default function Telemedicine() {
                 {medications.map((medication, index) => (
                   <fieldset className="telemedicine-medication-row dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" key={medication.id}>
                     <legend>{t('medicineNumber', { number: index + 1 })}</legend>
-                    {medications.length > 1 && <button className="telemedicine-remove-button" type="button" aria-label={`Remove medicine ${index + 1}`} onClick={() => setMedications((current) => current.filter(({ id }) => id !== medication.id))}><Icon name="remove" size={16} />Remove</button>}
+                    {medications.length > 1 && <button className="telemedicine-remove-button" type="button" aria-label={`${t('remove')} ${index + 1}`} onClick={() => setMedications((current) => current.filter(({ id }) => id !== medication.id))}><Icon name="remove" size={16} />{t('remove')}</button>}
                     <div className="telemedicine-fields-grid">
                       <Field label={t('drugMedicineName')}><input value={medication.name} onChange={(event) => updateMedication(medication.id, 'name', event.target.value)} placeholder={t('medicineName')} /></Field>
-                      <Field label={language === 'bn' ? 'জেনেরিক নাম' : 'Generic Name'}><input value={medication.genericName} onChange={(event) => updateMedication(medication.id, 'genericName', event.target.value)} placeholder="e.g. Doxycycline" /></Field>
-                      <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation} value={formulation}>{t(`formulations.${formulation}`)}</option>)}</select></Field>
+                      <Field label={t('rxGenericName')}><input value={medication.genericName} onChange={(event) => updateMedication(medication.id, 'genericName', event.target.value)} placeholder={t('rxGenericPlaceholder')} /></Field>
+                      <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation} value={formulation}>{t(`formulations.${formulation}`, formulation)}</option>)}</select></Field>
                       <Field label={t('dosage')}><input value={medication.dosage} onChange={(event) => updateMedication(medication.id, 'dosage', event.target.value)} placeholder={t('dosagePlaceholder')} /></Field>
-                      <Field label={t('frequencyTiming')}><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency} value={frequency}>{t(`frequencies.${frequency}`)}</option>)}</select></Field>
+                      <Field label={t('frequencyTiming')}><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency} value={frequency}>{t(`frequencies.${frequency}`, frequency)}</option>)}</select></Field>
                       <Field label={t('duration')}><span className="telemedicine-duration-inputs"><input type="number" min="1" value={medication.duration} onChange={(event) => updateMedication(medication.id, 'duration', event.target.value)} /><select aria-label={t('durationType')} value={medication.durationType} onChange={(event) => updateMedication(medication.id, 'durationType', event.target.value)}><option value="Days">{t('days')}</option><option value="Weeks">{t('weeks')}</option></select></span></Field>
                       <Field label={t('withdrawalPeriod')}><input value={medication.withdrawal} onChange={(event) => updateMedication(medication.id, 'withdrawal', event.target.value)} placeholder={t('withdrawalPlaceholder')} /></Field>
                     </div>
@@ -573,70 +571,70 @@ export default function Telemedicine() {
               <button type="button" className="telemedicine-add-medication" onClick={() => setMedications((current) => [...current, emptyMedication()])}><Icon name="plus" size={16} />{t('addAnotherMedicine')}</button>
             </FormSection>
 
-            <FormSection title="Investigations & advice" icon="file">
-              <Field label="Diagnostic tests recommended"><input value={prescription.tests} onChange={(event) => updatePrescription('tests', event.target.value)} placeholder="Recommended tests" /></Field>
-              <Field label="Management & biosecurity advice"><textarea rows="4" value={prescription.advice} onChange={(event) => updatePrescription('advice', event.target.value)} placeholder="Care, management, and biosecurity guidance" /></Field>
-              <Field label="Follow-up date"><input type="date" value={prescription.followUpDate} onChange={(event) => updatePrescription('followUpDate', event.target.value)} /></Field>
+            <FormSection title={t('rxInvestigationsAdvice')} icon="file">
+              <Field label={t('rxRecommendedTests')}><input value={prescription.tests} onChange={(event) => updatePrescription('tests', event.target.value)} placeholder={t('rxRecommendedTestsPlaceholder')} /></Field>
+              <Field label={t('rxManagementAdvice')}><textarea rows="4" value={prescription.advice} onChange={(event) => updatePrescription('advice', event.target.value)} placeholder={t('rxManagementAdvicePlaceholder')} /></Field>
+              <Field label={t('rxFollowUpDate')}><input type="date" value={prescription.followUpDate} onChange={(event) => updatePrescription('followUpDate', event.target.value)} /></Field>
             </FormSection>
           </form>
 
-          <aside className="telemedicine-preview-column dark:text-gray-100" aria-label="Live prescription preview">
-            <div className="telemedicine-preview-topline"><span><Icon name="file" size={16} />Live print-ready preview</span><span>PREVIEW</span></div>
+          <aside className="telemedicine-preview-column dark:text-gray-100" aria-label={t('rxLivePreview')}>
+            <div className="telemedicine-preview-topline"><span><Icon name="file" size={16} />{t('rxLivePreview')}</span><span>{t('rxPreviewBadge')}</span></div>
             <article className="prescription-preview dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700">
               <header className="prescription-pad-header">
-                <div className="prescription-pad-brand"><span className="prescription-pad-logo"><Icon name="stethoscope" size={21} /></span><div><strong>{prescription.clinicDetails || 'Veterinary Clinic'}</strong><span>POULTRY VETERINARY PRESCRIPTION</span></div></div>
-                <div className="prescription-pad-vet"><strong>{[prescription.vetName, prescription.vetDegrees].filter(Boolean).join(', ') || 'Veterinarian name & degrees'}</strong><span>{prescription.registrationNumber ? `Reg. No. ${prescription.registrationNumber}` : 'Registration number'}</span></div>
+                <div className="prescription-pad-brand"><span className="prescription-pad-logo"><Icon name="stethoscope" size={21} /></span><div><strong>{prescription.clinicDetails || t('rxClinicDefault')}</strong><span>{t('rxPadHeader')}</span></div></div>
+                <div className="prescription-pad-vet"><strong>{[prescription.vetName, prescription.vetDegrees].filter(Boolean).join(', ') || t('rxVetDefault')}</strong><span>{prescription.registrationNumber ? `${t('rxRegPrefix')} ${prescription.registrationNumber}` : t('rxRegDefault')}</span></div>
               </header>
               <div className="prescription-pad-rule" />
-              <div className="prescription-preview-title"><span>VETERINARY PRESCRIPTION</span><time>{new Date().toLocaleDateString()}</time></div>
+              <div className="prescription-preview-title"><span>{t('rxTitleUpper')}</span><time>{new Date().toLocaleDateString(language === 'bn' ? 'bn-BD' : undefined)}</time></div>
               <div className="prescription-info-grid">
-                <div><span>FARMER</span><strong>{prescription.farmerName || '—'}</strong></div>
-                <div><span>FARM / DISTRICT</span><strong>{[prescription.farmName, prescription.district].filter(Boolean).join(' · ') || '—'}</strong></div>
-                <div><span>BIRD TYPE</span><strong>{prescription.birdType}</strong></div>
-                <div><span>AGE</span><strong>{prescription.age || '—'}</strong></div>
-                <div><span>FLOCK SIZE</span><strong>{prescription.flockSize || '—'}</strong></div>
-                <div><span>AVERAGE WEIGHT</span><strong>{prescription.averageWeight ? `${prescription.averageWeight} kg` : '—'}</strong></div>
+                <div><span>{t('rxFarmerUpper')}</span><strong>{prescription.farmerName || '—'}</strong></div>
+                <div><span>{t('rxFarmDistrictUpper')}</span><strong>{[prescription.farmName, prescription.district ? t(`districts.${prescription.district}`, prescription.district) : ''].filter(Boolean).join(' · ') || '—'}</strong></div>
+                <div><span>{t('rxBirdTypeUpper')}</span><strong>{t(`birdTypes.${prescription.birdType}`, prescription.birdType)}</strong></div>
+                <div><span>{t('rxAgeUpper')}</span><strong>{prescription.age || '—'}</strong></div>
+                <div><span>{t('rxFlockSizeUpper')}</span><strong>{prescription.flockSize || '—'}</strong></div>
+                <div><span>{t('rxAvgWeightUpper')}</span><strong>{prescription.averageWeight ? `${prescription.averageWeight} ${t('kg')}` : '—'}</strong></div>
               </div>
-              <section className="prescription-preview-block"><h3>Chief complaints &amp; symptoms</h3><p>{prescription.complaints.join(' · ') || 'No symptoms entered'}</p></section>
-              <section className="prescription-preview-block"><h3>Diagnosis</h3><p>{prescription.diagnosis || 'Not entered'}</p></section>
+              <section className="prescription-preview-block"><h3>{t('rxComplaintsHeading')}</h3><p>{prescription.complaints.join(' · ') || t('rxNoSymptoms')}</p></section>
+              <section className="prescription-preview-block"><h3>{t('rxDiagnosisHeading')}</h3><p>{prescription.diagnosis || t('rxNotEntered')}</p></section>
               <section className="prescription-rx-block">
                 <div className="prescription-rx-mark">℞</div>
                 {medications.map((medication, index) => (
                   <div className="prescription-preview-medication" key={medication.id}>
-                    <strong>{index + 1}. {medication.name || 'Medicine name'} {medication.genericName ? `(${medication.genericName})` : ''}</strong>
-                    <span>{[medication.formulation, medication.dosage, medication.frequency, medication.duration && `${medication.duration} ${medication.durationType}`].filter(Boolean).join(' · ')}</span>
-                    {medication.withdrawal && <small>Withdrawal: {medication.withdrawal}</small>}
+                    <strong>{index + 1}. {medication.name || t('rxMedicineNameDefault')} {medication.genericName ? `(${medication.genericName})` : ''}</strong>
+                    <span>{[t(`formulations.${medication.formulation}`, medication.formulation), medication.dosage, t(`frequencies.${medication.frequency}`, medication.frequency), medication.duration && `${medication.duration} ${t(medication.durationType === 'Weeks' ? 'weeks' : 'days')}`].filter(Boolean).join(' · ')}</span>
+                    {medication.withdrawal && <small>{t('rxWithdrawalPrefix')}: {medication.withdrawal}</small>}
                   </div>
                 ))}
               </section>
 
-              {(prescription.tests || prescription.advice) && <section className="prescription-preview-block"><h3>Investigations &amp; advice</h3>{prescription.tests && <p><strong>Tests:</strong> {prescription.tests}</p>}{prescription.advice && <p>{prescription.advice}</p>}</section>}
-              <div className="prescription-preview-followup"><span>FOLLOW-UP</span><strong>{prescription.followUpDate || 'As advised'}</strong></div>
-              <footer className="prescription-pad-footer"><span>For veterinary use. Follow the veterinarian’s instructions and the approved product label.</span><div><span className="prescription-signature">{prescription.vetName || 'Veterinarian signature'}</span><small>Signature &amp; seal</small></div></footer>
+              {(prescription.tests || prescription.advice) && <section className="prescription-preview-block"><h3>{t('rxInvestigationsAdvice')}</h3>{prescription.tests && <p><strong>{t('rxRecommendedTests')}:</strong> {prescription.tests}</p>}{prescription.advice && <p>{prescription.advice}</p>}</section>}
+              <div className="prescription-preview-followup"><span>{t('rxFollowUpUpper')}</span><strong>{prescription.followUpDate || t('historyAsAdvised')}</strong></div>
+              <footer className="prescription-pad-footer"><span>{t('rxDisclaimerFooter')}</span><div><span className="prescription-signature">{prescription.vetName || t('rxSignatureDefault')}</span><small>{t('rxSignatureSeal')}</small></div></footer>
             </article>
             {saveMessage && <p className="telemedicine-status telemedicine-save-status" role="status">{saveMessage}</p>}
             {saveError && <p className="telemedicine-error" role="alert">{saveError}</p>}
             <button className="telemedicine-save-button" type="button" onClick={savePrescription}>
               <Icon name="send" size={17} />
-              {language === 'bn' ? 'ফার্মারের লগে পাঠান' : 'Send to Farmer\'s Clinical Log'}
+              {t('rxSendToFarmerLog')}
             </button>
-            <p className="telemedicine-preview-note">Saved on this device for this prototype; immediately synced to Farmer Clinical Log.</p>
+            <p className="telemedicine-preview-note">{t('rxSyncNote')}</p>
           </aside>
         </div>
       </section>}
 
       {isRegisteredVet && <section className="telemedicine-booking-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="vet-consultation-room-heading">
         <div className="telemedicine-call-actions">
-          <div><h3 id="vet-consultation-room-heading">Consultation room</h3><p>Choose a call mode to open a demo call state.</p></div>
+          <div><h3 id="vet-consultation-room-heading">{t('consultationRoom')}</h3><p>{t('bookingReady')}</p></div>
           <div className="telemedicine-call-buttons">
-            <button type="button" className="telemedicine-audio-button" onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />Start Audio Call</button>
-            <button type="button" className="telemedicine-video-button" onClick={() => setCallMode('video')}><Icon name="video" size={18} />Start Video Call</button>
+            <button type="button" className="telemedicine-audio-button" onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />{t('startAudioCall')}</button>
+            <button type="button" className="telemedicine-video-button" onClick={() => setCallMode('video')}><Icon name="video" size={18} />{t('startVideoCall')}</button>
           </div>
         </div>
         {callMode && <div className="telemedicine-call-panel dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" role="status">
           <span className="telemedicine-call-pulse"><Icon name={callMode === 'audio' ? 'phone' : 'video'} size={18} /></span>
-          <div><strong>{callMode === 'audio' ? 'Demo audio call' : 'Demo video call'} is ready</strong><p>No real call connection is made by this prototype.</p></div>
-          <button type="button" onClick={() => setCallMode('')}>End demo</button>
+          <div><strong>{callMode === 'audio' ? t('demoAudioCall') : t('demoVideoCall')} {t('isReady')}</strong><p>{t('noRealCall')}</p></div>
+          <button type="button" onClick={() => setCallMode('')}>{t('endDemo')}</button>
         </div>}
       </section>}
     </main>

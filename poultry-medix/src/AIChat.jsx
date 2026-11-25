@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from './lib/supabase.js'
 import { runMultimodalDiagnosis, classifyPoultryImage } from './lib/ai.js'
-import { sendChatMessage, POLITE_EXHAUSTION_MESSAGE } from './lib/aiServiceAdapter.js'
+import { sendChatMessage, getPoliteExhaustionMessage } from './lib/aiServiceAdapter.js'
 import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
@@ -75,8 +75,7 @@ export default function AIChat() {
   const dragRef = useRef(null)
   const draggedRef = useRef(false)
   const suppressClickRef = useRef(false)
-  const chatSessionId = useRef('')
-  if (!chatSessionId.current) chatSessionId.current = crypto.randomUUID()
+  const [chatSessionId] = useState(() => crypto.randomUUID())
 
   useEffect(() => {
     let active = true
@@ -106,10 +105,10 @@ export default function AIChat() {
       const userMessage = { role: 'user', text: question || t('attachedFilesOnly') }
       if (queuedFiles.length) userMessage.files = queuedFiles.map(({ name }) => name)
       const existing = JSON.parse(localStorage.getItem('poultry-history-chats') || '[]')
-        .find((record) => record.id === chatSessionId.current)
+        .find((record) => record.id === chatSessionId)
       const now = new Date().toISOString()
       saveHistoryEntry('chat', {
-        id: chatSessionId.current,
+        id: chatSessionId,
         createdAt: existing?.createdAt || now,
         updatedAt: now,
         summary: existing?.summary || question.slice(0, 140) || t('attachedFilesOnly'),
@@ -415,7 +414,7 @@ export default function AIChat() {
       if (!accessToken && !allowGuestAi) {
         const assistantMessage = {
           role: 'assistant',
-          text: 'Please create an account to use this feature.',
+          text: t('aiSignInRequired'),
           sources: [],
         }
         saveChatResponse(question, queuedFiles, assistantMessage)
@@ -509,7 +508,7 @@ export default function AIChat() {
       setMessages((previous) => [...previous, {
         id: `${Date.now()}-error`,
         role: 'error',
-        text: POLITE_EXHAUSTION_MESSAGE,
+        text: getPoliteExhaustionMessage(language),
       }])
     } finally {
       setLoading(false)
@@ -774,7 +773,7 @@ export default function AIChat() {
       >
         <img
           src="/images/chat-icon.png"
-          alt="Doctor Avatar"
+          alt={t('aiDiagnostic')}
           style={{ width: '76px', height: 'auto', display: 'block', pointerEvents: 'none' }}
         />
         <span style={{ marginTop: '6px', backgroundColor: '#064e3b', color: '#ffffff', fontSize: '11px', fontWeight: 'bold', padding: '4px 12px', borderRadius: '9999px', border: '1.5px solid #10b981', whiteSpace: 'nowrap', pointerEvents: 'none', boxShadow: '0 4px 8px rgba(0,0,0,0.15)' }}>

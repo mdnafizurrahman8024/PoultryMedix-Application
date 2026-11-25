@@ -455,7 +455,8 @@
   font-size: clamp(16px, 3.5vw, 19px);
   font-weight: 800;
   line-height: 1.2;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .drug-class-badge {
@@ -3557,7 +3558,8 @@ html[data-theme="dark"] .history-medication-detail {
   margin: 4px 0 0;
   color: #345140;
   font-size: clamp(15px, 2.2vw, 18px);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .history-prescription-modal header button {
@@ -3829,7 +3831,8 @@ html[data-theme="dark"] .history-medication-detail {
   color: #566657;
   font-size: 13px;
   line-height: 1.7;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  word-break: normal;
 }
 
 .privacy-policy-section p {
