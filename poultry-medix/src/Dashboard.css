@@ -2287,12 +2287,12 @@ html[data-theme="dark"] .mobile-profile-control {
 .guidelines-accordion-chevron {
   flex: 0 0 auto;
   color: #708070;
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
   transition: transform 150ms ease;
 }
 
 .guidelines-accordion-chevron.is-open {
-  transform: rotate(-90deg);
+  transform: rotate(0deg);
 }
 
 .guideline-grid {
@@ -5458,12 +5458,12 @@ html[data-theme="dark"] .mobile-profile-control {
 .home-accordion-chevron {
   flex: 0 0 auto;
   color: #64748b;
-  transform: rotate(90deg);
+  transform: rotate(-90deg);
   transition: transform 150ms ease;
 }
 
 .home-accordion-chevron.is-open {
-  transform: rotate(-90deg);
+  transform: rotate(0deg);
 }
 
 .diagnosis-accordion-panel {

@@ -12,6 +12,9 @@ import ClinicalLog from './veterinary/ClinicalLog.jsx'
 import Telemedicine from './veterinary/Telemedicine.jsx'
 import ShedFlockManager from './veterinary/ShedFlockManager.jsx'
 import VaccineScheduleTracker from './veterinary/VaccineScheduleTracker.jsx'
+import EthicalCareBar from './veterinary/EthicalCareBar.jsx'
+import UloDirectoryModal from './veterinary/UloDirectoryModal.jsx'
+import { POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, POULTRYMEDIX_OPEN_ULO_EVENT } from './lib/uloDirectory.js'
 import { getSheds, evaluateAllSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import { USER_ROLES, useUser } from './context/UserContext.jsx'
@@ -105,10 +108,13 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileAction, setProfileAction] = useState('')
   const [sosOpen, setSosOpen] = useState(false)
+  const [uloModalOpen, setUloModalOpen] = useState(false)
+  const [uloDistrict, setUloDistrict] = useState('')
 
   function openSettingsModal() {
     setProfileAction('')
     setSosOpen(false)
+    setUloModalOpen(false)
     setSettingsMessage('')
     setSettingsOpen(true)
   }
@@ -116,14 +122,40 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   function openProfileActionModal(action) {
     setSettingsOpen(false)
     setSosOpen(false)
+    setUloModalOpen(false)
     setProfileAction(action)
   }
 
   function openSosModal() {
     setSettingsOpen(false)
     setProfileAction('')
+    setUloModalOpen(false)
     setSosOpen(true)
   }
+
+  useEffect(() => {
+    function handleOpenTelemedicine() {
+      setSettingsOpen(false)
+      setProfileAction('')
+      setSosOpen(false)
+      setUloModalOpen(false)
+      setActiveView('telemedicine')
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    function handleOpenUlo(event) {
+      setSettingsOpen(false)
+      setProfileAction('')
+      setSosOpen(false)
+      setUloDistrict(event?.detail?.district || '')
+      setUloModalOpen(true)
+    }
+    window.addEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handleOpenTelemedicine)
+    window.addEventListener(POULTRYMEDIX_OPEN_ULO_EVENT, handleOpenUlo)
+    return () => {
+      window.removeEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handleOpenTelemedicine)
+      window.removeEventListener(POULTRYMEDIX_OPEN_ULO_EVENT, handleOpenUlo)
+    }
+  }, [])
   const [points, setPoints] = useState(140)
   const [pointsToast, setPointsToast] = useState(false)
   const [fontSize, setFontSize] = useState(() => {
@@ -859,6 +891,10 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
                       {guideline.images.map((imagePath) => <img key={imagePath} src={imagePath} alt={guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]} />)}
                     </div>
                   )}
+                  <EthicalCareBar
+                    compact
+                    prefillConcern={guideline[`title${{ en: '', bn: 'Bn', hi: 'Hi', ur: 'Ur' }[language]}`]}
+                  />
                 </div>
               </article>
             ))}
@@ -1016,6 +1052,14 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             <button className="save-profile-button" type="button" onClick={() => setSosOpen(false)}>{t('understood')}</button>
           </section>
         </div>
+      )}
+
+      {uloModalOpen && (
+        <UloDirectoryModal
+          key={uloDistrict || 'all'}
+          initialDistrict={uloDistrict}
+          onClose={() => setUloModalOpen(false)}
+        />
       )}
     </main>
   )

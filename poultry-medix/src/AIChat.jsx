@@ -6,6 +6,7 @@ import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
+import EthicalCareBar from './veterinary/EthicalCareBar.jsx'
 import { saveHistoryEntry } from './veterinary/historyStore.js'
 import useSpeechToText from './hooks/useSpeechToText.js'
 
@@ -495,6 +496,7 @@ export default function AIChat() {
       const assistantMessage = {
         role: 'assistant',
         text: result.answer,
+        sourceQuery: question,
         sources: verifiedSources,
         visualResult: result.visualResult || visualResult || null,
       }
@@ -709,6 +711,14 @@ export default function AIChat() {
                 <strong>{t('veterinaryConsultingAlertTitle')}</strong>
                 <p>{t('veterinaryConsultingAlert')}</p>
               </aside>
+              <EthicalCareBar
+                compact
+                prefillConcern={[item.visualResult?.label, item.sourceQuery].filter(Boolean).join(' — ')}
+                onBeforeAction={() => {
+                  setOpen(false)
+                  setExpanded(false)
+                }}
+              />
             </>}
           </article>)}
           {loading && <div className="chat-typing"><span /><span /><span />{t(loadingStatusKey)}</div>}

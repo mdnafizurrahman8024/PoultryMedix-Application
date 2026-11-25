@@ -8,6 +8,10 @@ import {
   getClinicalLogs,
   CLINICAL_LOGS_UPDATED_EVENT,
 } from '../lib/clinicalLogsStore.js'
+import {
+  consumeTelemedicinePrefill,
+  POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT,
+} from '../lib/uloDirectory.js'
 import { useUser } from '../context/UserContext.jsx'
 import { useLanguage } from '../context/useLanguage.js'
 import './Telemedicine.css'
@@ -149,21 +153,31 @@ export default function Telemedicine() {
   const { role } = useUser()
   const { t, language } = useLanguage()
   const isRegisteredVet = role === 'REGISTERED_VET'
-  const [booking, setBooking] = useState({
+  const [initialPrefill] = useState(() => consumeTelemedicinePrefill())
+  const [prefillNotice, setPrefillNotice] = useState(() => Boolean(initialPrefill?.concern))
+  const [booking, setBooking] = useState(() => ({
     vetId: VETERINARY_DOCTORS[0].id,
-    district: 'Rajshahi',
+    district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
+      ? initialPrefill.district
+      : 'Rajshahi',
     farmer: '',
     farm: '',
-    concern: '',
+    concern: initialPrefill?.concern || '',
     date: new Date().toISOString().slice(0, 10),
     time: '10:30',
     payment: 'bkash',
-  })
+  }))
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingMessage, setBookingMessage] = useState('')
   const [recentBookings, setRecentBookings] = useState(() => loadConsultationBookings())
   const [callMode, setCallMode] = useState('')
-  const [prescription, setPrescription] = useState(emptyPrescription)
+  const [prescription, setPrescription] = useState(() => ({
+    ...emptyPrescription,
+    district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
+      ? initialPrefill.district
+      : emptyPrescription.district,
+    complaints: initialPrefill?.concern ? [initialPrefill.concern] : [],
+  }))
   const [medications, setMedications] = useState([emptyMedication()])
   const [complaintDraft, setComplaintDraft] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
@@ -174,11 +188,34 @@ export default function Telemedicine() {
     function syncBookings() {
       setRecentBookings(loadConsultationBookings())
     }
+    function handlePrefillReferral(event) {
+      const detail = event?.detail || consumeTelemedicinePrefill()
+      if (!detail) return
+      const nextConcern = String(detail.concern || '').trim()
+      const nextDistrict = detail.district && BANGLADESH_DISTRICTS.includes(detail.district) ? detail.district : ''
+      if (nextConcern || nextDistrict) {
+        setBooking((prev) => ({
+          ...prev,
+          ...(nextConcern ? { concern: nextConcern } : {}),
+          ...(nextDistrict ? { district: nextDistrict } : {}),
+        }))
+        setPrescription((prev) => ({
+          ...prev,
+          ...(nextDistrict ? { district: nextDistrict } : {}),
+          complaints: nextConcern && !prev.complaints.includes(nextConcern)
+            ? [nextConcern, ...prev.complaints]
+            : prev.complaints,
+        }))
+        if (nextConcern) setPrefillNotice(true)
+      }
+    }
     window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
     window.addEventListener('storage', syncBookings)
+    window.addEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     return () => {
       window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
       window.removeEventListener('storage', syncBookings)
+      window.removeEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     }
   }, [])
 
@@ -377,6 +414,27 @@ export default function Telemedicine() {
         <h1>{t('telemedicineTitle')}</h1>
         <p>{t('telemedicineDescription')}</p>
       </section>
+
+      {prefillNotice && (
+        <div
+          className="mb-4 flex items-center justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2.5 text-xs font-semibold text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
+          role="status"
+        >
+          <span>
+            {language === 'bn'
+              ? 'রোগ নির্ণয় / AI চ্যাট থেকে আপনার খামারের লক্ষণসমূহ স্বয়ংক্রিয়ভাবে নিচে যুক্ত করা হয়েছে।'
+              : 'Flock symptoms have been pre-filled automatically from your Smart Diagnosis / AI Chat session.'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setPrefillNotice(false)}
+            style={{ background: 'none', border: 0, cursor: 'pointer', color: 'inherit', fontWeight: 800 }}
+            aria-label={t('close')}
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       {!isRegisteredVet && <section className="telemedicine-booking-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="consult-booking-heading">
         <div className="telemedicine-card-heading">

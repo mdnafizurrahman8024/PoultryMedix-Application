@@ -10,6 +10,7 @@ import { useLanguage } from './context/useLanguage.js'
 import Icon from './components/Icon.jsx'
 import VoiceRecorder from './components/VoiceRecorder.jsx'
 import AiSafetyBanner from './components/AiSafetyBanner.jsx'
+import EthicalCareBar from './veterinary/EthicalCareBar.jsx'
 import { saveHistoryEntry, saveLocalPrescriptionAttachment, saveUnifiedLog } from './veterinary/historyStore.js'
 import useSpeechToText from './hooks/useSpeechToText.js'
 
@@ -622,26 +623,32 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
           </div>
 
           {currentReport && (
-            <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', flexWrap: 'wrap', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Icon name="spark" size={16} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: '#166534' }}>
-                  {language === 'bn' ? 'সর্বশেষ স্ক্রীনিং রিপোর্ট:' : 'Latest Screening Report:'} <strong>{currentReport.topDisease}</strong> ({currentReport.topConfidence})
-                </span>
+            <>
+              <div style={{ marginTop: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Icon name="spark" size={16} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: '#166534' }}>
+                    {language === 'bn' ? 'সর্বশেষ স্ক্রীনিং রিপোর্ট:' : 'Latest Screening Report:'} <strong>{currentReport.topDisease}</strong> ({currentReport.topConfidence})
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    modalOpenedAtRef.current = Date.now()
+                    setReportModalOpen(true)
+                  }}
+                  className="diagnosis-glass-button"
+                  style={{ padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#15803d', borderColor: '#86efac', background: '#ffffff', cursor: 'pointer' }}
+                >
+                  <Icon name="spark" size={13} />
+                  <span>{language === 'bn' ? 'রিপোর্ট উইন্ডো খুলুন' : 'Open Report Window'}</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  modalOpenedAtRef.current = Date.now()
-                  setReportModalOpen(true)
-                }}
-                className="diagnosis-glass-button"
-                style={{ padding: '5px 12px', fontSize: '11px', fontWeight: 700, color: '#15803d', borderColor: '#86efac', background: '#ffffff', cursor: 'pointer' }}
-              >
-                <Icon name="spark" size={13} />
-                <span>{language === 'bn' ? 'রিপোর্ট উইন্ডো খুলুন' : 'Open Report Window'}</span>
-              </button>
-            </div>
+              <EthicalCareBar
+                compact
+                prefillConcern={`${currentReport.topDisease} (${currentReport.topConfidence})${symptoms.trim() ? `: ${symptoms.trim()}` : ''}`}
+              />
+            </>
           )}
             </div>
           )}
@@ -880,9 +887,11 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
                         </strong>
                       </div>
                       <div className="prescription-detail-cell">
-                        <span className="prescription-cell-label">{language === 'bn' ? 'নির্ধারিত মাত্রা / ডোজ' : 'Prescribed / Label Dose'}</span>
+                        <span className="prescription-cell-label">{language === 'bn' ? 'চিকিৎসা নির্দেশনা' : 'Dispensing / Vet Oversight'}</span>
                         <strong className="prescription-cell-value dark:text-gray-200">
-                          {language === 'bn' && drug.dosageBn ? drug.dosageBn : drug.dosage}
+                          {prescriptionResult.isFallback
+                            ? (language === 'bn' ? 'শুধুমাত্র নিবন্ধিত ভেটের সরাসরি প্রেসক্রিপশন অনুযায়ী প্রয়োগযোগ্য' : 'Dispense only per registered veterinarian’s written Rx')
+                            : (language === 'bn' ? 'নিবন্ধিত ভেটেরিনারি প্রেসক্রিপশন অনুযায়ী (অ্যান্টিবায়োটিক নিজে প্রয়োগ করবেন না)' : 'Follow written BVC vet Rx only — do not self-dose')}
                         </strong>
                       </div>
                     </div>
@@ -974,6 +983,11 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
                   : 'Notice: Strictly adhere to withdrawal periods to prevent chemical and antimicrobial residues in human food chains. Never self-prescribe antibiotics without a registered veterinarian’s direct examination.'}
               </span>
             </div>
+
+            <EthicalCareBar
+              compact
+              prefillConcern={prescriptionResult.medicines?.map((m) => m.tradeName || m.genericName).filter(Boolean).join(', ')}
+            />
           </div>
         )}
           </div>
@@ -1156,6 +1170,11 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
                   ? 'এটি একটি প্রাথমিক স্ক্রীনিং এইড, কোনো চিকিৎসা প্রেসক্রিপশন নয়। এএমআর (AMR) নীতি অনুসারে কোনো অ্যান্টিবায়োটিক প্রয়োগ করবেন না। সঠিক পরীক্ষা ও ব্যবস্থাপনার জন্য রেজিস্টার্ড ভেটেরিনারি চিকিৎসকের পরামর্শ নিন।'
                   : 'This diagnostic screening aid is designed for early flock triage only. Automated AI does NOT provide antibiotic prescriptions or treatment dosages under AMR stewardship guidelines. Please consult a registered veterinarian or local livestock officer for clinical examination and prescription.'}
               </div>
+
+              <EthicalCareBar
+                prefillConcern={`${currentReport.topDisease} (${currentReport.topConfidence})${symptoms.trim() ? `: ${symptoms.trim()}` : ''}`}
+                onBeforeAction={() => setReportModalOpen(false)}
+              />
             </div>
 
             {/* Fixed Footer */}

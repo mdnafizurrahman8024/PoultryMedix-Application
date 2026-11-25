@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { calculatePrescriberDose } from './medicineLookup.js'
 import { useLanguage } from '../context/useLanguage.js'
 import Icon from '../components/Icon.jsx'
+import EthicalCareBar from './EthicalCareBar.jsx'
 
 const detectedDrugs = [
   {
@@ -84,6 +85,7 @@ export default function PrescriptionLookup({ hideDrugInfo = false, hideDose = fa
                 </div>
               </article>
             ))}
+            <EthicalCareBar compact />
           </div>
         )}
       </section>
