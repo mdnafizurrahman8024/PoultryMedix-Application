@@ -28,6 +28,29 @@ export const DEMO_VETERINARIAN = {
   whatsappDisplay: '+880 1849-288024',
 }
 
+export const DEV_SANDBOX_DEFAULTS = {
+  farmer: 'Md Nafizur Rahman (Dev Test)',
+  farm: 'PoultryMedix Demo Flock',
+  concern: 'General Poultry Health & Respiratory Check',
+  mobileNumber: '01849288024',
+}
+
+export function resolveBookingWithSandboxDefaults(booking) {
+  if (PAYMENT_MODE !== 'sandbox') return booking
+  return {
+    ...booking,
+    farmer: sanitizePaymentInput(booking?.farmer, 120) || DEV_SANDBOX_DEFAULTS.farmer,
+    farm: sanitizePaymentInput(booking?.farm, 120) || DEV_SANDBOX_DEFAULTS.farm,
+    concern: sanitizePaymentInput(booking?.concern, 300) || DEV_SANDBOX_DEFAULTS.concern,
+  }
+}
+
+export function createCallRoomCode(trxId = '') {
+  const clean = String(trxId || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+  const suffix = clean.slice(-6) || generateReceiptTrxId('PMX').slice(-6)
+  return `PMX-ROOM-${suffix}`
+}
+
 export const VETERINARY_DOCTORS = [
   DEMO_VETERINARIAN,
   {
@@ -184,9 +207,9 @@ export async function processConsultationPayment({
 
   const effectiveFields = isQuickSandbox
     ? {
-        mobileNumber: '01849000024',
+        mobileNumber: DEV_SANDBOX_DEFAULTS.mobileNumber,
         trxId: `SBX${generateReceiptTrxId('PMX').slice(-8)}`,
-        cardHolder: sanitizePaymentInput(booking?.farmer || 'Demo Farmer', 80) || 'Demo Farmer',
+        cardHolder: sanitizePaymentInput(booking?.farmer || DEV_SANDBOX_DEFAULTS.farmer, 80) || DEV_SANDBOX_DEFAULTS.farmer,
         cardNumber: '4242424242424242',
         cardExpiry: '12/29',
         cardCvc: '424',

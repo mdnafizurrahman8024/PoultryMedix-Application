@@ -3,12 +3,15 @@ import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
   Download,
+  Mail,
+  MessageCircle,
   Phone,
   Printer,
   Video,
   X,
 } from 'lucide-react'
-import { buildDigitalReceiptMarkup } from '../lib/paymentAdapter.js'
+import { buildDigitalReceiptMarkup, buildDoctorWhatsAppUrl } from '../lib/paymentAdapter.js'
+import { buildDoctorEmailUrl } from '../lib/telehealthNotifier.js'
 import { useLanguage } from '../context/useLanguage.js'
 
 export default function DigitalReceiptModal({
@@ -155,6 +158,36 @@ export default function DigitalReceiptModal({
               <Download size={15} aria-hidden="true" />
               {t('receiptDownloadBtn')}
             </button>
+            <a
+              href={buildDoctorWhatsAppUrl({
+                phone: receipt.whatsappNumber || '+8801849288024',
+                bookingId: receipt.trxId,
+                doctorName: receipt.doctorName,
+                farmerName: receipt.farmerName,
+                farmName: receipt.farmName,
+                district: receipt.district,
+                concern: receipt.concern,
+                language,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pmx-whatsapp-cta"
+            >
+              <MessageCircle size={15} aria-hidden="true" />
+              {t('continueOnWhatsAppCall')}
+            </a>
+            <a
+              href={buildDoctorEmailUrl({
+                doctorName: receipt.doctorName,
+                receipt,
+                roomCode: receipt.roomCode || '',
+                language,
+              })}
+              className="pmx-secondary-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+            >
+              <Mail size={15} aria-hidden="true" />
+              {t('notifyDoctorByEmail')}
+            </a>
           </div>
 
           {onStartCall && (
