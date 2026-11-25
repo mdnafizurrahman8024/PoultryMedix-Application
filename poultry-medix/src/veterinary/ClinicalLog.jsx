@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
+  AlertTriangle,
   BookOpen,
   Brain,
   Calendar,
@@ -14,6 +15,7 @@ import {
   MessageCircle,
   Printer,
   Share2,
+  ShieldAlert,
   Stethoscope,
   X,
 } from 'lucide-react'
@@ -23,9 +25,21 @@ import {
   getClinicalLogs,
   CLINICAL_LOGS_UPDATED_EVENT,
 } from '../lib/clinicalLogsStore.js'
+import {
+  ANALYTICS_UPDATED_EVENT,
+  getOneHealthSurveillanceSummary,
+} from '../lib/analyticsEngine.js'
+import {
+  REPORTER_ROLES,
+  ZOONOTIC_HUMAN_PRECAUTIONS,
+  getDiseaseDisplayLabel,
+  getZoonoticInfo,
+  normalizeReporterSource,
+} from '../lib/oneHealthSurveillance.js'
 
 const historyTabs = [
   { id: 'unified', labelKey: 'historyAllClinicalLogsTab' },
+  { id: 'surveillance', labelKey: 'historySurveillanceTab' },
   { id: 'diagnosis', labelKey: 'historyDiagnosisTab' },
   { id: 'prescriptions', labelKey: 'historyPrescriptionsTab' },
   { id: 'consultations', labelKey: 'historyVetConsultationsTab' },
@@ -35,6 +49,7 @@ const historyTabs = [
 
 const historyTabIcons = {
   unified: History,
+  surveillance: ShieldAlert,
   diagnosis: Brain,
   prescriptions: FileText,
   consultations: Stethoscope,
@@ -221,6 +236,57 @@ function diagnosisMarkup(record) {
   `)
 }
 
+function surveillanceMarkup(record) {
+  const disease = record.disease || record.primaryDisease || 'Field Report'
+  const zoonotic = getZoonoticInfo(disease)
+  const dateStr = record.formattedDate || new Date(record.timestamp || Date.now()).toLocaleString()
+  const roleMeta = REPORTER_ROLES[normalizeReporterSource(record.reporterRole || record.source)]
+  return wrapPrintDocument(`One-Health Surveillance - ${disease}`, `
+    <div class="doc-header">
+      <div>
+        <h1 class="doc-title">ONE-HEALTH SURVEILLANCE REPORT</h1>
+        <div class="doc-subtitle">${escapeHtml(roleMeta.labelEn)} · Bangladesh Poultry Surveillance Network</div>
+      </div>
+      <div class="doc-meta-right">
+        <div style="font-size:12px;font-weight:700;">Date: ${escapeHtml(dateStr)}</div>
+        <div style="font-size:11px;color:#047857;">${escapeHtml(record.district || 'Rajshahi')}${record.upazila ? ` · ${escapeHtml(record.upazila)}` : ''}</div>
+      </div>
+    </div>
+
+    <div class="doc-grid doc-grid-4">
+      <div class="doc-cell"><span>Reporter Source</span><strong>${escapeHtml(roleMeta.labelEn)}</strong></div>
+      <div class="doc-cell"><span>Reporter / Center</span><strong>${escapeHtml(record.reporterName || roleMeta.labelEn)}</strong></div>
+      <div class="doc-cell"><span>Bird Species</span><strong>${escapeHtml(record.species || 'Broiler')}</strong></div>
+      <div class="doc-cell"><span>Mortality Count</span><strong>${escapeHtml(Number(record.mortalityCount) || 0)} birds</strong></div>
+    </div>
+
+    <div class="doc-box" style="${zoonotic.isZoonotic ? 'border-left-color:#b91c1c;background:#fef2f2;' : ''}">
+      <h3 style="${zoonotic.isZoonotic ? 'color:#991b1b;' : ''}">
+        Detected Disease: ${escapeHtml(disease)}
+        ${zoonotic.isZoonotic ? ' — [⚠️ ZOONOTIC RISK: Human-Animal Transmission]' : ''}
+      </h3>
+      <p style="margin:4px 0 0;font-size:12px;">Antibiotic Prescribed / Reported: <strong>${escapeHtml(record.antibioticPrescribed || 'None / Supportive Only')}</strong></p>
+    </div>
+
+    ${record.notes ? `<div class="doc-advice"><strong>Field / Lab Notes:</strong>\n${escapeHtml(record.notes)}</div>` : ''}
+    ${zoonotic.isZoonotic ? `<div class="doc-notice" style="margin-top:12px;color:#991b1b;"><strong>One-Health Biosecurity Protocol:</strong> Wear PPE (N95 mask, gloves, goggles), deep-bury dead birds with quicklime, and notify local ULO / DLS helpline 16358 immediately.</div>` : ''}
+  `)
+}
+
+function buildSurveillanceShareText(record) {
+  const disease = record.disease || record.primaryDisease || 'Field Case'
+  const zoonotic = getZoonoticInfo(disease)
+  const roleMeta = REPORTER_ROLES[normalizeReporterSource(record.reporterRole || record.source)]
+  return `🛡️ *PoultryMedix One-Health Surveillance Report*
+📅 ${record.formattedDate || new Date(record.timestamp || Date.now()).toLocaleString()}
+📍 ${record.district || 'Rajshahi'}${record.upazila ? `, ${record.upazila}` : ''}
+🏛️ Source: ${roleMeta.labelEn} (${record.reporterName || ''})
+🐓 Species: ${record.species || 'Poultry'} | Mortality: ${Number(record.mortalityCount) || 0}
+🩺 Disease: ${disease}${zoonotic.isZoonotic ? ' [⚠️ ZOONOTIC RISK]' : ''}
+💊 Antibiotic: ${record.antibioticPrescribed || 'None / Supportive Only'}
+${record.notes ? `📝 Notes: ${record.notes}` : ''}`
+}
+
 function consultationMarkup(record) {
   const bookingDate = record.bookingDate || record.date || '—'
   const bookingTime = record.bookingTime || record.time || '—'
@@ -314,6 +380,7 @@ export default function ClinicalLog() {
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [actionStatus, setActionStatus] = useState('')
   const [structuredLogs, setStructuredLogs] = useState(() => getClinicalLogs('all'))
+  const [oneHealthSummary, setOneHealthSummary] = useState(() => getOneHealthSurveillanceSummary())
   const [legacyChats, setLegacyChats] = useState(() => {
     try { return readHistory('chat') } catch { return [] }
   })
@@ -324,13 +391,16 @@ export default function ClinicalLog() {
   useEffect(() => {
     function refreshLogs() {
       setStructuredLogs(getClinicalLogs('all'))
+      setOneHealthSummary(getOneHealthSurveillanceSummary())
       try { setLegacyChats(readHistory('chat')) } catch { /* ignore */ }
       try { setLegacyAppointments(readHistory('appointment')) } catch { /* ignore */ }
     }
     window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, refreshLogs)
+    window.addEventListener(ANALYTICS_UPDATED_EVENT, refreshLogs)
     window.addEventListener('storage', refreshLogs)
     return () => {
       window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, refreshLogs)
+      window.removeEventListener(ANALYTICS_UPDATED_EVENT, refreshLogs)
       window.removeEventListener('storage', refreshLogs)
     }
   }, [])
@@ -351,6 +421,10 @@ export default function ClinicalLog() {
     share: language === 'bn' ? 'শেয়ার' : 'Share',
   }
 
+  const surveillanceLogs = useMemo(
+    () => structuredLogs.filter((log) => log.type === 'surveillance'),
+    [structuredLogs]
+  )
   const diagnosisLogs = useMemo(
     () => structuredLogs.filter((log) => log.type === 'diagnosis'),
     [structuredLogs]
@@ -415,6 +489,29 @@ export default function ClinicalLog() {
         <p>{t('historyDashboardDescription')}</p>
       </section>
 
+      {/* Compact One-Health Source & Zoonotic Surveillance Strip */}
+      <section className="clinical-onehealth-strip dark:bg-gray-800 dark:border-gray-700" aria-label={t('sourceBreakdownTitle')}>
+        <div className="clinical-strip-item">
+          <span>{language === 'bn' ? REPORTER_ROLES.ulo_hospital.shortBn : REPORTER_ROLES.ulo_hospital.shortEn}</span>
+          <strong>{oneHealthSummary.sourceStats.ulo_hospital.total}</strong>
+        </div>
+        <div className="clinical-strip-item">
+          <span>{language === 'bn' ? REPORTER_ROLES.bvc_vet.shortBn : REPORTER_ROLES.bvc_vet.shortEn}</span>
+          <strong>{oneHealthSummary.sourceStats.bvc_vet.total}</strong>
+        </div>
+        <div className="clinical-strip-item">
+          <span>{language === 'bn' ? REPORTER_ROLES.farmer_ai.shortBn : REPORTER_ROLES.farmer_ai.shortEn}</span>
+          <strong>{oneHealthSummary.sourceStats.farmer_ai.total}</strong>
+        </div>
+        <div className="clinical-strip-item is-zoonotic">
+          <span>{t('zoonoticAlertsStat')}</span>
+          <strong>
+            ⚠️ {oneHealthSummary.zoonoticDistrictCount}{' '}
+            {language === 'bn' ? 'জেলা' : 'districts'}
+          </strong>
+        </div>
+      </section>
+
       {actionStatus && (
         <p className="history-feedback" role="status" style={{ margin: '8px 0' }}>
           {actionStatus}
@@ -428,6 +525,8 @@ export default function ClinicalLog() {
           const count =
             id === 'unified'
               ? unifiedLogs.length
+              : id === 'surveillance'
+              ? surveillanceLogs.length
               : id === 'diagnosis'
               ? diagnosisLogs.length
               : id === 'prescriptions'
@@ -486,6 +585,26 @@ export default function ClinicalLog() {
             render={(record) => (
               <SummaryCard
                 key={`${record.type}-${record.id}`}
+                record={record}
+                locale={locale}
+                language={language}
+                labels={labels}
+                onSelect={setSelectedRecord}
+                onStatus={setActionStatus}
+                t={t}
+              />
+            )}
+          />
+        )}
+
+        {activeTab === 'surveillance' && (
+          <HistoryList
+            records={surveillanceLogs}
+            emptyText={t('historyNoSurveillanceLogs')}
+            emptyIcon={ShieldAlert}
+            render={(record) => (
+              <SummaryCard
+                key={record.id}
                 record={record}
                 locale={locale}
                 language={language}
@@ -622,12 +741,15 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
   const type = record.type
   const isPrescription = type === 'prescription'
   const isDiagnosis = type === 'diagnosis'
+  const isSurveillance = type === 'surveillance'
   const isConsultation = type === 'consultation' || type === 'appointment'
   const isChat = type === 'chat'
   const isVetIssued = record.source === 'vet_issued'
 
   const dateDisplay = record.formattedDate || formattedDate(record.timestamp || record.updatedAt || record.createdAt, locale)
   const district = record.district || 'Rajshahi'
+  const diseaseName = record.disease || record.primaryDisease || ''
+  const zoonotic = (isDiagnosis || isSurveillance) ? getZoonoticInfo(diseaseName) : { isZoonotic: false }
 
   let title = ''
   let subtitle = ''
@@ -635,7 +757,25 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
   let badgeClass = ''
   let rightMetric = null
 
-  if (isPrescription) {
+  if (isSurveillance) {
+    const roleMeta = REPORTER_ROLES[normalizeReporterSource(record.reporterRole || record.source)]
+    title = getDiseaseDisplayLabel(diseaseName, language, t)
+    subtitle = [
+      record.upazila && `${record.upazila}`,
+      record.species && `${record.species}`,
+      record.reporterName || (language === 'bn' ? roleMeta.labelBn : roleMeta.labelEn),
+      record.antibioticPrescribed && record.antibioticPrescribed !== 'None / Supportive Only'
+        ? `Rx: ${t(`antibiotics.generics.${record.antibioticPrescribed}`, record.antibioticPrescribed)}`
+        : '',
+    ].filter(Boolean).join(' · ')
+    typeLabel = language === 'bn' ? roleMeta.shortBn : roleMeta.shortEn
+    badgeClass = normalizeReporterSource(record.reporterRole || record.source) === 'ulo_hospital' ? 'vet' : 'diagnosis'
+    rightMetric = (
+      <span className="history-metric-pill withdrawal">
+        {language === 'bn' ? `মৃত্যু: ${Number(record.mortalityCount) || 0}` : `Mortality: ${Number(record.mortalityCount) || 0}`}
+      </span>
+    )
+  } else if (isPrescription) {
     const meds = Array.isArray(record.medications) ? record.medications : []
     const medNames = meds.map((m) => m.tradeName || m.name).filter(Boolean).slice(0, 3).join(', ')
     title = record.diagnosis || (meds[0]?.tradeName ? `${language === 'bn' ? 'প্রেসক্রিপশন' : 'Prescription'}: ${meds[0].tradeName}` : t('historyPrescriptionTitle'))
@@ -656,7 +796,7 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
       )
     }
   } else if (isDiagnosis) {
-    title = record.primaryDisease || t('historyDiagnosisLabel')
+    title = getDiseaseDisplayLabel(record.primaryDisease, language, t) || t('historyDiagnosisLabel')
     subtitle = record.guidanceSummary
       ? record.guidanceSummary.replace(/\s+/g, ' ').slice(0, 120) + (record.guidanceSummary.length > 120 ? '…' : '')
       : (record.inputModalities || ['text']).join(', ')
@@ -738,11 +878,17 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
             <span className="history-badge-district dark:bg-gray-900 dark:text-emerald-400">
               <MapPin size={12} />
               {t(`districts.${district}`, district)}
+              {record.upazila ? ` (${record.upazila})` : ''}
             </span>
           )}
           <span className={`history-badge-type ${badgeClass} dark:bg-gray-900`}>
             {typeLabel}
           </span>
+          {zoonotic.isZoonotic && (
+            <span className="zoonotic-risk-badge is-compact">
+              ⚠️ {t('zoonoticRiskShort')}
+            </span>
+          )}
         </div>
         <div>{rightMetric}</div>
       </header>
@@ -761,7 +907,7 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
         <ChevronRight size={18} className="shrink-0 text-gray-400" aria-hidden="true" />
       </div>
 
-      {isPrescription ? (
+      {(isPrescription || isSurveillance) ? (
         <div
           className="history-prescription-actions-row"
           onClick={(event) => event.stopPropagation()}
@@ -777,7 +923,7 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
           <button
             type="button"
             className="history-action-btn"
-            onClick={() => openPrintPopup(prescriptionMarkup(record), onStatus, labels)}
+            onClick={() => openPrintPopup(isSurveillance ? surveillanceMarkup(record) : prescriptionMarkup(record), onStatus, labels)}
           >
             <Printer size={13} />
             <span>{labels.downloadPdf}</span>
@@ -787,7 +933,9 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
             className="history-action-btn"
             onClick={() =>
               shareTextRecord(
-                { title: `PoultryMedix Prescription - ${title}`, text: buildPrescriptionShareText(record) },
+                isSurveillance
+                  ? { title: `One-Health Surveillance - ${title}`, text: buildSurveillanceShareText(record) }
+                  : { title: `PoultryMedix Prescription - ${title}`, text: buildPrescriptionShareText(record) },
                 onStatus,
                 language
               )
@@ -817,8 +965,11 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
   const type = record.type
   const isPrescription = type === 'prescription'
   const isDiagnosis = type === 'diagnosis'
+  const isSurveillance = type === 'surveillance'
   const isConsultation = type === 'consultation' || type === 'appointment'
   const isChat = type === 'chat'
+  const modalDisease = record.disease || record.primaryDisease || ''
+  const zoonotic = (isDiagnosis || isSurveillance) ? getZoonoticInfo(modalDisease) : { isZoonotic: false }
 
   const dateDisplay = record.formattedDate || formattedDate(record.timestamp || record.updatedAt || record.createdAt, locale)
 
@@ -841,6 +992,8 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
             <span className="veterinary-kicker">
               {isPrescription
                 ? (record.source === 'vet_issued' ? (language === 'bn' ? 'ভেটেরিনারি প্রেসক্রিপশন' : 'Registered Vet Prescription') : (language === 'bn' ? 'প্রেসক্রিপশন স্ক্যান' : 'Prescription Analysis'))
+                : isSurveillance
+                ? (language === 'bn' ? 'ওয়ান-হেলথ ফিল্ড ও ULO সার্ভেইল্যান্স' : 'One-Health Field / ULO Surveillance')
                 : isDiagnosis
                 ? (language === 'bn' ? 'স্মার্ট ডায়াগনোসিস রিপোর্ট' : 'Smart Diagnosis Report')
                 : isConsultation
@@ -852,11 +1005,11 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                 ? safeText(record.summary, t('historyChatTopic'))
                 : isConsultation
                 ? safeText(record.vetName, t('historyVetNotAssigned'))
-                : record.diagnosis || record.primaryDisease || 'Clinical Details'}
+                : record.diagnosis || getDiseaseDisplayLabel(modalDisease, language, t) || 'Clinical Details'}
             </h2>
             <small style={{ color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
               <Clock size={12} /> {dateDisplay}
-              {!isChat && record.district && ` · 📍 ${record.district}`}
+              {!isChat && record.district && ` · 📍 ${t(`districts.${record.district}`, record.district)}${record.upazila ? `, ${record.upazila}` : ''}`}
             </small>
           </div>
           <button
@@ -871,6 +1024,63 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
         </header>
 
         <div className="history-prescription-modal-body dark:bg-gray-900 dark:text-gray-200 dark:border-gray-700">
+          {/* ONE-HEALTH ZOONOTIC WARNING LAYER */}
+          {zoonotic.isZoonotic && (
+            <div className="surveillance-zoonotic-preview" role="alert">
+              <div className="surveillance-zoonotic-badge-row">
+                <span className="zoonotic-risk-badge">
+                  <AlertTriangle size={13} aria-hidden="true" />
+                  <span>{t('zoonoticRiskBadge')}</span>
+                </span>
+              </div>
+              <p style={{ marginTop: '6px', fontSize: '12px' }}>
+                {language === 'bn' ? zoonotic.riskNoteBn : zoonotic.riskNoteEn}
+              </p>
+              <ul style={{ margin: '6px 0 0', paddingLeft: '18px', fontSize: '11.5px', display: 'grid', gap: '4px' }}>
+                {ZOONOTIC_HUMAN_PRECAUTIONS.slice(0, 3).map((prec) => (
+                  <li key={prec.id}>
+                    <strong>{language === 'bn' ? prec.titleBn : prec.titleEn}:</strong>{' '}
+                    {language === 'bn' ? prec.detailBn : prec.detailEn}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* FIELD / ULO SURVEILLANCE DETAIL */}
+          {isSurveillance && (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '10px', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
+                <div>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('reporterRoleLabel')}</small>
+                  <strong className="dark:text-white">
+                    {language === 'bn'
+                      ? (REPORTER_ROLES[normalizeReporterSource(record.reporterRole || record.source)]?.labelBn)
+                      : (REPORTER_ROLES[normalizeReporterSource(record.reporterRole || record.source)]?.labelEn)}
+                  </strong>
+                  <div style={{ fontSize: '11px', color: '#047857' }}>{record.reporterName}</div>
+                </div>
+                <div>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('birdSpeciesLabel')} · {t('mortalityCountLabel')}</small>
+                  <strong className="dark:text-white">{record.species || 'Broiler'}</strong>
+                  <div style={{ fontSize: '11px', color: '#b91c1c', fontWeight: 700 }}>
+                    {language === 'bn' ? `মৃত্যু: ${Number(record.mortalityCount) || 0} পাখি` : `${Number(record.mortalityCount) || 0} mortality`}
+                  </div>
+                </div>
+                <div>
+                  <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('antibioticPrescribedLabel')}</small>
+                  <strong className="dark:text-white">{record.antibioticPrescribed || 'None / Supportive Only'}</strong>
+                </div>
+              </div>
+              {record.notes && (
+                <div style={{ padding: '10px 14px', background: '#fafafa', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
+                  <strong style={{ fontSize: '12px', display: 'block', marginBottom: '4px' }}>{t('surveillanceNotesLabel')}:</strong>
+                  <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5 }}>{record.notes}</p>
+                </div>
+              )}
+            </>
+          )}
+
           {/* PRESCRIPTION DETAIL */}
           {isPrescription && (
             <>
@@ -1025,14 +1235,16 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
         </div>
 
         <footer className="history-prescription-modal-footer dark:bg-gray-800 dark:border-gray-700" style={{ flexWrap: 'wrap' }}>
-          {(isPrescription || isDiagnosis || isConsultation) && (
+          {(isPrescription || isDiagnosis || isConsultation || isSurveillance) && (
             <>
               <button
                 type="button"
                 className="history-action-btn history-action-btn--primary"
                 onClick={() =>
                   openPrintPopup(
-                    isPrescription
+                    isSurveillance
+                      ? surveillanceMarkup(record)
+                      : isPrescription
                       ? prescriptionMarkup(record)
                       : isDiagnosis
                       ? diagnosisMarkup(record)
@@ -1050,7 +1262,9 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
                 className="history-action-btn"
                 onClick={() =>
                   shareTextRecord(
-                    isPrescription
+                    isSurveillance
+                      ? { title: `One-Health Surveillance - ${modalDisease}`, text: buildSurveillanceShareText(record) }
+                      : isPrescription
                       ? { title: `PoultryMedix Prescription - ${record.diagnosis || 'Prescription'}`, text: buildPrescriptionShareText(record) }
                       : isDiagnosis
                       ? {

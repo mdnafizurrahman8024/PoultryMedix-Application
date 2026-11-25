@@ -22,6 +22,7 @@ import './Dashboard.css'
 import './VeterinaryFeatures.css'
 
 const EpidemiologyMap = React.lazy(() => import('./veterinary/EpidemiologyMap.jsx'))
+const FarmBlueprint = React.lazy(() => import('./veterinary/FarmBlueprint.jsx'))
 
 const guidelinesData = [
   {
@@ -126,6 +127,8 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     setProfileAction(action)
   }
 
+  const [activeView, setActiveView] = useState('home')
+
   function openSosModal() {
     setSettingsOpen(false)
     setProfileAction('')
@@ -182,7 +185,6 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     sheds: false,
     vaccines: false,
   })
-  const [activeView, setActiveView] = useState('home')
   const [sheds, setSheds] = useState(() => getSheds())
 
   const allHomeExpanded = openSections.diagnosis
@@ -931,7 +933,11 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
-        ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'privacy' ? <PrivacyPolicy /> : activeView === 'telemedicine' ? <Telemedicine /> : (
+        ) : activeView === 'data' ? <DataHub onContributionSubmitted={() => { setPoints((previousPoints) => previousPoints + 10); setPointsToast(true) }} /> : activeView === 'history' ? <ClinicalLog /> : activeView === 'team' ? <TeamPage /> : activeView === 'privacy' ? <PrivacyPolicy /> : activeView === 'telemedicine' ? <Telemedicine /> : activeView === 'blueprint' ? (
+          <Suspense fallback={<div className="p-4 text-center">{t('pleaseWait')}</div>}>
+            <FarmBlueprint />
+          </Suspense>
+        ) : (
           <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
           </Suspense>
@@ -947,6 +953,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             ['history', 'clipboard', 'clinicalHistoryNav'],
             ['data', 'brain', 'bottomContribute'],
             ['telemedicine', 'stethoscope', 'consultVetNav'],
+            ['blueprint', 'blueprint', 'blueprintNav'],
           ].map(([view, icon, label]) => (
             <button
               type="button"

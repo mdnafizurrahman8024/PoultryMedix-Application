@@ -5,6 +5,8 @@
  * in localStorage under 'poultrymedix_clinical_logs', structured for future backend sync.
  */
 
+import { getZoonoticInfo, normalizeReporterSource } from './oneHealthSurveillance.js'
+
 export const CLINICAL_LOGS_STORAGE_KEY = 'poultrymedix_clinical_logs'
 export const CLINICAL_LOGS_UPDATED_EVENT = 'poultrymedix-clinical-logs-updated'
 
@@ -153,6 +155,7 @@ export function saveClinicalLog(entry) {
     // Broadcast update event so open tabs/components re-render instantly
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(CLINICAL_LOGS_UPDATED_EVENT, { detail: fullRecord }))
+      window.dispatchEvent(new CustomEvent('poultrymedix-analytics-updated', { detail: fullRecord }))
     }
   } catch (err) {
     console.error('[clinical-logs] Failed to write log entry:', err)
@@ -172,16 +175,67 @@ export function saveDiagnosisLog({
   guidanceSummary = '',
   breakdown = [],
   district = 'Rajshahi',
+  source = 'farmer_ai',
 }) {
+  const zoonotic = getZoonoticInfo(primaryDisease)
   return saveClinicalLog({
     id: id || crypto.randomUUID(),
     type: 'diagnosis',
+    source: normalizeReporterSource(source),
+    reporterRole: normalizeReporterSource(source),
     district: district || 'Rajshahi',
     primaryDisease,
     confidencePercent,
     inputModalities,
     guidanceSummary,
     breakdown,
+    isZoonotic: zoonotic.isZoonotic,
+    zoonoticSeverity: zoonotic.severity || '',
+    syncedToCloud: false,
+  })
+}
+
+/**
+ * Saves a Field / ULO One-Health Surveillance Report.
+ */
+export function saveSurveillanceLog({
+  id,
+  district = 'Rajshahi',
+  upazila = '',
+  reporterRole = 'ulo_hospital',
+  reporterName = '',
+  species = 'Broiler',
+  disease = 'Avian Influenza',
+  antibioticPrescribed = 'None / Supportive Only',
+  mortalityCount = 0,
+  flockSize = '',
+  notes = '',
+}) {
+  const normalizedRole = normalizeReporterSource(reporterRole)
+  const zoonotic = getZoonoticInfo(disease)
+  const defaultReporters = {
+    ulo_hospital: 'Govt. ULO Veterinary Officer',
+    bvc_vet: 'BVC Registered Veterinarian',
+    farmer_ai: 'Verified Poultry Farmer',
+  }
+
+  return saveClinicalLog({
+    id: id || crypto.randomUUID(),
+    type: 'surveillance',
+    source: normalizedRole,
+    reporterRole: normalizedRole,
+    reporterName: String(reporterName || '').trim() || defaultReporters[normalizedRole],
+    district: district || 'Rajshahi',
+    upazila: String(upazila || '').trim(),
+    species: species || 'Broiler',
+    disease: disease || 'Avian Influenza',
+    primaryDisease: disease || 'Avian Influenza',
+    antibioticPrescribed: antibioticPrescribed || 'None / Supportive Only',
+    mortalityCount: Math.max(0, Number(mortalityCount) || 0),
+    flockSize: flockSize ? Math.max(0, Number(flockSize) || 0) : '',
+    isZoonotic: zoonotic.isZoonotic,
+    zoonoticSeverity: zoonotic.severity || '',
+    notes: String(notes || '').trim(),
     syncedToCloud: false,
   })
 }
@@ -293,35 +347,41 @@ export function exportLogsAsCsv() {
     'Log ID',
     'Date & Time',
     'Type',
-    'Source',
+    'Source / Reporter Role',
     'District',
-    'Primary Condition / Diagnosis',
-    'Confidence % / Details',
-    'Modalities / File',
-    'Medications Count',
-    'Medications List',
+    'Upazila',
+    'Species',
+    'Primary Condition / Disease',
+    'Zoonotic Risk',
+    'Mortality Count',
+    'Prescribed Antibiotic / Medications',
     'Withdrawal Periods (Meat / Egg)',
-    'Advice & Guidance',
+    'Notes & Guidance',
   ]
 
   const rows = logs.map((log) => {
     const meds = Array.isArray(log.medications) ? log.medications : []
-    const medList = meds.map((m) => `${m.tradeName || m.name} (${m.genericName || ''})`).join('; ')
+    const medList = meds.length
+      ? meds.map((m) => `${m.tradeName || m.name} (${m.genericName || ''})`).join('; ')
+      : (log.antibioticPrescribed || '')
     const withdrawalList = meds.map((m) => `Meat: ${m.meatWithdrawalDays || '—'}, Eggs: ${m.eggWithdrawalDays || '—'}`).join('; ')
+    const disease = log.disease || log.primaryDisease || log.diagnosis || ''
+    const isZoonotic = Boolean(log.isZoonotic ?? getZoonoticInfo(disease).isZoonotic)
 
     return [
       `"${log.id || ''}"`,
       `"${log.formattedDate || log.timestamp || ''}"`,
       `"${log.type || ''}"`,
-      `"${log.source || ''}"`,
+      `"${log.reporterRole || log.source || ''}"`,
       `"${log.district || 'Rajshahi'}"`,
-      `"${(log.primaryDisease || log.diagnosis || '').replace(/"/g, '""')}"`,
-      `"${log.confidencePercent || ''}"`,
-      `"${Array.isArray(log.inputModalities) ? log.inputModalities.join(', ') : (log.fileName || '')}"`,
-      meds.length,
+      `"${(log.upazila || '').replace(/"/g, '""')}"`,
+      `"${(log.species || log.flockType || '').replace(/"/g, '""')}"`,
+      `"${disease.replace(/"/g, '""')}"`,
+      `"${isZoonotic ? 'ZOONOTIC RISK' : 'No'}"`,
+      Number(log.mortalityCount) || 0,
       `"${medList.replace(/"/g, '""')}"`,
       `"${withdrawalList.replace(/"/g, '""')}"`,
-      `"${(log.guidanceSummary || log.advice || log.transcription || '').replace(/"/g, '""')}"`,
+      `"${(log.notes || log.guidanceSummary || log.advice || log.transcription || '').replace(/"/g, '""')}"`,
     ]
   })
 

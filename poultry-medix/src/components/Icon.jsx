@@ -47,6 +47,7 @@ export default function Icon({ name, size = 20, className = '' }) {
     stethoscope: <><path d="M6 3v5a4 4 0 0 0 8 0V3M4 3h4m4 0h4m-6 9v2a5 5 0 0 0 10 0v-1" /><circle cx="18" cy="11" r="2" /><path d="M18 13v3a4 4 0 0 0 4 4" /></>,
     calculator: <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M8 6h8v4H8zm0 8h2m4 0h2m-8 4h2m4 0h2" /></>,
     map: <><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" /><path d="M9 3v15m6-12v15" /></>,
+    blueprint: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h10M13 4v16M13 13h8" /></>,
     database: <><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3" /></>,
     video: <><rect x="3" y="5" width="13" height="14" rx="2" /><path d="m16 10 5-3v10l-5-3" /></>,
     creditCard: <><rect x="2.5" y="5" width="19" height="14" rx="2" /><path d="M2.5 10h19M7 15h3" /></>,

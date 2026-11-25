@@ -3874,3 +3874,1625 @@ html[data-theme="dark"] .privacy-policy-section li {
     font-size: 16px;
   }
 }
+
+/* Prompt-11: National One-Health Surveillance Network & Zoonotic Layer */
+.onehealth-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.onehealth-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 9px 16px;
+  border: 1px solid #166534;
+  border-radius: 10px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.onehealth-submit-btn:hover {
+  background: #166534;
+}
+
+.onehealth-submit-btn:active {
+  transform: scale(0.98);
+}
+
+.onehealth-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid #86efac;
+  border-radius: 11px;
+  background: #f0fdf4;
+  color: #14532d;
+  font-size: 12.5px;
+}
+
+.onehealth-toast button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #166534;
+  cursor: pointer;
+}
+
+.onehealth-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.onehealth-kpi-card {
+  display: grid;
+  gap: 6px;
+  padding: 13px 15px;
+  border: 1px solid #e1e9dd;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(44, 76, 47, 0.04);
+}
+
+.onehealth-kpi-card.is-zoonotic-alert {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+html[data-theme="dark"] .onehealth-kpi-card.is-zoonotic-alert {
+  border-color: #7f1d1d;
+  background: rgba(127, 29, 29, 0.25);
+}
+
+.onehealth-kpi-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+}
+
+html[data-theme="dark"] .onehealth-kpi-head {
+  color: #cbd5e1;
+}
+
+.onehealth-source-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  flex-shrink: 0;
+}
+
+.onehealth-source-icon.is-ulo {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.onehealth-source-icon.is-bvc {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.onehealth-source-icon.is-ai {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.onehealth-source-icon.is-zoonotic {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.onehealth-kpi-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.onehealth-kpi-value-row strong {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  color: #0f172a;
+}
+
+html[data-theme="dark"] .onehealth-kpi-value-row strong {
+  color: #f8fafc;
+}
+
+.onehealth-kpi-value-row small {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.onehealth-kpi-sub {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+html[data-theme="dark"] .onehealth-kpi-sub {
+  color: #94a3b8;
+}
+
+.onehealth-live-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.map-card-heading--wrap {
+  flex-wrap: wrap;
+}
+
+.map-actions--wrap {
+  flex-wrap: wrap;
+}
+
+.zoonotic-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  background: #fff5f5;
+  color: #991b1b;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.zoonotic-filter-toggle.is-active {
+  border-color: #b91c1c;
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+.zoonotic-filter-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.zoonotic-filter-toggle.is-active .zoonotic-filter-count {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.onehealth-map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 15px;
+  border-top: 1px solid #e6ede2;
+  background: #fafcf9;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.onehealth-map-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.legend-zoonotic {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
+.legend-ring {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  border: 2px dashed #b91c1c;
+}
+
+.zoonotic-risk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid #fca5a5;
+  border-radius: 999px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+}
+
+.zoonotic-risk-badge.is-compact {
+  padding: 2px 7px;
+  font-size: 10px;
+}
+
+html[data-theme="dark"] .zoonotic-risk-badge {
+  border-color: #991b1b;
+  background: #450a0a;
+  color: #fecaca;
+}
+
+.onehealth-biosecurity-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #fecaca;
+  border-radius: 14px;
+  background: #fff8f8;
+}
+
+.onehealth-biosecurity-panel.is-emphasized {
+  border-width: 2px;
+  border-color: #dc2626;
+}
+
+.onehealth-biosecurity-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onehealth-biosecurity-head h2 {
+  margin: 7px 0 4px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #7f1d1d;
+}
+
+html[data-theme="dark"] .onehealth-biosecurity-head h2 {
+  color: #fecaca;
+}
+
+.onehealth-biosecurity-head p {
+  max-width: 680px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #7f1d1d;
+}
+
+html[data-theme="dark"] .onehealth-biosecurity-head p {
+  color: #fca5a5;
+}
+
+.onehealth-biosecurity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.onehealth-precautions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.onehealth-precaution-card {
+  padding: 11px 13px;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.onehealth-precaution-card strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #991b1b;
+}
+
+.onehealth-precaution-card p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+.district-surveillance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #e1e9dd;
+  border-radius: 14px;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.district-surveillance-card:hover {
+  transform: translateY(-2px);
+  border-color: #94a3b8;
+}
+
+.district-surveillance-card.is-selected {
+  border: 2px solid #15803d;
+  background: #f0fdf4;
+}
+
+html[data-theme="dark"] .district-surveillance-card.is-selected {
+  border-color: #4ade80;
+  background: rgba(20, 83, 45, 0.28);
+}
+
+.district-card-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.district-upazilas {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.district-top-disease-block {
+  margin-top: 2px;
+}
+
+.district-primary-disease {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.district-secondary-diseases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.district-disease-chip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.district-card-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.district-metric-pill {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.district-source-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.onehealth-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.onehealth-disease-list,
+.onehealth-feed-list {
+  display: grid;
+  gap: 9px;
+}
+
+.onehealth-disease-row,
+.onehealth-feed-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.onehealth-disease-row-top,
+.onehealth-feed-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.onehealth-disease-stats {
+  font-size: 11px;
+  color: #475569;
+}
+
+.onehealth-disease-districts,
+.onehealth-feed-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.onehealth-feed-main {
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.onehealth-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.onehealth-role-pill.is-ulo_hospital {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.onehealth-role-pill.is-bvc_vet {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.onehealth-role-pill.is-farmer_ai {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Surveillance Submission Form & Clinical Strip */
+.clinical-onehealth-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e1e9dd;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.clinical-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.clinical-strip-item span {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.clinical-strip-item strong {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.clinical-strip-item.is-zoonotic strong {
+  color: #b91c1c;
+}
+
+.surveillance-field-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+html[data-theme="dark"] .surveillance-field-label {
+  color: #cbd5e1;
+}
+
+.surveillance-role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.surveillance-role-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.surveillance-role-btn.is-active {
+  border-color: #15803d;
+  background: #dcfce7;
+  color: #14532d;
+}
+
+html[data-theme="dark"] .surveillance-role-btn {
+  border-color: #334155;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .surveillance-role-btn.is-active {
+  border-color: #22c55e;
+  background: rgba(20, 83, 45, 0.45);
+  color: #86efac;
+}
+
+.surveillance-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.surveillance-field {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+html[data-theme="dark"] .surveillance-field {
+  color: #cbd5e1;
+}
+
+.surveillance-field input,
+.surveillance-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+html[data-theme="dark"] .surveillance-field input,
+html[data-theme="dark"] .surveillance-field select {
+  border-color: #334155;
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+.surveillance-zoonotic-preview {
+  padding: 10px 12px;
+  border: 1px solid #fca5a5;
+  border-radius: 10px;
+  background: #fef2f2;
+  color: #7f1d1d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+html[data-theme="dark"] .surveillance-zoonotic-preview {
+  border-color: #991b1b;
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+}
+
+.surveillance-zoonotic-preview p {
+  margin: 5px 0 0;
+}
+
+.surveillance-colistin-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1.5px solid #dc2626;
+  border-radius: 9px;
+  background: #fff1f2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.surveillance-stewardship-hint {
+  margin: 0;
+  padding: 8px 11px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #78350f;
+  font-size: 11.5px;
+}
+
+.surveillance-form-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 960px) {
+  .onehealth-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .onehealth-analytics-grid,
+  .onehealth-precautions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .onehealth-kpi-grid,
+  .clinical-onehealth-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .surveillance-role-grid,
+  .surveillance-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Prompt-12: Farm Blueprint & Startup Guide */
+@media (max-width: 720px) {
+  .bottom-navigation {
+    justify-content: flex-start;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    padding-right: 12px;
+    padding-left: 12px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bottom-navigation-items {
+    width: max-content;
+    min-width: 100%;
+    flex: 0 0 auto;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .bottom-navigation::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bottom-navigation button {
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: max-content;
+    padding: 5px 10px;
+  }
+
+  .bottom-navigation button span {
+    max-width: none;
+    overflow: visible;
+    font-size: 11px;
+  }
+}
+
+.blueprint-card {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid #e1e9dd;
+  border-radius: 14px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(44, 76, 47, 0.04);
+}
+
+.blueprint-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.blueprint-section-head h2 {
+  margin: 4px 0 4px;
+  font-size: clamp(16px, 2.2vw, 20px);
+  font-weight: 800;
+  color: #1e293b;
+}
+
+html[data-theme="dark"] .blueprint-section-head h2 {
+  color: #f8fafc;
+}
+
+.blueprint-section-head p {
+  max-width: 720px;
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+html[data-theme="dark"] .blueprint-section-head p {
+  color: #cbd5e1;
+}
+
+.blueprint-view-pills,
+.blueprint-mode-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+html[data-theme="dark"] .blueprint-view-pills,
+html[data-theme="dark"] .blueprint-mode-toggle {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+.blueprint-view-pills button,
+.blueprint-mode-toggle button {
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blueprint-view-pills button.is-active,
+.blueprint-mode-toggle button.is-active {
+  background: #15803d;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .blueprint-view-pills button,
+html[data-theme="dark"] .blueprint-mode-toggle button {
+  color: #cbd5e1;
+}
+
+.blueprint-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.blueprint-control-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 750;
+  color: #334155;
+}
+
+html[data-theme="dark"] .blueprint-control-label {
+  color: #cbd5e1;
+}
+
+.blueprint-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.blueprint-chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.blueprint-chip.is-active {
+  border-color: #15803d;
+  background: #dcfce7;
+  color: #14532d;
+}
+
+html[data-theme="dark"] .blueprint-chip {
+  border-color: #334155;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .blueprint-chip.is-active {
+  border-color: #22c55e;
+  background: rgba(20, 83, 45, 0.45);
+  color: #86efac;
+}
+
+.blueprint-recommend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+
+.blueprint-recommend-copy {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  flex: 1 1 300px;
+}
+
+.blueprint-recommend-copy strong {
+  display: block;
+  font-size: 13px;
+  color: #14532d;
+}
+
+html[data-theme="dark"] .blueprint-recommend-copy strong {
+  color: #86efac;
+}
+
+.blueprint-recommend-copy p {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #3f5e48;
+}
+
+html[data-theme="dark"] .blueprint-recommend-copy p {
+  color: #cbd5e1;
+}
+
+.blueprint-visualizer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.blueprint-visualizer-grid.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.blueprint-svg-card {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fcfdfb;
+}
+
+.blueprint-svg-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.blueprint-svg-caption strong {
+  font-size: 11.5px;
+  color: #15803d;
+}
+
+html[data-theme="dark"] .blueprint-svg-caption strong {
+  color: #4ade80;
+}
+
+.blueprint-svg-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+html[data-theme="dark"] .blueprint-svg-canvas {
+  background: #f8fafc;
+}
+
+.blueprint-airflow-line {
+  stroke-dasharray: 6 5;
+  animation: blueprint-flow 1.4s linear infinite;
+}
+
+@keyframes blueprint-flow {
+  from {
+    stroke-dashoffset: 22;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blueprint-airflow-line {
+    animation: none;
+  }
+}
+
+.blueprint-specs-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.blueprint-spec-tile {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.blueprint-spec-tile > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.blueprint-spec-tile strong {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+html[data-theme="dark"] .blueprint-spec-tile strong {
+  color: #f8fafc;
+}
+
+.blueprint-spec-tile small {
+  font-size: 11px;
+  color: #475569;
+  line-height: 1.35;
+}
+
+html[data-theme="dark"] .blueprint-spec-tile small {
+  color: #cbd5e1;
+}
+
+.blueprint-compare-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+  font-size: 11.5px;
+  color: #475569;
+}
+
+/* Biosecurity Radar & Live Risk Check */
+.blueprint-radar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: 16px;
+}
+
+.blueprint-radar-left,
+.blueprint-radar-right {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.blueprint-subheading {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+html[data-theme="dark"] .blueprint-subheading {
+  color: #f1f5f9;
+}
+
+.blueprint-distance-list,
+.blueprint-zone-list {
+  display: grid;
+  gap: 8px;
+}
+
+.blueprint-distance-card,
+.blueprint-zone-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.blueprint-distance-pill {
+  display: inline-block;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.blueprint-distance-card strong,
+.blueprint-zone-card strong {
+  font-size: 12.5px;
+}
+
+.blueprint-distance-card p,
+.blueprint-zone-card p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+html[data-theme="dark"] .blueprint-distance-card p,
+html[data-theme="dark"] .blueprint-zone-card p {
+  color: #cbd5e1;
+}
+
+.blueprint-risk-scanner {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid #dce6da;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.blueprint-risk-result {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  font-size: 12px;
+}
+
+.blueprint-risk-result.is-danger {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+
+.blueprint-risk-result.is-caution {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #78350f;
+}
+
+.blueprint-risk-result.is-clear {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+html[data-theme="dark"] .blueprint-risk-result {
+  color: #e2e8f0;
+}
+
+.blueprint-risk-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.blueprint-risk-top strong,
+.blueprint-risk-result > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.blueprint-risk-result p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.blueprint-ulo-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin-top: 4px;
+  padding: 6px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* FCR & Break-Even Estimator + Checklists */
+.blueprint-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 5px 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blueprint-cost-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.blueprint-cost-inputs,
+.blueprint-cost-outputs {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.blueprint-inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.blueprint-cost-highlight {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.blueprint-cost-highlight > div {
+  padding: 12px;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+  background: #f0fdf4;
+}
+
+html[data-theme="dark"] .blueprint-cost-highlight > div {
+  border-color: #166534;
+  background: rgba(20, 83, 45, 0.3);
+}
+
+.blueprint-cost-highlight span {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #166534;
+}
+
+html[data-theme="dark"] .blueprint-cost-highlight span {
+  color: #86efac;
+}
+
+.blueprint-cost-highlight strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #14532d;
+}
+
+html[data-theme="dark"] .blueprint-cost-highlight strong {
+  color: #f0fdf4;
+}
+
+.blueprint-cost-breakdown {
+  display: grid;
+  gap: 7px;
+  font-size: 12.5px;
+}
+
+.blueprint-cost-breakdown > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+html[data-theme="dark"] .blueprint-cost-breakdown > div {
+  border-color: #334155;
+}
+
+.blueprint-cost-breakdown > div.is-total {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.blueprint-cost-breakdown > div.is-margin-pos strong {
+  color: #15803d;
+}
+
+.blueprint-cost-breakdown > div.is-margin-neg strong {
+  color: #b91c1c;
+}
+
+.blueprint-layer-note {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.blueprint-checklists-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.blueprint-checklist-panel {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.blueprint-checklist-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.blueprint-checklist-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+}
+
+.blueprint-progress-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.blueprint-checklist-items {
+  display: grid;
+  gap: 8px;
+}
+
+.blueprint-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+html[data-theme="dark"] .blueprint-check-item {
+  background: #1e293b;
+}
+
+.blueprint-check-item.is-checked {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
+html[data-theme="dark"] .blueprint-check-item.is-checked {
+  border-color: #166534;
+  background: rgba(20, 83, 45, 0.25);
+}
+
+.blueprint-check-item input {
+  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  accent-color: #15803d;
+  flex-shrink: 0;
+}
+
+.blueprint-check-item strong {
+  display: block;
+  font-size: 12px;
+}
+
+.blueprint-check-item p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+html[data-theme="dark"] .blueprint-check-item p {
+  color: #cbd5e1;
+}
+
+.blueprint-doc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Pro Workshop Booking Cards */
+.blueprint-pro-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.blueprint-workshop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.blueprint-workshop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px;
+  border: 1px solid #dce6da;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.blueprint-workshop-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.blueprint-workshop-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0369a1;
+}
+
+.blueprint-workshop-fee {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.blueprint-workshop-card h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.blueprint-workshop-topics {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: #475569;
+}
+
+html[data-theme="dark"] .blueprint-workshop-topics {
+  color: #cbd5e1;
+}
+
+.blueprint-workshop-host {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 11.5px;
+}
+
+html[data-theme="dark"] .blueprint-workshop-host {
+  border-color: #334155;
+}
+
+.blueprint-workshop-host strong,
+.blueprint-workshop-host small {
+  display: block;
+}
+
+.blueprint-workshop-host small {
+  color: #64748b;
+}
+
+.blueprint-workshop-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.blueprint-seats-left {
+  font-size: 11px;
+  font-weight: 700;
+  color: #b45309;
+}
+
+.blueprint-reserve-btn {
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid #166534;
+  border-radius: 8px;
+  background: #15803d;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.blueprint-reserved-badge {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.blueprint-reserve-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid #15803d;
+  border-radius: 12px;
+  background: #f0fdf4;
+}
+
+.blueprint-reserve-form-head strong {
+  display: block;
+  font-size: 13.5px;
+}
+
+.blueprint-reserve-form-head small {
+  color: #475569;
+}
+
+.blueprint-reserve-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.blueprint-reserve-submit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 960px) {
+  .blueprint-visualizer-grid,
+  .blueprint-radar-layout,
+  .blueprint-cost-layout,
+  .blueprint-checklists-grid,
+  .blueprint-workshop-grid,
+  .blueprint-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blueprint-specs-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .blueprint-specs-grid,
+  .blueprint-inputs-grid,
+  .blueprint-cost-highlight,
+  .blueprint-reserve-fields {
+    grid-template-columns: 1fr;
+  }
+}
