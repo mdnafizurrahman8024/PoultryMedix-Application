@@ -1,16 +1,9 @@
 /**
- * Multi-Channel Doctor Booking Notification Adapter
+ * Privacy-Protected Platform Consultation Signaling & In-App Alerts
  *
- * Supports immediate WhatsApp & Email dispatch on booking/payment verification,
- * plus an extensible backend webhook / future channel hook via environment variables
- * (`VITE_DOCTOR_NOTIFY_EMAIL`, `VITE_BOOKING_NOTIFY_WEBHOOK_URL`).
+ * Broadcasts paid booking arrivals and live digital prescription deliveries across
+ * open Farmer & Veterinarian PoultryMedix tabs without exposing personal doctor contact data.
  */
-
-import { buildDoctorWhatsAppUrl } from './paymentAdapter.js'
-
-export const DOCTOR_NOTIFY_EMAIL = String(
-  import.meta.env?.VITE_DOCTOR_NOTIFY_EMAIL || 'consultation@poultrymedix.app'
-).trim()
 
 export const BOOKING_NOTIFY_WEBHOOK_URL = String(
   import.meta.env?.VITE_BOOKING_NOTIFY_WEBHOOK_URL || ''
@@ -18,75 +11,13 @@ export const BOOKING_NOTIFY_WEBHOOK_URL = String(
 
 export const TELEHEALTH_SIGNAL_CHANNEL = 'poultrymedix-telehealth-webrtc'
 
-export function buildDoctorEmailUrl({
-  email = DOCTOR_NOTIFY_EMAIL,
-  doctorName = 'Dr. Md Nafizur Rahman',
-  receipt,
-  roomCode = '',
-  language = 'en',
-}) {
-  const isBn = language === 'bn'
-  const trxId = receipt?.trxId || receipt?.id || 'PMX-TRX'
-  const subject = isBn
-    ? `[PoultryMedix বুকিং ${trxId}] নতুন টেলিমেডিসিন পরামর্শ (${receipt?.farmerName || 'খামারি'})`
-    : `[PoultryMedix Booking ${trxId}] New Telemedicine Consultation (${receipt?.farmerName || 'Farmer'})`
-
-  const lines = isBn
-    ? [
-        `আসসালামু আলাইকুম ${doctorName},`,
-        '',
-        'পোল্ট্রিমেডিক্স অ্যাপে একটি নতুন যাচাইকৃত পরামর্শ বুকিং সম্পন্ন হয়েছে:',
-        `• রিসিট / বুকিং আইডি: ${trxId}`,
-        roomCode ? `• অ্যাপ কল রুম কোড: ${roomCode}` : '',
-        `• তারিখ ও সময়: ${receipt?.bookingDate || ''} · ${receipt?.bookingTime || ''}`,
-        `• খামারি ও খামার: ${receipt?.farmerName || ''} (${receipt?.farmName || ''}, ${receipt?.district || ''})`,
-        `• পালের সমস্যা: ${receipt?.concern || ''}`,
-        `• পেমেন্ট স্ট্যাটাস: ৳ ${receipt?.amount || 500} (${receipt?.paymentMethodLabel || 'Verified'}) — ${receipt?.status || 'Completed'}`,
-        '',
-        'দয়া করে PoultryMedix Consult Vet (Registered Veterinarian) সেকশনে এই রুম কোড দিয়ে যুক্ত হোন অথবা হোয়াটসঅ্যাপে সাড়া দিন।',
-      ].filter((line) => line !== null && line !== undefined)
-    : [
-        `Hello ${doctorName},`,
-        '',
-        'A verified consultation booking has been scheduled on PoultryMedix:',
-        `• Booking / Receipt ID: ${trxId}`,
-        roomCode ? `• Consultation Room Code: ${roomCode}` : '',
-        `• Scheduled Slot: ${receipt?.bookingDate || ''} at ${receipt?.bookingTime || ''}`,
-        `• Farmer & Farm: ${receipt?.farmerName || ''} (${receipt?.farmName || ''}, ${receipt?.district || ''})`,
-        `• Flock Concern: ${receipt?.concern || ''}`,
-        `• Payment Status: BDT ${receipt?.amount || 500} (${receipt?.paymentMethodLabel || 'Verified'}) — ${receipt?.status || 'Completed'}`,
-        '',
-        'Please join via PoultryMedix Consult Vet (Registered Veterinarian view) using the Room Code or connect via WhatsApp.',
-      ].filter((line) => line !== null && line !== undefined)
-
-  return `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`
-}
-
 export async function dispatchDoctorBookingNotifications({
   receipt,
   doctor,
   roomCode = '',
-  language = 'en',
+  shedSummary = '',
+  aiDiagnosisSummary = '',
 }) {
-  const whatsappUrl = buildDoctorWhatsAppUrl({
-    phone: doctor?.whatsappNumber || '+8801849288024',
-    bookingId: receipt?.trxId || receipt?.id,
-    doctorName: doctor?.name || 'Dr. Md Nafizur Rahman',
-    farmerName: receipt?.farmerName || '',
-    farmName: receipt?.farmName || '',
-    district: receipt?.district || '',
-    concern: receipt?.concern || '',
-    language,
-  })
-
-  const emailUrl = buildDoctorEmailUrl({
-    email: doctor?.email || DOCTOR_NOTIFY_EMAIL,
-    doctorName: doctor?.name || 'Dr. Md Nafizur Rahman',
-    receipt,
-    roomCode,
-    language,
-  })
-
   let webhookDispatched = false
   if (BOOKING_NOTIFY_WEBHOOK_URL) {
     try {
@@ -96,13 +27,16 @@ export async function dispatchDoctorBookingNotifications({
         body: JSON.stringify({
           event: 'telemedicine.booking.verified',
           trxId: receipt?.trxId,
+          roomId: roomCode,
           roomCode,
+          doctorId: doctor?.id,
           doctorName: doctor?.name,
-          doctorPhone: doctor?.whatsappNumber,
-          doctorEmail: doctor?.email || DOCTOR_NOTIFY_EMAIL,
+          bvcRegNo: doctor?.regNo,
           farmerName: receipt?.farmerName,
           farmName: receipt?.farmName,
           district: receipt?.district,
+          shedSummary,
+          aiDiagnosisSummary,
           bookingDate: receipt?.bookingDate,
           bookingTime: receipt?.bookingTime,
           concern: receipt?.concern,
@@ -122,25 +56,48 @@ export async function dispatchDoctorBookingNotifications({
       channel.postMessage({
         type: 'booking-alert',
         roomCode,
+        roomId: roomCode,
         trxId: receipt?.trxId,
         farmerName: receipt?.farmerName,
+        farmName: receipt?.farmName,
         district: receipt?.district,
+        shedSummary,
+        aiDiagnosisSummary,
         concern: receipt?.concern,
         timestamp: receipt?.timestamp || new Date().toISOString(),
       })
       channel.close()
     } catch {
-      // Ignore broadcast channel errors
+      // Ignore broadcast errors
     }
   }
 
   return {
-    whatsappUrl,
-    emailUrl,
-    doctorEmail: doctor?.email || DOCTOR_NOTIFY_EMAIL,
-    doctorPhone: doctor?.whatsappDisplay || '+880 1849-288024',
+    roomCode,
+    roomId: roomCode,
     webhookDispatched,
     webhookConfigured: Boolean(BOOKING_NOTIFY_WEBHOOK_URL),
-    roomCode,
+    privacyProtected: true,
+  }
+}
+
+export function broadcastLivePrescription({ roomCode = '', prescription }) {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return
+  try {
+    const channel = new BroadcastChannel(TELEHEALTH_SIGNAL_CHANNEL)
+    channel.postMessage({
+      type: 'rx-delivered',
+      roomCode,
+      roomId: roomCode,
+      prescriptionId: prescription?.id || '',
+      diagnosis: prescription?.diagnosis || '',
+      doctorName: prescription?.vetName || 'Dr. Md Nafizur Rahman',
+      farmerName: prescription?.farmerName || '',
+      medicationsCount: Array.isArray(prescription?.medications) ? prescription.medications.length : 0,
+      timestamp: prescription?.timestamp || new Date().toISOString(),
+    })
+    channel.close()
+  } catch {
+    // Ignore broadcast errors
   }
 }

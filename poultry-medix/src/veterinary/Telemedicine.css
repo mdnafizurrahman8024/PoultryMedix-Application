@@ -1878,3 +1878,466 @@ html[data-theme="dark"] .pmx-inline-media-notice {
   background: rgba(120, 53, 15, 0.25);
   border-color: #92400e;
 }
+
+/* Prompt-15: Privacy Card, Jitsi Embed, Live Rx Status, Vet Queue & Split-Screen Pad */
+.pmx-doctor-privacy-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid #cce3d7;
+  border-radius: 13px;
+  background: #f4fbf7;
+}
+
+.pmx-doctor-privacy-info {
+  display: grid;
+  gap: 3px;
+}
+
+.pmx-doctor-privacy-info strong {
+  font-size: 13px;
+  color: #164e39;
+}
+
+.pmx-doctor-privacy-info span {
+  font-size: 11px;
+  color: #475569;
+}
+
+.pmx-doctor-privacy-info small {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+.pmx-privacy-shield-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.pmx-jitsi-stage {
+  display: flex;
+  flex-direction: column;
+  min-height: 310px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #0f172a;
+}
+
+.pmx-jitsi-iframe {
+  width: 100%;
+  height: 295px;
+  border: 0;
+  background: #0f172a;
+}
+
+.pmx-jitsi-fallback-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #1e293b;
+  color: #e2e8f0;
+  font-size: 11px;
+}
+
+.pmx-jitsi-fallback-bar .pmx-mode-tab {
+  background: #0f172a;
+  color: #a7f3d0;
+  border: 1px solid #334155;
+}
+
+.pmx-live-rx-status-box {
+  margin-top: auto;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #ffffff;
+  font-size: 11px;
+}
+
+.pmx-live-rx-status-box.is-received {
+  border-color: #34d399;
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.pmx-live-rx-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.pmx-live-rx-status-box p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.pmx-live-rx-status-box small {
+  display: block;
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+.pmx-queue-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce6df;
+  border-radius: 14px;
+  background: #f8fbf9;
+  font-size: 12px;
+}
+
+.pmx-queue-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pmx-queue-meta {
+  margin: 4px 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pmx-queue-shed,
+.pmx-queue-symptom {
+  margin: 3px 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.pmx-queue-ai-chip {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1e40af;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.pmx-queue-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Split-Screen Live Prescription Pad & Mobile Bottom Sheet */
+.pmx-split-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
+  align-items: start;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.pmx-split-workspace-grid .pmx-inline-call-room {
+  margin-top: 0;
+}
+
+.pmx-split-rx-pad {
+  display: flex;
+  flex-direction: column;
+  max-height: 620px;
+  overflow: hidden;
+  border: 1px solid #b7dec9;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.pmx-split-rx-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 15px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pmx-split-rx-header h4 {
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pmx-split-rx-header p {
+  margin: 2px 0 0;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.pmx-mobile-sheet-close {
+  display: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.pmx-mobile-rx-toggle-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: auto;
+  padding: 0 12px;
+  border: 1px solid #15803d;
+  border-radius: 10px;
+  background: #ecfdf5;
+  color: #166534;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pmx-split-rx-body {
+  flex: 1;
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+
+.pmx-quick-meds-label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #475569;
+}
+
+.pmx-quick-meds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+  gap: 6px;
+}
+
+.pmx-quick-med-chip {
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.pmx-quick-med-chip:hover {
+  border-color: #15803d;
+  background: #f0fdf4;
+}
+
+.pmx-quick-med-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.pmx-quick-med-chip small {
+  font-size: 9.5px;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pmx-aware-tag {
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.pmx-aware-tag.is-access {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pmx-aware-tag.is-watch {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pmx-split-med-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.pmx-split-med-item {
+  display: grid;
+  gap: 6px;
+  padding: 9px;
+  border: 1px solid #dce6df;
+  border-radius: 10px;
+  background: #f8fbf9;
+}
+
+.pmx-split-med-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+
+.pmx-split-med-del {
+  background: none;
+  border: 0;
+  color: #dc2626;
+  cursor: pointer;
+}
+
+.pmx-split-med-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.pmx-split-med-inputs input {
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 11px;
+}
+
+.pmx-split-add-med-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 34px;
+  border: 1px dashed #64748b;
+  border-radius: 9px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-split-rx-footer {
+  display: grid;
+  gap: 5px;
+  padding: 11px 14px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pmx-send-rx-btn {
+  width: 100%;
+  min-height: 40px;
+}
+
+.pmx-split-sync-caption {
+  font-size: 10px;
+  color: #64748b;
+  text-align: center;
+}
+
+@media (max-width: 1024px) {
+  .pmx-split-workspace-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pmx-mobile-rx-toggle-btn {
+    display: inline-flex;
+  }
+
+  .pmx-split-rx-pad {
+    display: none;
+  }
+
+  .pmx-split-rx-pad.is-mobile-open {
+    display: flex;
+    position: fixed;
+    left: 10px;
+    right: 10px;
+    bottom: 68px;
+    z-index: 1200;
+    max-height: 70vh;
+    box-shadow: 0 -10px 36px rgba(15, 23, 42, 0.28);
+  }
+
+  .pmx-split-rx-pad.is-mobile-open .pmx-mobile-sheet-close {
+    display: grid;
+  }
+}
+
+html[data-theme="dark"] .pmx-doctor-privacy-card {
+  background: #172720;
+  border-color: #2f5443;
+}
+
+html[data-theme="dark"] .pmx-doctor-privacy-info strong {
+  color: #a7f3d0;
+}
+
+html[data-theme="dark"] .pmx-doctor-privacy-info span,
+html[data-theme="dark"] .pmx-doctor-privacy-info small,
+html[data-theme="dark"] .pmx-quick-med-chip small {
+  color: #94a3b8;
+}
+
+html[data-theme="dark"] .pmx-split-med-inputs input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #e2e8f0;
+}
+
+html[data-theme="dark"] .pmx-live-rx-status-box {
+  background: #0f172a;
+}
+
+html[data-theme="dark"] .pmx-live-rx-status-box.is-received {
+  background: #143627;
+  color: #a7f3d0;
+}
+
+html[data-theme="dark"] .pmx-queue-ai-chip {
+  background: #1e293b;
+  border-color: #334155;
+  color: #93c5fd;
+}

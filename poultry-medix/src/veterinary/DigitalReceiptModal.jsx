@@ -3,15 +3,13 @@ import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
   Download,
-  Mail,
-  MessageCircle,
   Phone,
   Printer,
+  ShieldCheck,
   Video,
   X,
 } from 'lucide-react'
-import { buildDigitalReceiptMarkup, buildDoctorWhatsAppUrl } from '../lib/paymentAdapter.js'
-import { buildDoctorEmailUrl } from '../lib/telehealthNotifier.js'
+import { buildDigitalReceiptMarkup } from '../lib/paymentAdapter.js'
 import { useLanguage } from '../context/useLanguage.js'
 
 export default function DigitalReceiptModal({
@@ -104,6 +102,11 @@ export default function DigitalReceiptModal({
               <div>
                 <small>{t('receiptTransactionId')}</small>
                 <strong className="pmx-receipt-trx">{receipt.trxId || receipt.id}</strong>
+                {receipt.roomCode && (
+                  <div style={{ marginTop: 4 }}>
+                    <span className="pmx-room-code-pill">{receipt.roomCode}</span>
+                  </div>
+                )}
               </div>
               <span className="pmx-receipt-status">{receipt.status || 'Completed'}</span>
             </div>
@@ -140,7 +143,10 @@ export default function DigitalReceiptModal({
               <strong>৳ {receipt.amount}</strong>
             </div>
 
-            <p className="pmx-receipt-sync-note">{t('receiptSyncedNote')}</p>
+            <p className="pmx-receipt-sync-note">
+              <ShieldCheck size={13} style={{ display: 'inline', marginRight: 5 }} aria-hidden="true" />
+              {t('receiptSyncedNote')}
+            </p>
           </div>
 
           {statusNote && (
@@ -158,36 +164,6 @@ export default function DigitalReceiptModal({
               <Download size={15} aria-hidden="true" />
               {t('receiptDownloadBtn')}
             </button>
-            <a
-              href={buildDoctorWhatsAppUrl({
-                phone: receipt.whatsappNumber || '+8801849288024',
-                bookingId: receipt.trxId,
-                doctorName: receipt.doctorName,
-                farmerName: receipt.farmerName,
-                farmName: receipt.farmName,
-                district: receipt.district,
-                concern: receipt.concern,
-                language,
-              })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pmx-whatsapp-cta"
-            >
-              <MessageCircle size={15} aria-hidden="true" />
-              {t('continueOnWhatsAppCall')}
-            </a>
-            <a
-              href={buildDoctorEmailUrl({
-                doctorName: receipt.doctorName,
-                receipt,
-                roomCode: receipt.roomCode || '',
-                language,
-              })}
-              className="pmx-secondary-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
-            >
-              <Mail size={15} aria-hidden="true" />
-              {t('notifyDoctorByEmail')}
-            </a>
           </div>
 
           {onStartCall && (

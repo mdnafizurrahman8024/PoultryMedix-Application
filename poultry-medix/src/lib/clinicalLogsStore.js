@@ -246,6 +246,8 @@ export function saveSurveillanceLog({
 export function savePrescriptionLog({
   id,
   source = 'image_scan',
+  roomId = '',
+  roomCode = '',
   vetName = '',
   bvcRegNo = '',
   clinicDetails = '',
@@ -263,9 +265,11 @@ export function savePrescriptionLog({
     id: id || crypto.randomUUID(),
     type: 'prescription',
     source,
-    vetName: vetName || (source === 'vet_issued' ? 'Dr. Sarah Ahmed, DVM' : 'Veterinary Prescription'),
-    bvcRegNo: bvcRegNo || (source === 'vet_issued' ? 'BVC-REG-10492' : ''),
-    clinicDetails: clinicDetails || 'Avian Health & Diagnostic Care',
+    roomId: roomId || roomCode || '',
+    roomCode: roomCode || roomId || '',
+    vetName: vetName || (source === 'vet_issued' ? 'Dr. Md Nafizur Rahman' : 'Veterinary Prescription'),
+    bvcRegNo: bvcRegNo || (source === 'vet_issued' ? 'BVC-REG-11842' : ''),
+    clinicDetails: clinicDetails || 'PoultryMedix National Avian Telehealth Hub',
     farmerName: farmerName || 'Flock Owner',
     district: district || 'Rajshahi',
     flockType: flockType || 'Broiler',
@@ -285,6 +289,8 @@ export function savePrescriptionLog({
 export function saveConsultationLog({
   id,
   trxId = '',
+  roomId = '',
+  roomCode = '',
   vetName = 'Dr. Md Nafizur Rahman',
   doctorName = '',
   bvcRegNo = 'BVC-REG-11842',
@@ -295,6 +301,8 @@ export function saveConsultationLog({
   bookingDate = '',
   bookingTime = '',
   concern = '',
+  shedSummary = '',
+  aiDiagnosisSummary = '',
   paymentMethod = 'bkash',
   paymentMethodLabel = 'bKash',
   amount = 500,
@@ -302,9 +310,12 @@ export function saveConsultationLog({
   paymentStatus = 'Confirmed',
 }) {
   const resolvedDoctor = doctorName || vetName || 'Dr. Md Nafizur Rahman'
+  const resolvedRoom = roomId || roomCode || ''
   return saveClinicalLog({
     id: id || crypto.randomUUID(),
     trxId,
+    roomId: resolvedRoom,
+    roomCode: resolvedRoom,
     type: 'consultation',
     doctorName: resolvedDoctor,
     vetName: resolvedDoctor,
@@ -318,6 +329,8 @@ export function saveConsultationLog({
     date: bookingDate,
     time: bookingTime,
     concern: concern || 'Flock Consultation',
+    shedSummary,
+    aiDiagnosisSummary,
     paymentMethod,
     paymentMethodLabel,
     amount: Number(amount) || 500,
@@ -388,6 +401,8 @@ export function savePaymentLog({
 export function saveCallSessionLog({
   id,
   bookingId = '',
+  roomId = '',
+  roomCode = '',
   doctorName = 'Dr. Md Nafizur Rahman',
   bvcRegNo = 'BVC-REG-11842',
   clinicDetails = 'PoultryMedix National Avian Telehealth Hub',
@@ -401,10 +416,13 @@ export function saveCallSessionLog({
   concern = '',
 }) {
   const normalizedType = callType === 'Video' ? 'Video' : 'Audio'
+  const resolvedRoomId = roomId || roomCode || bookingId || 'PMX-ROOM-LIVE'
   return saveClinicalLog({
     id: id || `call-${crypto.randomUUID()}`,
     bookingId,
     trxId: bookingId,
+    roomId: resolvedRoomId,
+    roomCode: resolvedRoomId,
     type: 'consultation_call',
     doctorName: doctorName || 'Dr. Md Nafizur Rahman',
     vetName: doctorName || 'Dr. Md Nafizur Rahman',

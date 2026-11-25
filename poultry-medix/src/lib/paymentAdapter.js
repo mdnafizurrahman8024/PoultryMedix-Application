@@ -1,9 +1,9 @@
 /**
- * PoultryMedix Payment & Telehealth Call Adapter
+ * PoultryMedix Privacy-Protected Payment & Unified Platform Room Adapter
  *
  * Keeps gateway mode configurable via Vite environment variables
  * (`VITE_PAYMENT_MODE=sandbox|live`, `VITE_PAYMENT_API_BASE_URL`) without storing
- * real merchant credentials or bank secrets in client source code.
+ * real merchant credentials or exposing doctor private phone numbers/emails.
  */
 
 export const CONSULTATION_FEE_BDT = 500
@@ -24,31 +24,7 @@ export const DEMO_VETERINARIAN = {
   regNo: 'BVC-REG-11842',
   clinic: 'PoultryMedix National Avian Telehealth Hub',
   specialty: 'Poultry Disease Triage, Outbreak Control & Biosecurity',
-  whatsappNumber: '+8801849288024',
-  whatsappDisplay: '+880 1849-288024',
-}
-
-export const DEV_SANDBOX_DEFAULTS = {
-  farmer: 'Md Nafizur Rahman (Dev Test)',
-  farm: 'PoultryMedix Demo Flock',
-  concern: 'General Poultry Health & Respiratory Check',
-  mobileNumber: '01849288024',
-}
-
-export function resolveBookingWithSandboxDefaults(booking) {
-  if (PAYMENT_MODE !== 'sandbox') return booking
-  return {
-    ...booking,
-    farmer: sanitizePaymentInput(booking?.farmer, 120) || DEV_SANDBOX_DEFAULTS.farmer,
-    farm: sanitizePaymentInput(booking?.farm, 120) || DEV_SANDBOX_DEFAULTS.farm,
-    concern: sanitizePaymentInput(booking?.concern, 300) || DEV_SANDBOX_DEFAULTS.concern,
-  }
-}
-
-export function createCallRoomCode(trxId = '') {
-  const clean = String(trxId || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
-  const suffix = clean.slice(-6) || generateReceiptTrxId('PMX').slice(-6)
-  return `PMX-ROOM-${suffix}`
+  privacyProtected: true,
 }
 
 export const VETERINARY_DOCTORS = [
@@ -60,8 +36,7 @@ export const VETERINARY_DOCTORS = [
     regNo: 'BVC-REG-10492',
     clinic: 'Rajshahi Avian Diagnostic & Research Hospital',
     specialty: 'Avian Pathology & Respiratory Care',
-    whatsappNumber: '+8801849288024',
-    whatsappDisplay: '+880 1849-288024',
+    privacyProtected: true,
   },
   {
     id: 'dr-tariqul',
@@ -70,8 +45,7 @@ export const VETERINARY_DOCTORS = [
     regNo: 'BVC-REG-11284',
     clinic: 'Bogura Poultry Health & Biosecurity Center',
     specialty: 'AMR Stewardship & Hatchery Biosecurity',
-    whatsappNumber: '+8801849288024',
-    whatsappDisplay: '+880 1849-288024',
+    privacyProtected: true,
   },
   {
     id: 'dr-farhana',
@@ -80,10 +54,99 @@ export const VETERINARY_DOCTORS = [
     regNo: 'BVC-REG-09871',
     clinic: 'Gazipur Central Avian Clinic',
     specialty: 'Broiler & Layer Flock Management',
-    whatsappNumber: '+8801849288024',
-    whatsappDisplay: '+880 1849-288024',
+    privacyProtected: true,
   },
 ]
+
+export const QUICK_SELECT_MEDICATIONS = [
+  {
+    id: 'preset-doxivet',
+    tradeName: 'Doxivet',
+    genericName: 'Doxycycline HCl',
+    antibioticClass: 'Tetracycline',
+    generation: '2nd Gen',
+    whoAwareCategory: 'Watch',
+    formulation: 'Water soluble powder',
+    dosage: '1g / 2–4L drinking water daily',
+    frequency: 'Continuous in water',
+    duration: '4',
+    durationType: 'Days',
+    withdrawal: '7 days (Meat) · Not for table-egg layers',
+    meatWithdrawalDays: '7 days',
+    eggWithdrawalDays: 'Not for table-egg layers',
+  },
+  {
+    id: 'preset-moxivet',
+    tradeName: 'Moxivet',
+    genericName: 'Amoxicillin Trihydrate',
+    antibioticClass: 'Aminopenicillin',
+    generation: '2nd Gen',
+    whoAwareCategory: 'Access',
+    formulation: 'Water soluble powder',
+    dosage: '10–20 mg/kg or 1g / 2L water daily',
+    frequency: 'Twice daily',
+    duration: '5',
+    durationType: 'Days',
+    withdrawal: '3 days (Meat) · 1–2 days (Check label)',
+    meatWithdrawalDays: '3 days',
+    eggWithdrawalDays: '1–2 days (Check label)',
+  },
+  {
+    id: 'preset-tylovet',
+    tradeName: 'Tylovet',
+    genericName: 'Tylosin Tartrate',
+    antibioticClass: 'Macrolide',
+    generation: '1st Gen',
+    whoAwareCategory: 'Watch',
+    formulation: 'Water soluble powder',
+    dosage: '0.5g / 1L drinking water',
+    frequency: 'Continuous in water',
+    duration: '4',
+    durationType: 'Days',
+    withdrawal: '5 days (Meat) · 0–2 days (Eggs)',
+    meatWithdrawalDays: '5 days',
+    eggWithdrawalDays: '0–2 days (Check label)',
+  },
+  {
+    id: 'preset-amprolium',
+    tradeName: 'Amprolium Plus',
+    genericName: 'Amprolium HCl + Ethopabate',
+    antibioticClass: 'Anticoccidial',
+    generation: 'Non-Antimicrobial',
+    whoAwareCategory: 'Access',
+    formulation: 'Water soluble powder',
+    dosage: '1g / 1–2L drinking water',
+    frequency: 'Continuous in water',
+    duration: '5',
+    durationType: 'Days',
+    withdrawal: '3 days (Meat) · 0 days (Check label)',
+    meatWithdrawalDays: '3 days',
+    eggWithdrawalDays: '0 days (Check label)',
+  },
+  {
+    id: 'preset-electrolytes',
+    tradeName: 'Electrolytes + Vitamin C',
+    genericName: 'Oral Rehydration & Ascorbic Acid',
+    antibioticClass: 'Supportive Care',
+    generation: 'Supportive',
+    whoAwareCategory: 'Access',
+    formulation: 'Water soluble powder',
+    dosage: '1g / 1L cool drinking water',
+    frequency: 'Continuous in water',
+    duration: '5',
+    durationType: 'Days',
+    withdrawal: '0 days (Zero residue)',
+    meatWithdrawalDays: '0 days',
+    eggWithdrawalDays: '0 days',
+  },
+]
+
+export const DEV_SANDBOX_DEFAULTS = {
+  farmer: 'Demo Farmer (Sandbox)',
+  farm: 'Green Valley Poultry Shed',
+  concern: 'Flock Health & Respiratory Checkup',
+  mobileNumber: '01700000000',
+}
 
 export const PAYMENT_METHODS = [
   { id: 'bkash', labelKey: 'bkash', detailKey: 'mobileFinancialService', kind: 'mfs' },
@@ -107,6 +170,39 @@ export function sanitizePaymentInput(value, maxLength = 120) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLength)
+}
+
+export function resolveBookingWithSandboxDefaults(booking) {
+  if (PAYMENT_MODE !== 'sandbox') return booking
+  return {
+    ...booking,
+    farmer: sanitizePaymentInput(booking?.farmer, 120) || DEV_SANDBOX_DEFAULTS.farmer,
+    farm: sanitizePaymentInput(booking?.farm, 120) || DEV_SANDBOX_DEFAULTS.farm,
+    concern: sanitizePaymentInput(booking?.concern, 300) || DEV_SANDBOX_DEFAULTS.concern,
+  }
+}
+
+export function createCallRoomCode(trxId = '') {
+  const clean = String(trxId || '').replace(/[^A-Z0-9]/gi, '').toUpperCase()
+  const suffix = clean.slice(-6) || generateReceiptTrxId('PMX').slice(-6)
+  return `PMX-ROOM-${suffix}`
+}
+
+export function buildJitsiRoomUrl({
+  roomId = 'PMX-ROOM-LIVE',
+  displayName = 'PoultryMedix Participant',
+  startAudioOnly = false,
+} = {}) {
+  const safeRoom = `PoultryMedix-${String(roomId || 'PMX-ROOM-LIVE').replace(/[^A-Za-z0-9_-]/g, '')}`
+  const safeName = sanitizePaymentInput(displayName || 'PoultryMedix Participant', 60) || 'PoultryMedix Participant'
+  const hashParams = [
+    'config.prejoinPageEnabled=false',
+    'config.startWithAudioMuted=false',
+    `config.startWithVideoMuted=${startAudioOnly ? 'true' : 'false'}`,
+    `config.startAudioOnly=${startAudioOnly ? 'true' : 'false'}`,
+    `userInfo.displayName=${encodeURIComponent(safeName)}`,
+  ].join('&')
+  return `https://meet.jit.si/${safeRoom}#${hashParams}`
 }
 
 export function normalizeBdPhone(phone) {
@@ -247,6 +343,7 @@ export async function processConsultationPayment({
   }
 
   const receiptTrxId = generateReceiptTrxId('PMX-TRX')
+  const roomCode = createCallRoomCode(receiptTrxId)
   const nowIso = new Date().toISOString()
   const cardDigits = String(effectiveFields.cardNumber ?? '').replace(/\D/g, '')
   const accountMask =
@@ -261,6 +358,8 @@ export async function processConsultationPayment({
   const receipt = {
     id: receiptTrxId,
     trxId: receiptTrxId,
+    roomCode,
+    roomId: roomCode,
     gatewayTrxRef,
     timestamp: nowIso,
     formattedDate: new Date(nowIso).toLocaleString(isBn ? 'bn-BD' : 'en-BD'),
@@ -275,53 +374,17 @@ export async function processConsultationPayment({
     vetName: doctor.name,
     bvcRegNo: doctor.regNo,
     clinicDetails: doctor.clinic,
-    whatsappNumber: doctor.whatsappNumber || '+8801849288024',
-    farmerName: sanitizePaymentInput(booking.farmer, 120) || 'Registered Farmer',
-    farmName: sanitizePaymentInput(booking.farm, 120),
+    farmerName: sanitizePaymentInput(booking.farmer, 120) || DEV_SANDBOX_DEFAULTS.farmer,
+    farmName: sanitizePaymentInput(booking.farm, 120) || DEV_SANDBOX_DEFAULTS.farm,
     district: sanitizePaymentInput(booking.district, 60) || 'Rajshahi',
     bookingDate: booking.date,
     bookingTime: booking.time,
-    concern: sanitizePaymentInput(booking.concern, 300) || 'General flock health check',
+    concern: sanitizePaymentInput(booking.concern, 300) || DEV_SANDBOX_DEFAULTS.concern,
     paymentMode: PAYMENT_MODE,
     status: 'Completed',
   }
 
   return { ok: true, receipt }
-}
-
-export function buildDoctorWhatsAppUrl({
-  phone = '+8801849288024',
-  bookingId = 'PMX-TRX-PENDING',
-  doctorName = 'Dr. Md Nafizur Rahman',
-  farmerName = '',
-  farmName = '',
-  district = '',
-  concern = '',
-  language = 'en',
-}) {
-  const digits = String(phone || '+8801849288024').replace(/\D/g, '')
-  const normalizedPhone = digits.startsWith('880') ? digits : `880${digits.replace(/^0+/, '')}`
-  const isBn = language === 'bn'
-
-  const lines = isBn
-    ? [
-        `আসসালামু আলাইকুম ${doctorName},`,
-        `পোল্ট্রিমেডিক্স যাচাইকৃত বুকিং আইডি: ${bookingId || 'PMX-TRX'}`,
-        farmerName ? `খামারি: ${farmerName}${farmName ? ` (${farmName})` : ''}` : '',
-        district ? `জেলা: ${district}` : '',
-        concern ? `পালের সমস্যা: ${concern}` : '',
-        'আমি এই সেশনের জন্য হোয়াটসঅ্যাপ অডিও/ভিডিও পরামর্শ নিতে চাই।',
-      ].filter(Boolean)
-    : [
-        `Hello ${doctorName},`,
-        `Verified PoultryMedix Booking ID: ${bookingId || 'PMX-TRX'}`,
-        farmerName ? `Farmer: ${farmerName}${farmName ? ` (${farmName})` : ''}` : '',
-        district ? `District: ${district}` : '',
-        concern ? `Flock Issue: ${concern}` : '',
-        'Requesting live WhatsApp audio/video veterinary consultation for this verified booking.',
-      ].filter(Boolean)
-
-  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(lines.join('\n'))}`
 }
 
 export function buildDigitalReceiptMarkup(receipt, language = 'en') {
@@ -361,11 +424,12 @@ export function buildDigitalReceiptMarkup(receipt, language = 'en') {
   <div class="hdr">
     <div>
       <h1 class="brand">POULTRYMEDIX AI</h1>
-      <div class="sub">${escape(title)}</div>
+      <div class="sub">${escape(title)} · ${escape(isBn ? 'গোপনীয়তা-সুরক্ষিত প্ল্যাটফর্ম কল' : 'Privacy-Protected Platform Call')}</div>
     </div>
     <div style="text-align:right">
       <div class="status">${escape(receipt.status || 'Completed')}</div>
       <div style="font-size:12px;font-weight:700;margin-top:6px">${escape(receipt.trxId || receipt.id)}</div>
+      ${receipt.roomCode ? `<div style="font-size:11px;color:#047857;font-weight:700">Room: ${escape(receipt.roomCode)}</div>` : ''}
       <div style="font-size:11px;color:#64748b">${escape(receipt.formattedDate || new Date(receipt.timestamp || Date.now()).toLocaleString())}</div>
     </div>
   </div>
@@ -383,10 +447,10 @@ export function buildDigitalReceiptMarkup(receipt, language = 'en') {
     <div class="amount-val">৳ ${escape(Number(receipt.amount) || 500)}</div>
   </div>
   <div class="note">
-    <strong>${isBn ? 'নিরাপত্তা ও যাচাইকরণ তথ্য:' : 'Security & Gateway Verification Note:'}</strong>
+    <strong>${isBn ? 'প্ল্যাটফর্ম গোপনীয়তা ও নিরাপত্তা:' : 'Platform Privacy & Gateway Security:'}</strong>
     ${isBn
-      ? `এই রিসিটটি PoultryMedix এনক্রিপ্টেড পেমেন্ট অ্যাডাপ্টার (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} মোড)-এর মাধ্যমে যাচাইকৃত। পরামর্শের সময় ডাক্তার ${escape(receipt.doctorName || DEMO_VETERINARIAN.name)}-কে বুকিং আইডি ${escape(receipt.trxId || receipt.id)} প্রদর্শন করুন।`
-      : `Verified via PoultryMedix encrypted checkout adapter (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} mode). Present Booking ID ${escape(receipt.trxId || receipt.id)} during consultation with ${escape(receipt.doctorName || DEMO_VETERINARIAN.name)}.`}
+      ? `এই রিসিটটি PoultryMedix এনক্রিপ্টেড পেমেন্ট অ্যাডাপ্টার (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} মোড)-এর মাধ্যমে যাচাইকৃত। পরামর্শের সময় শুধুমাত্র অ্যাপের ইন-অ্যাপ রুম (${escape(receipt.roomCode || receipt.trxId)}) ব্যবহার করুন।`
+      : `Verified via PoultryMedix encrypted checkout adapter (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} mode). Join via the unified in-app Consultation Room (${escape(receipt.roomCode || receipt.trxId)}).`}
   </div>
   <script>window.addEventListener('load', () => window.print())</script>
 </body>

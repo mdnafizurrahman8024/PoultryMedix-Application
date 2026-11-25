@@ -131,9 +131,9 @@ function prescriptionMarkup(prescription) {
         <div class="doc-subtitle">Bangladesh DLS &amp; DGDA Antimicrobial Stewardship Compliant</div>
       </div>
       <div class="doc-meta-right">
-        <div style="font-size:15px;font-weight:800;color:#0f172a;">${escapeHtml(prescription.vetName || 'Dr. Sarah Ahmed, DVM')}</div>
-        <div style="font-size:11px;color:#047857;font-weight:700;">${escapeHtml(prescription.bvcRegNo || prescription.registrationNumber || 'BVC-REG-10492')}</div>
-        <div style="font-size:11px;color:#64748b;">${escapeHtml(prescription.clinicDetails || 'Avian Clinical Services, Rajshahi')}</div>
+        <div style="font-size:15px;font-weight:800;color:#0f172a;">${escapeHtml(prescription.vetName || 'Dr. Md Nafizur Rahman')}</div>
+        <div style="font-size:11px;color:#047857;font-weight:700;">${escapeHtml(prescription.bvcRegNo || prescription.registrationNumber || 'BVC-REG-11842')}</div>
+        <div style="font-size:11px;color:#64748b;">${escapeHtml(prescription.clinicDetails || 'PoultryMedix National Avian Telehealth Hub')}</div>
       </div>
     </div>
 
@@ -336,7 +336,7 @@ function callSessionMarkup(record) {
     <div class="doc-grid doc-grid-4">
       <div class="doc-cell"><span>Call Mode</span><strong>${escapeHtml(record.callType || 'Audio')} Call</strong></div>
       <div class="doc-cell"><span>Duration</span><strong>${escapeHtml(record.duration || '00:01')}</strong></div>
-      <div class="doc-cell"><span>Booking Ref</span><strong>${escapeHtml(record.bookingId || record.trxId || 'Verified')}</strong></div>
+      <div class="doc-cell"><span>Room / Ref</span><strong>${escapeHtml(record.roomId || record.roomCode || record.bookingId || 'PMX-ROOM')}</strong></div>
       <div class="doc-cell"><span>Recorded At</span><strong>${escapeHtml(dateStr)}</strong></div>
     </div>
 
@@ -835,7 +835,7 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
     const medNames = meds.map((m) => m.tradeName || m.name).filter(Boolean).slice(0, 3).join(', ')
     title = record.diagnosis || (meds[0]?.tradeName ? `${language === 'bn' ? 'প্রেসক্রিপশন' : 'Prescription'}: ${meds[0].tradeName}` : t('historyPrescriptionTitle'))
     subtitle = [
-      record.vetName || (isVetIssued ? 'Dr. Sarah Ahmed, DVM' : (language === 'bn' ? 'প্রেসক্রিপশন স্ক্যান' : 'Prescription Scan')),
+      record.vetName || (isVetIssued ? 'Dr. Md Nafizur Rahman' : (language === 'bn' ? 'প্রেসক্রিপশন স্ক্যান' : 'Prescription Scan')),
       record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
       meds.length ? `${meds.length} ${t('historyMedicationCount')}: ${medNames}` : '',
     ].filter(Boolean).join(' · ')
@@ -887,8 +887,10 @@ function SummaryCard({ record, locale, language, labels, onSelect, onStatus, t }
     const callLabel = record.callType === 'Video'
       ? (language === 'bn' ? 'ভিডিও কল' : 'Video Call')
       : (language === 'bn' ? 'অডিও কল' : 'Audio Call')
+    const roomLabel = record.roomId || record.roomCode || record.bookingId
     title = `${safeText(record.doctorName || record.vetName, 'Dr. Md Nafizur Rahman')} · ${callLabel}`
     subtitle = [
+      roomLabel,
       `⏱️ ${record.duration || '00:01'}`,
       record.farmerName && `${t('farmerName')}: ${record.farmerName}`,
       record.concern,
@@ -1261,9 +1263,13 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
                 {isCallSession ? (
                   <div>
-                    <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{language === 'bn' ? 'কল মোড ও সময়কাল' : 'CALL MODE & DURATION'}</small>
+                    <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{language === 'bn' ? 'রুম আইডি, কল মোড ও সময়কাল' : 'ROOM ID, CALL MODE & DURATION'}</small>
                     <strong className="dark:text-white">{record.callType || 'Audio'} · ⏱️ {record.duration || '00:01'}</strong>
-                    {record.bookingId && <div style={{ fontSize: '11px', color: '#047857' }}>Ref: {record.bookingId}</div>}
+                    {(record.roomId || record.roomCode || record.bookingId) && (
+                      <div style={{ fontSize: '11px', color: '#047857', fontWeight: 700 }}>
+                        {record.roomId || record.roomCode || record.bookingId}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bird,
   Clock,
-  Mail,
-  MessageCircle,
+  FileCheck2,
+  Globe,
+  Hourglass,
   Mic,
   MicOff,
   Phone,
@@ -14,11 +15,9 @@ import {
   Video,
   VideoOff,
 } from 'lucide-react'
-import { buildDoctorWhatsAppUrl } from '../lib/paymentAdapter.js'
-import {
-  TELEHEALTH_SIGNAL_CHANNEL,
-  buildDoctorEmailUrl,
-} from '../lib/telehealthNotifier.js'
+import { buildJitsiRoomUrl } from '../lib/paymentAdapter.js'
+import { TELEHEALTH_SIGNAL_CHANNEL } from '../lib/telehealthNotifier.js'
+import { CLINICAL_LOGS_UPDATED_EVENT, getClinicalLogs } from '../lib/clinicalLogsStore.js'
 import { getSheds } from '../lib/shedManager.js'
 import { useLanguage } from '../context/useLanguage.js'
 
@@ -35,6 +34,8 @@ export default function ConsultationCallRoom({
   bookingContext,
   participantRole = 'farmer',
   onEndCall,
+  onToggleMobileRxSheet,
+  mobileRxOpen = false,
 }) {
   const { t, language } = useLanguage()
   const isBn = language === 'bn'
@@ -42,6 +43,7 @@ export default function ConsultationCallRoom({
   const [activeCallType, setActiveCallType] = useState(
     initialCallType === 'video' ? 'video' : 'audio'
   )
+  const [callEngine, setCallEngine] = useState('webrtc')
   const [connectionState, setConnectionState] = useState('connecting')
   const [peerConnected, setPeerConnected] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
@@ -51,6 +53,8 @@ export default function ConsultationCallRoom({
   const [hasLiveAudio, setHasLiveAudio] = useState(false)
   const [mediaNotice, setMediaNotice] = useState('')
   const [micLevels, setMicLevels] = useState([22, 34, 28, 40, 24])
+  const [callStartedAt] = useState(() => Date.now())
+  const [liveRxAlert, setLiveRxAlert] = useState(null)
 
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
@@ -62,11 +66,27 @@ export default function ConsultationCallRoom({
   const endedRef = useRef(false)
   const peerIdRef = useRef('')
 
-  const roomCode = bookingContext?.roomCode || bookingContext?.trxId || 'PMX-ROOM-LIVE'
+  const roomCode = bookingContext?.roomCode || bookingContext?.roomId || bookingContext?.trxId || 'PMX-ROOM-LIVE'
   const isVideoMode = activeCallType === 'video'
+  const participantDisplayName =
+    participantRole === 'vet'
+      ? `${doctor.name} (${doctor.regNo})`
+      : bookingContext?.farmerName || 'Registered Farmer'
+
+  const jitsiEmbedUrl = useMemo(
+    () =>
+      buildJitsiRoomUrl({
+        roomId: roomCode,
+        displayName: participantDisplayName,
+        startAudioOnly: !isVideoMode,
+      }),
+    [roomCode, participantDisplayName, isVideoMode]
+  )
 
   const sheds = useMemo(() => getSheds(), [])
+  const presetShedSummary = bookingContext?.shedSummary || ''
   const flockSummaryText = useMemo(() => {
+    if (presetShedSummary) return presetShedSummary
     if (!sheds.length) {
       return isBn
         ? 'সক্রিয় শেড নিবন্ধিত নেই (সাধারণ পরামর্শ)'
@@ -77,41 +97,12 @@ export default function ConsultationCallRoom({
     return isBn
       ? `${sheds.length}টি শেড · ${totalBirds.toLocaleString('bn-BD')} পাখি (${primary.species}, দিন ${primary.currentAgeDays})`
       : `${sheds.length} Shed${sheds.length > 1 ? 's' : ''} · ${totalBirds.toLocaleString('en-US')} birds (${primary.species}, Day ${primary.currentAgeDays})`
-  }, [sheds, isBn])
-
-  const whatsAppHref = buildDoctorWhatsAppUrl({
-    phone: doctor.whatsappNumber,
-    bookingId: bookingContext?.trxId || roomCode,
-    doctorName: doctor.name,
-    farmerName: bookingContext?.farmerName,
-    farmName: bookingContext?.farmName,
-    district: bookingContext?.district,
-    concern: bookingContext?.concern,
-    language,
-  })
-
-  const emailHref = buildDoctorEmailUrl({
-    doctorName: doctor.name,
-    receipt: {
-      trxId: bookingContext?.trxId || roomCode,
-      farmerName: bookingContext?.farmerName,
-      farmName: bookingContext?.farmName,
-      district: bookingContext?.district,
-      bookingDate: bookingContext?.bookingDate,
-      bookingTime: bookingContext?.bookingTime,
-      concern: bookingContext?.concern,
-      amount: bookingContext?.amount || 500,
-      paymentMethodLabel: bookingContext?.paymentMethodLabel || 'Verified',
-      status: 'Completed',
-    },
-    roomCode,
-    language,
-  })
+  }, [presetShedSummary, sheds, isBn])
 
   useEffect(() => {
     const connectTimer = window.setTimeout(() => {
       setConnectionState('connected')
-    }, 800)
+    }, 750)
     return () => window.clearTimeout(connectTimer)
   }, [])
 
@@ -123,7 +114,56 @@ export default function ConsultationCallRoom({
     return () => window.clearInterval(interval)
   }, [connectionState])
 
+  // Listen for Live Prescription deliveries (real-time BroadcastChannel + clinicalLogsStore)
   useEffect(() => {
+    if (participantRole !== 'farmer') return undefined
+
+    function syncLatestRxFromStore() {
+      const rxList = getClinicalLogs('prescription').filter(
+        (rx) => rx.source === 'vet_issued' && (
+          (rx.roomCode && rx.roomCode === roomCode) ||
+          new Date(rx.timestamp || 0).getTime() >= callStartedAt - 10000
+        )
+      )
+      if (rxList[0]) {
+        setLiveRxAlert({
+          diagnosis: rxList[0].diagnosis,
+          doctorName: rxList[0].vetName || doctor.name,
+          medicationsCount: Array.isArray(rxList[0].medications) ? rxList[0].medications.length : 0,
+          timestamp: rxList[0].timestamp,
+        })
+      }
+    }
+
+    syncLatestRxFromStore()
+    window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncLatestRxFromStore)
+    window.addEventListener('storage', syncLatestRxFromStore)
+
+    let rxChannel = null
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      rxChannel = new BroadcastChannel(TELEHEALTH_SIGNAL_CHANNEL)
+      rxChannel.onmessage = (event) => {
+        if (event.data?.type === 'rx-delivered' && (!event.data.roomCode || event.data.roomCode === roomCode)) {
+          setLiveRxAlert({
+            diagnosis: event.data.diagnosis,
+            doctorName: event.data.doctorName || doctor.name,
+            medicationsCount: event.data.medicationsCount || 1,
+            timestamp: event.data.timestamp,
+          })
+        }
+      }
+    }
+
+    return () => {
+      if (rxChannel) rxChannel.close()
+      window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncLatestRxFromStore)
+      window.removeEventListener('storage', syncLatestRxFromStore)
+    }
+  }, [participantRole, roomCode, doctor.name, callStartedAt])
+
+  useEffect(() => {
+    if (callEngine !== 'webrtc') return undefined
+
     let cancelled = false
     let levelInterval = null
 
@@ -142,7 +182,7 @@ export default function ConsultationCallRoom({
           signalChannelRef.current.postMessage({
             type: 'leave',
             roomCode,
-            peerId: peerIdRef.current,
+            from: peerIdRef.current,
           })
           signalChannelRef.current.close()
         } catch {
@@ -166,8 +206,8 @@ export default function ConsultationCallRoom({
       if (!navigator.mediaDevices?.getUserMedia) {
         setMediaNotice(
           isBn
-            ? 'এই ব্রাউজারে মিডিয়া ডিভাইস API নেই — স্থানীয় সিমুলেশন মোডে কল চলছে।'
-            : 'Browser media device API unavailable — running in local consultation room mode.'
+            ? 'এই ব্রাউজারে মিডিয়া API পাওয়া যায়নি — Jitsi Meet HD মোড ব্যবহার করুন অথবা প্রিভিউ মোডে থাকুন।'
+            : 'Browser media API unavailable — switch to Jitsi Meet HD or continue in preview mode.'
         )
         return null
       }
@@ -181,15 +221,15 @@ export default function ConsultationCallRoom({
             const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
             setMediaNotice(
               isBn
-                ? 'ক্যামেরা পাওয়া যায়নি বা অনুমতি নেই — অডিও মাইক্রোফোন সক্রিয় রয়েছে।'
-                : 'Camera unavailable or permission declined — microphone audio remains active.'
+                ? 'ক্যামেরা পাওয়া যায়নি — অডিও মাইক্রোফোন সক্রিয় রয়েছে।'
+                : 'Camera unavailable or blocked — microphone audio remains active.'
             )
             return { stream: audioOnly, videoOk: false, audioOk: audioOnly.getAudioTracks().length > 0 }
           } catch {
             setMediaNotice(
               isBn
-                ? 'মাইক্রোফোন ও ক্যামেরার অনুমতি না থাকায় প্রিভিউ মোডে চলছে। হোয়াটসঅ্যাপেও সরাসরি কল করতে পারেন।'
-                : 'Mic/camera permission unavailable — active in consultation room preview mode. You can also launch WhatsApp Call directly.'
+                ? 'মাইক্রোফোন/ক্যামেরার অনুমতি না থাকায় প্ল্যাটফর্ম প্রিভিউ মোডে চলছে।'
+                : 'Mic/camera permission declined — active in platform room preview mode.'
             )
             return null
           }
@@ -202,8 +242,8 @@ export default function ConsultationCallRoom({
       } catch {
         setMediaNotice(
           isBn
-            ? 'মাইক্রোফোন সংযুক্ত নেই বা অনুমতি নেই — রুমটি স্থানীয় অডিও মোডে সক্রিয় আছে।'
-            : 'Microphone unavailable or permission declined — room running in local audio state.'
+            ? 'মাইক্রোফোন সংযুক্ত নেই বা অনুমতি নেই — রুমটি স্থানীয় অডিও প্রিভিউ মোডে চলছে।'
+            : 'Microphone unavailable — room running in local audio preview mode.'
         )
         return null
       }
@@ -212,7 +252,7 @@ export default function ConsultationCallRoom({
     async function setupRoom() {
       const acquired = await acquireStream()
       if (cancelled) {
-        if (acquired?.stream) acquired.stream.getTracks().forEach((t) => t.stop())
+        if (acquired?.stream) acquired.stream.getTracks().forEach((track) => track.stop())
         return
       }
 
@@ -246,12 +286,11 @@ export default function ConsultationCallRoom({
               setMicLevels(bins.map((v) => Math.max(18, Math.min(100, Math.round((v / 255) * 100)))))
             }, 130)
           } catch {
-            // fallback static meter
+            // fallback levels
           }
         }
       }
 
-      // Local two-tab WebRTC signaling over BroadcastChannel
       if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined' && typeof RTCPeerConnection !== 'undefined') {
         if (!peerIdRef.current) {
           peerIdRef.current = `${participantRole}-${crypto.randomUUID().slice(0, 8)}`
@@ -364,7 +403,7 @@ export default function ConsultationCallRoom({
       cancelled = true
       cleanupMediaAndRtc()
     }
-  }, [activeCallType, cameraEnabled, roomCode, participantRole, isBn, micMuted])
+  }, [callEngine, activeCallType, cameraEnabled, roomCode, participantRole, isBn, micMuted])
 
   useEffect(() => {
     if (!localStreamRef.current) return
@@ -391,10 +430,13 @@ export default function ConsultationCallRoom({
     }
     const finalSeconds = connectionState === 'connected' ? Math.max(1, elapsedSeconds) : 1
     onEndCall({
+      roomId: roomCode,
+      roomCode,
       callType: activeCallType === 'video' ? 'Video' : 'Audio',
       durationSeconds: finalSeconds,
       duration: formatDurationMMSS(finalSeconds),
       doctorName: doctor.name,
+      bvcRegNo: doctor.regNo,
       timestamp: new Date().toISOString(),
     })
   }
@@ -411,24 +453,47 @@ export default function ConsultationCallRoom({
           </div>
           <div>
             <div className="pmx-inline-room-badges">
-              <span className="pmx-call-room-kicker">
-                {isVideoMode ? t('callRoomVideoTitle') : t('callRoomAudioTitle')}
+              <span className="pmx-privacy-shield-badge">
+                <ShieldCheck size={11} aria-hidden="true" />
+                {t('privacyProtectedCallBadge')}
               </span>
               <span className="pmx-room-code-pill">{roomCode}</span>
             </div>
             <h4>{doctor.name}</h4>
-            <p>{doctor.degrees} · {doctor.regNo}</p>
+            <p>
+              {doctor.degrees} · {doctor.regNo}
+              {doctor.specialty ? ` · ${doctor.specialty}` : ''}
+            </p>
           </div>
         </div>
 
         <div className="pmx-inline-header-right">
+          <div className="pmx-mode-switch-group" role="group" aria-label={t('callEngineLabel')}>
+            <button
+              type="button"
+              className={`pmx-mode-tab${callEngine === 'webrtc' ? ' is-active' : ''}`}
+              onClick={() => setCallEngine('webrtc')}
+            >
+              <Radio size={12} aria-hidden="true" />
+              <span>{t('callEngineWebRtc')}</span>
+            </button>
+            <button
+              type="button"
+              className={`pmx-mode-tab${callEngine === 'jitsi' ? ' is-active' : ''}`}
+              onClick={() => setCallEngine('jitsi')}
+            >
+              <Globe size={12} aria-hidden="true" />
+              <span>{t('callEngineJitsi')}</span>
+            </button>
+          </div>
+
           <div className="pmx-mode-switch-group" role="group" aria-label={t('callSwitchMode')}>
             <button
               type="button"
               className={`pmx-mode-tab${!isVideoMode ? ' is-active' : ''}`}
               onClick={() => toggleVideoMode('audio')}
             >
-              <Phone size={13} aria-hidden="true" />
+              <Phone size={12} aria-hidden="true" />
               <span>{t('callModeAudioShort')}</span>
             </button>
             <button
@@ -436,7 +501,7 @@ export default function ConsultationCallRoom({
               className={`pmx-mode-tab${isVideoMode ? ' is-active' : ''}`}
               onClick={() => toggleVideoMode('video')}
             >
-              <Video size={13} aria-hidden="true" />
+              <Video size={12} aria-hidden="true" />
               <span>{t('callModeVideoShort')}</span>
             </button>
           </div>
@@ -454,50 +519,68 @@ export default function ConsultationCallRoom({
       </header>
 
       <div className="pmx-inline-stage-grid">
-        {/* Remote / Doctor Main Screen inside Consult Vet */}
-        <div className="pmx-call-stage dark:bg-gray-950 dark:border-gray-800">
-          {peerConnected ? (
-            <video ref={remoteVideoRef} autoPlay playsInline className="pmx-remote-video" />
-          ) : (
-            <div className="pmx-doctor-stage-card">
-              <div className="pmx-doctor-monogram" aria-hidden="true">NR</div>
-              <strong>{participantRole === 'vet' ? (bookingContext?.farmerName || t('farmer')) : doctor.name}</strong>
-              <span>{participantRole === 'vet' ? `${bookingContext?.district || 'Rajshahi'} · ${roomCode}` : doctor.clinic}</span>
-              <div className="pmx-audio-bars" data-active={connectionState === 'connected' && !micMuted} aria-hidden="true">
-                {micLevels.map((lvl, idx) => (
-                  <span
-                    key={idx}
-                    style={hasLiveAudio && !micMuted ? { height: `${Math.max(5, Math.round((lvl / 100) * 20))}px` } : undefined}
-                  />
-                ))}
-              </div>
-              <small className="pmx-stage-mic-state">
-                <Radio size={11} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
-                {hasLiveAudio
-                  ? (micMuted ? t('callMicMutedNote') : t('callMicLiveNote'))
-                  : t('callAwaitingRemoteNote')}
-              </small>
+        {callEngine === 'jitsi' ? (
+          <div className="pmx-jitsi-stage dark:bg-gray-950 dark:border-gray-800">
+            <iframe
+              src={jitsiEmbedUrl}
+              title={`PoultryMedix Jitsi Consultation ${roomCode}`}
+              allow="camera; microphone; fullscreen; display-capture; autoplay"
+              className="pmx-jitsi-iframe"
+            />
+            <div className="pmx-jitsi-fallback-bar">
+              <span>{t('jitsiRoomActiveNote', { roomCode })}</span>
+              <button type="button" className="pmx-mode-tab" onClick={() => setCallEngine('webrtc')}>
+                {t('switchToBuiltinWebRtc')}
+              </button>
             </div>
-          )}
-
-          {/* Local Camera / Audio Screen inside same section */}
-          <div className="pmx-self-pip dark:bg-gray-900 dark:border-gray-700">
-            {isVideoMode && cameraEnabled && hasLiveVideo ? (
-              <video ref={localVideoRef} autoPlay playsInline muted className="pmx-self-video" />
+          </div>
+        ) : (
+          <div className="pmx-call-stage dark:bg-gray-950 dark:border-gray-800">
+            {peerConnected ? (
+              <video ref={remoteVideoRef} autoPlay playsInline className="pmx-remote-video" />
             ) : (
-              <div className="pmx-self-fallback">
-                {isVideoMode && cameraEnabled ? <Video size={16} /> : <Mic size={16} />}
+              <div className="pmx-doctor-stage-card">
+                <div className="pmx-doctor-monogram" aria-hidden="true">NR</div>
+                <strong>{participantRole === 'vet' ? (bookingContext?.farmerName || t('farmer')) : doctor.name}</strong>
                 <span>
-                  {isVideoMode
-                    ? (cameraEnabled ? t('callCameraPreviewReady') : t('callCameraPaused'))
-                    : (micMuted ? t('callMicMutedNote') : t('callModeAudioShort'))}
+                  {participantRole === 'vet'
+                    ? `${bookingContext?.district || 'Rajshahi'} · ${roomCode}`
+                    : `${doctor.regNo} · ${doctor.clinic}`}
                 </span>
+                <div className="pmx-audio-bars" data-active={connectionState === 'connected' && !micMuted} aria-hidden="true">
+                  {micLevels.map((lvl, idx) => (
+                    <span
+                      key={idx}
+                      style={hasLiveAudio && !micMuted ? { height: `${Math.max(5, Math.round((lvl / 100) * 20))}px` } : undefined}
+                    />
+                  ))}
+                </div>
+                <small className="pmx-stage-mic-state">
+                  <Radio size={11} style={{ display: 'inline', marginRight: 4 }} aria-hidden="true" />
+                  {hasLiveAudio
+                    ? (micMuted ? t('callMicMutedNote') : t('callMicLiveNote'))
+                    : t('callAwaitingRemoteNote')}
+                </small>
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Flock Summary & Multi-Channel Doctor Notification Side Card */}
+            <div className="pmx-self-pip dark:bg-gray-900 dark:border-gray-700">
+              {isVideoMode && cameraEnabled && hasLiveVideo ? (
+                <video ref={localVideoRef} autoPlay playsInline muted className="pmx-self-video" />
+              ) : (
+                <div className="pmx-self-fallback">
+                  {isVideoMode && cameraEnabled ? <Video size={16} /> : <Mic size={16} />}
+                  <span>
+                    {isVideoMode
+                      ? (cameraEnabled ? t('callCameraPreviewReady') : t('callCameraPaused'))
+                      : (micMuted ? t('callMicMutedNote') : t('callModeAudioShort'))}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         <aside className="pmx-call-summary-panel dark:bg-gray-800 dark:border-gray-700">
           <h3>
             <Bird size={15} aria-hidden="true" />
@@ -505,8 +588,8 @@ export default function ConsultationCallRoom({
           </h3>
           <dl className="pmx-call-dl">
             <div>
-              <dt>{t('receiptTransactionId')}</dt>
-              <dd>{bookingContext?.trxId || roomCode}</dd>
+              <dt>{t('roomCodeLabel')}</dt>
+              <dd>{roomCode}</dd>
             </div>
             <div>
               <dt>{t('checkoutFarmerLabel')}</dt>
@@ -523,65 +606,93 @@ export default function ConsultationCallRoom({
               <dt>{t('callFlockSnapshot')}</dt>
               <dd>{flockSummaryText}</dd>
             </div>
+            {bookingContext?.aiDiagnosisSummary && (
+              <div>
+                <dt>{t('aiDiagnosisBadgeLabel')}</dt>
+                <dd>{bookingContext.aiDiagnosisSummary}</dd>
+              </div>
+            )}
           </dl>
 
-          <div className="pmx-call-whatsapp-box dark:bg-emerald-950/35 dark:border-emerald-800">
-            <div className="pmx-wa-note">
-              <ShieldCheck size={14} aria-hidden="true" />
-              <span>{t('callNotifyDoctorHint')}</span>
+          {participantRole === 'farmer' ? (
+            <div
+              className={`pmx-live-rx-status-box${liveRxAlert ? ' is-received' : ''} dark:border-gray-700`}
+              role="status"
+            >
+              {liveRxAlert ? (
+                <>
+                  <div className="pmx-live-rx-head">
+                    <FileCheck2 size={16} aria-hidden="true" />
+                    <strong>{t('liveRxReceivedTitle')}</strong>
+                  </div>
+                  <p>
+                    {t('liveRxReceivedDetail', {
+                      doctor: liveRxAlert.doctorName,
+                      count: liveRxAlert.medicationsCount,
+                      diagnosis: liveRxAlert.diagnosis || t('clinicalHistoryDiagnosis'),
+                    })}
+                  </p>
+                  <small>{t('liveRxCheckClinicalLogHint')}</small>
+                </>
+              ) : (
+                <>
+                  <div className="pmx-live-rx-head">
+                    <Hourglass size={15} aria-hidden="true" />
+                    <strong>{t('liveRxWaitingTitle')}</strong>
+                  </div>
+                  <p>{t('liveRxWaitingDetail')}</p>
+                </>
+              )}
             </div>
-            <div className="pmx-notify-btn-stack">
-              <a
-                href={whatsAppHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="pmx-whatsapp-cta"
+          ) : (
+            onToggleMobileRxSheet && (
+              <button
+                type="button"
+                className="pmx-mobile-rx-toggle-btn"
+                onClick={onToggleMobileRxSheet}
               >
-                <MessageCircle size={15} aria-hidden="true" />
-                <span>{t('continueOnWhatsAppCall')}</span>
-              </a>
-              <a
-                href={emailHref}
-                className="pmx-email-cta dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
-              >
-                <Mail size={15} aria-hidden="true" />
-                <span>{t('notifyDoctorByEmail')}</span>
-              </a>
-            </div>
-          </div>
+                <FileCheck2 size={15} aria-hidden="true" />
+                <span>{mobileRxOpen ? t('hideMobileRxPad') : t('openMobileRxPad')}</span>
+              </button>
+            )
+          )}
         </aside>
       </div>
 
-      {mediaNotice && (
+      {mediaNotice && callEngine === 'webrtc' && (
         <p className="pmx-inline-media-notice dark:text-amber-200">{mediaNotice}</p>
       )}
 
       <footer className="pmx-call-controls dark:bg-gray-950 dark:border-gray-800">
-        <button
-          type="button"
-          className={`pmx-call-toggle-btn${micMuted ? ' is-off' : ''}`}
-          onClick={() => setMicMuted((prev) => !prev)}
-          aria-pressed={micMuted}
-        >
-          {micMuted ? <MicOff size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
-          <span>{micMuted ? t('callUnmuteMic') : t('callMuteMic')}</span>
-        </button>
+        {callEngine === 'webrtc' && (
+          <>
+            <button
+              type="button"
+              className={`pmx-call-toggle-btn${micMuted ? ' is-off' : ''}`}
+              onClick={() => setMicMuted((prev) => !prev)}
+              aria-pressed={micMuted}
+            >
+              {micMuted ? <MicOff size={16} aria-hidden="true" /> : <Mic size={16} aria-hidden="true" />}
+              <span>{micMuted ? t('callUnmuteMic') : t('callMuteMic')}</span>
+            </button>
 
-        <button
-          type="button"
-          className={`pmx-call-toggle-btn${!cameraEnabled || !isVideoMode ? ' is-off' : ''}`}
-          onClick={() => {
-            if (!isVideoMode) {
-              toggleVideoMode('video')
-            } else {
-              setCameraEnabled((prev) => !prev)
-            }
-          }}
-          aria-pressed={!cameraEnabled || !isVideoMode}
-        >
-          {cameraEnabled && isVideoMode ? <Video size={16} aria-hidden="true" /> : <VideoOff size={16} aria-hidden="true" />}
-          <span>{cameraEnabled && isVideoMode ? t('callCameraOff') : t('callCameraOn')}</span>
-        </button>
+            <button
+              type="button"
+              className={`pmx-call-toggle-btn${!cameraEnabled || !isVideoMode ? ' is-off' : ''}`}
+              onClick={() => {
+                if (!isVideoMode) {
+                  toggleVideoMode('video')
+                } else {
+                  setCameraEnabled((prev) => !prev)
+                }
+              }}
+              aria-pressed={!cameraEnabled || !isVideoMode}
+            >
+              {cameraEnabled && isVideoMode ? <Video size={16} aria-hidden="true" /> : <VideoOff size={16} aria-hidden="true" />}
+              <span>{cameraEnabled && isVideoMode ? t('callCameraOff') : t('callCameraOn')}</span>
+            </button>
+          </>
+        )}
 
         <button
           type="button"
