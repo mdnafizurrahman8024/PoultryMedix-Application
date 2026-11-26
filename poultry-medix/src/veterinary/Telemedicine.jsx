@@ -943,6 +943,7 @@ export default function Telemedicine() {
             initialCallType={callMode}
             doctor={activeBookingDoctor}
             participantRole="farmer"
+            userRole={role}
             bookingContext={{
               trxId: activePaidBooking?.trxId || 'PMX-TRX-DEV',
               roomCode: activeRoomCode,
@@ -1094,6 +1095,7 @@ export default function Telemedicine() {
             <ConsultationCallRoom
               initialCallType={callMode}
               participantRole="vet"
+              userRole={role}
               mobileRxOpen={mobileRxOpen}
               onToggleMobileRxSheet={() => setMobileRxOpen((prev) => !prev)}
               doctor={{

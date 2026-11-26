@@ -7,13 +7,19 @@ import {
   MessageSquarePlus,
   PlusCircle,
   Radio,
-  Send,
   Users,
   Video,
   X,
 } from 'lucide-react'
 import './Telemedicine.css'
-import { buildJitsiRoomUrl } from '../lib/paymentAdapter.js'
+import LiveMediaStage from './LiveMediaStage.jsx'
+import LiveQaHandRaisePanel from './LiveQaHandRaisePanel.jsx'
+import {
+  getRoomInteractionState,
+  getRoomRoleGrouping,
+  POULTRYMEDIX_ROOM_INTERACTION_CHANNEL,
+  POULTRYMEDIX_ROOM_INTERACTION_EVENT,
+} from '../lib/liveRoomInteractionStore.js'
 import {
   POULTRYMEDIX_SEMINARS_CHANNEL,
   POULTRYMEDIX_SEMINARS_UPDATED_EVENT,
@@ -21,19 +27,27 @@ import {
   createFreeSeminar,
   getFreeSeminars,
   setSeminarStatus,
-  submitSeminarQuestion,
-  toggleSeminarQuestionAnswered,
   toggleSeminarRegistration,
 } from '../lib/seminarStore.js'
 import { getLocalTodayDateStr, getSuggestedSlotTime } from '../lib/telehealthNotifier.js'
 import { useLanguage } from '../context/useLanguage.js'
 import { useUser } from '../context/user-context.js'
 
+function readSavedProfileName() {
+  try {
+    return localStorage.getItem('poultry-profile-name')?.trim() || ''
+  } catch {
+    return ''
+  }
+}
+
 export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
   const { language, t } = useLanguage()
   const { role } = useUser()
   const isBn = language === 'bn'
-  const isHostCapable = role === 'REGISTERED_VET' || role === 'VET_STUDENT' || import.meta.env.DEV
+  const roleGroup = getRoomRoleGrouping(role)
+  const isRoomHost = roleGroup.isHost
+  const participantDisplayName = readSavedProfileName() || t(roleGroup.roleLabelKey)
 
   const [seminars, setSeminars] = useState(() => getFreeSeminars())
   const [activeCategory, setActiveCategory] = useState('all')
@@ -46,8 +60,7 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
     return ''
   })
   const [expandedQaId, setExpandedQaId] = useState('')
-  const [questionDrafts, setQuestionDrafts] = useState({})
-  const [qaFeedback, setQaFeedback] = useState('')
+  const [interactionTick, setInteractionTick] = useState(0)
 
   const [hostComposerOpen, setHostComposerOpen] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -63,18 +76,25 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
   useEffect(() => {
     function syncSeminars() {
       setSeminars(getFreeSeminars())
+      setInteractionTick((n) => n + 1)
     }
     window.addEventListener(POULTRYMEDIX_SEMINARS_UPDATED_EVENT, syncSeminars)
+    window.addEventListener(POULTRYMEDIX_ROOM_INTERACTION_EVENT, syncSeminars)
     window.addEventListener('storage', syncSeminars)
 
     let bc = null
+    let qaBc = null
     if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
       bc = new BroadcastChannel(POULTRYMEDIX_SEMINARS_CHANNEL)
       bc.onmessage = syncSeminars
+      qaBc = new BroadcastChannel(POULTRYMEDIX_ROOM_INTERACTION_CHANNEL)
+      qaBc.onmessage = syncSeminars
     }
     return () => {
       if (bc) bc.close()
+      if (qaBc) qaBc.close()
       window.removeEventListener(POULTRYMEDIX_SEMINARS_UPDATED_EVENT, syncSeminars)
+      window.removeEventListener(POULTRYMEDIX_ROOM_INTERACTION_EVENT, syncSeminars)
       window.removeEventListener('storage', syncSeminars)
     }
   }, [])
@@ -104,20 +124,6 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
   function handleRegisterToggle(id) {
     const res = toggleSeminarRegistration(id)
     setSeminars(res.seminars)
-  }
-
-  function handleQuestionSubmit(event, seminarId) {
-    event.preventDefault()
-    const draft = (questionDrafts[seminarId] || '').trim()
-    if (!draft) return
-    const savedName = localStorage.getItem('poultry-profile-name') || (isBn ? 'খামারি' : 'Farmer')
-    const res = submitSeminarQuestion(seminarId, { author: savedName, text: draft })
-    if (res.ok) {
-      setSeminars(res.seminars)
-      setQuestionDrafts((prev) => ({ ...prev, [seminarId]: '' }))
-      setQaFeedback(isBn ? 'আপনার প্রশ্নটি লাইভ সেমিনারে যুক্ত হয়েছে!' : 'Question submitted to the live seminar Q&A!')
-      window.setTimeout(() => setQaFeedback(''), 3000)
-    }
   }
 
   function handleCreateSeminar(event) {
@@ -175,7 +181,7 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
           </div>
         </div>
 
-        {isHostCapable && (
+        {isRoomHost ? (
           <button
             type="button"
             className="pmx-primary-submit-btn"
@@ -184,6 +190,10 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
             <PlusCircle size={15} aria-hidden="true" />
             <span>{hostComposerOpen ? t('close') : t('seminarHostNewBtn')}</span>
           </button>
+        ) : (
+          <span className="pmx-live-role-badge is-participant">
+            {t('liveRoleParticipantBadge')} · {t(roleGroup.roleLabelKey)}
+          </span>
         )}
       </section>
 
@@ -194,8 +204,8 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
         </div>
       )}
 
-      {/* Organizer / Vet Create Free Seminar Form */}
-      {hostComposerOpen && isHostCapable && (
+      {/* Organizer / Registered Veterinarian Create Free Seminar Form */}
+      {hostComposerOpen && isRoomHost && (
         <form className="seminar-host-form dark:bg-gray-800 dark:border-gray-700" onSubmit={handleCreateSeminar}>
           <div className="seminar-host-form-head">
             <div>
@@ -315,26 +325,22 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
           </header>
 
           <div className="seminar-auditorium-grid">
-            <div className="pmx-jitsi-stage dark:bg-gray-950 dark:border-gray-800">
-              <iframe
-                src={buildJitsiRoomUrl({
-                  roomId: liveSeminar.roomCode,
-                  displayName: localStorage.getItem('poultry-profile-name') || (isBn ? 'খামারি অংশগ্রহণকারী' : 'Farmer Participant'),
-                  startAudioOnly: false,
-                })}
-                title={`PoultryMedix Seminar ${liveSeminar.roomCode}`}
-                allow="camera; microphone; fullscreen; display-capture; autoplay"
-                className="pmx-jitsi-iframe"
-                style={{ height: '340px' }}
-              />
-              <div className="pmx-jitsi-fallback-bar">
-                <span>
-                  {isBn
-                    ? `ইন-অ্যাপ লাইভ সেমিনার কক্ষ (${liveSeminar.roomCode}) চালু রয়েছে — কোনো পেমেন্ট বা অতিরিক্ত অ্যাপ ছাড়াই যুক্ত থাকুন।`
-                    : `In-app seminar stage (${liveSeminar.roomCode}) active — completely free educational session inside PoultryMedix.`}
-                </span>
-              </div>
-            </div>
+            <LiveMediaStage
+              key={`${liveSeminar.roomCode}-${roleGroup.side}`}
+              roomId={liveSeminar.roomCode}
+              userRole={role}
+              displayName={participantDisplayName}
+              remoteTitle={liveSeminar.hostName}
+              remoteSubtitle={isBn ? liveSeminar.hostRoleBn : liveSeminar.hostRoleEn}
+              heightPx={380}
+              endButtonLabel={isRoomHost ? t('seminarEndSessionBtn') : t('seminarLeaveRoomBtn')}
+              onLeaveOrEnd={() => {
+                if (isRoomHost) {
+                  setSeminars(setSeminarStatus(liveSeminar.id, 'ended'))
+                }
+                setActiveLiveSeminarId('')
+              }}
+            />
 
             <aside className="seminar-auditorium-sidebar dark:bg-gray-900 dark:border-gray-700">
               <div className="seminar-agenda-card dark:bg-gray-800 dark:border-gray-700">
@@ -342,39 +348,13 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
                 <p>{isBn ? liveSeminar.agendaBn : liveSeminar.agendaEn}</p>
               </div>
 
-              <div className="seminar-qa-box">
-                <strong>
-                  <MessageSquarePlus size={14} aria-hidden="true" />
-                  <span>{t('seminarLiveQaHeading')} ({(liveSeminar.questions || []).length})</span>
-                </strong>
-                <form className="seminar-qa-form" onSubmit={(e) => handleQuestionSubmit(e, liveSeminar.id)}>
-                  <input
-                    type="text"
-                    maxLength={280}
-                    value={questionDrafts[liveSeminar.id] || ''}
-                    onChange={(e) => setQuestionDrafts((prev) => ({ ...prev, [liveSeminar.id]: e.target.value }))}
-                    placeholder={t('seminarAskPlaceholder')}
-                  />
-                  <button type="submit" aria-label={t('sendMessage')}>
-                    <Send size={14} aria-hidden="true" />
-                  </button>
-                </form>
-                <ul className="seminar-qa-list">
-                  {(liveSeminar.questions || []).length === 0 ? (
-                    <li className="seminar-qa-empty">{t('seminarNoQuestionsYet')}</li>
-                  ) : (
-                    liveSeminar.questions.map((q) => (
-                      <li key={q.id} className={q.answered ? 'is-answered' : undefined}>
-                        <div className="seminar-qa-top">
-                          <strong>{q.author}</strong>
-                          {q.answered && <span className="seminar-qa-done-tag">{t('seminarAnsweredTag')}</span>}
-                        </div>
-                        <p>{q.text}</p>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </div>
+              <LiveQaHandRaisePanel
+                key={`qa-${liveSeminar.roomCode}-${roleGroup.side}`}
+                roomId={liveSeminar.roomCode}
+                userRole={role}
+                participantName={participantDisplayName}
+                initialQuestions={liveSeminar.questions}
+              />
             </aside>
           </div>
         </section>
@@ -396,16 +376,16 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
         ))}
       </div>
 
-      {qaFeedback && (
-        <p className="telemedicine-status" role="status">{qaFeedback}</p>
-      )}
-
       {/* Seminar Directory Cards */}
-      <section className="seminar-cards-grid">
+      <section className="seminar-cards-grid" data-sync={interactionTick}>
         {filteredSeminars.map((sem) => {
           const isLive = sem.status === 'live'
           const isEnded = sem.status === 'ended'
           const isQaOpen = expandedQaId === sem.id
+          const syncedCount = Math.max(
+            (sem.questions || []).length,
+            getRoomInteractionState(sem.roomCode).messages.length
+          )
           return (
             <article key={sem.id} className={`seminar-card${isLive ? ' is-live' : ''} dark:bg-gray-800 dark:border-gray-700`}>
               <div className="seminar-card-badges">
@@ -474,11 +454,11 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
                   onClick={() => setExpandedQaId(isQaOpen ? '' : sem.id)}
                 >
                   <MessageSquarePlus size={14} aria-hidden="true" />
-                  <span>Q&A ({(sem.questions || []).length})</span>
+                  <span>Q&A ({syncedCount})</span>
                 </button>
               </div>
 
-              {isHostCapable && (
+              {isRoomHost && (
                 <div className="seminar-host-controls">
                   {!isLive && (
                     <button
@@ -509,45 +489,14 @@ export default function FreeSeminarHub({ preselectedSeminarId = '' }) {
               )}
 
               {isQaOpen && (
-                <div className="seminar-qa-box dark:border-gray-700">
-                  <form className="seminar-qa-form" onSubmit={(e) => handleQuestionSubmit(e, sem.id)}>
-                    <input
-                      type="text"
-                      maxLength={280}
-                      value={questionDrafts[sem.id] || ''}
-                      onChange={(e) => setQuestionDrafts((prev) => ({ ...prev, [sem.id]: e.target.value }))}
-                      placeholder={t('seminarAskPlaceholder')}
-                    />
-                    <button type="submit" aria-label={t('sendMessage')}>
-                      <Send size={14} aria-hidden="true" />
-                    </button>
-                  </form>
-                  <ul className="seminar-qa-list">
-                    {(sem.questions || []).length === 0 ? (
-                      <li className="seminar-qa-empty">{t('seminarNoQuestionsYet')}</li>
-                    ) : (
-                      sem.questions.map((q) => (
-                        <li key={q.id} className={q.answered ? 'is-answered' : undefined}>
-                          <div className="seminar-qa-top">
-                            <strong>{q.author}</strong>
-                            {isHostCapable ? (
-                              <button
-                                type="button"
-                                className="seminar-qa-toggle-ans"
-                                onClick={() => setSeminars(toggleSeminarQuestionAnswered(sem.id, q.id))}
-                              >
-                                {q.answered ? t('seminarAnsweredTag') : t('seminarMarkAnsweredBtn')}
-                              </button>
-                            ) : q.answered ? (
-                              <span className="seminar-qa-done-tag">{t('seminarAnsweredTag')}</span>
-                            ) : null}
-                          </div>
-                          <p>{q.text}</p>
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
+                <LiveQaHandRaisePanel
+                  key={`card-qa-${sem.roomCode}-${roleGroup.side}`}
+                  roomId={sem.roomCode}
+                  userRole={role}
+                  participantName={participantDisplayName}
+                  initialQuestions={sem.questions}
+                  compact
+                />
               )}
             </article>
           )

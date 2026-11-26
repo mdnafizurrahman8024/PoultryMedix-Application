@@ -2665,3 +2665,377 @@ html[data-theme="dark"] .pmx-ringing-prompt,
 html[data-theme="dark"] .pmx-ethical-audit-strip {
   color: #86efac !important;
 }
+
+/* Unified Jitsi / Direct Hardware Studio Stage & Cross-Tab Q&A Hand-Raise Sync */
+.pmx-live-stage-shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #cbd9cd;
+  border-radius: 16px;
+  background: #ffffff;
+}
+
+.pmx-live-stage-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.pmx-live-role-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.pmx-live-role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.pmx-live-role-badge.is-host {
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.pmx-live-role-badge.is-participant {
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.pmx-live-peers-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #334155;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pmx-live-fallback-banner {
+  padding: 8px 14px;
+  border-bottom: 1px solid #fde68a;
+  color: #92400e;
+  background: #fffbeb;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.pmx-jitsi-loading-overlay {
+  display: grid;
+  min-height: 96px;
+  place-items: center;
+  padding: 16px;
+  color: #cbd5e1;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.pmx-jitsi-mount-box {
+  width: 100%;
+  background: #0f172a;
+}
+
+.pmx-jitsi-mount-box iframe {
+  display: block;
+  width: 100%;
+  min-height: 360px;
+  border: 0;
+}
+
+.pmx-studio-stage {
+  border-radius: 0;
+  border-width: 0;
+  padding: 14px;
+}
+
+.pmx-shared-screen-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+}
+
+.pmx-shared-screen-video {
+  width: 100%;
+  height: 100%;
+  max-height: 380px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: #020617;
+}
+
+.pmx-screen-live-tag {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #15803d;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.pmx-call-toggle-btn.is-sharing {
+  border-color: #15803d;
+  color: #ffffff;
+  background: #15803d;
+}
+
+.pmx-call-toggle-btn.is-hand-raised {
+  border-color: #d97706;
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.pmx-qa-sync-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d9e4d8;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.pmx-qa-sync-panel.is-compact {
+  padding: 10px;
+}
+
+.pmx-qa-sync-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-qa-sync-header strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1d3523;
+}
+
+.pmx-qa-sync-header small {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.pmx-hand-raise-bar {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 11px;
+  background: #f8fafc;
+}
+
+.pmx-hand-participant-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-hand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #1e293b;
+  background: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-hand-btn.is-active {
+  border-color: #d97706;
+  color: #92400e;
+  background: #fef3c7;
+}
+
+.pmx-hand-counter,
+.pmx-hand-empty-hint {
+  margin: 0;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.pmx-host-hands-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pmx-host-hands-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-host-hands-top strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #92400e;
+}
+
+.pmx-hand-clear-btn,
+.pmx-hand-ack-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  color: #334155;
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-hand-ack-btn {
+  border-color: #bbf7d0;
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.pmx-raised-hands-list {
+  display: flex;
+  max-height: 120px;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.pmx-raised-hands-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #fde68a;
+  border-radius: 9px;
+  background: #fffbeb;
+}
+
+.pmx-raised-hands-list strong {
+  display: block;
+  font-size: 12px;
+}
+
+.pmx-raised-hands-list small {
+  display: block;
+  color: #64748b;
+  font-size: 10.5px;
+}
+
+.pmx-qa-author-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.pmx-qa-role-tag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: #334155;
+  background: #e2e8f0;
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.pmx-qa-role-tag.is-host {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+html[data-theme="dark"] .pmx-live-stage-shell,
+html[data-theme="dark"] .pmx-qa-sync-panel {
+  border-color: #314335;
+  background: #17231b;
+}
+
+html[data-theme="dark"] .pmx-live-stage-topbar {
+  border-bottom-color: #2f4133;
+  background: #111b14;
+}
+
+html[data-theme="dark"] .pmx-hand-raise-bar {
+  border-color: #2f4133;
+  background: #1d2b22;
+}
+
+html[data-theme="dark"] .pmx-qa-sync-header strong {
+  color: #edf5ef;
+}
+
+html[data-theme="dark"] .pmx-qa-sync-header small,
+html[data-theme="dark"] .pmx-hand-counter,
+html[data-theme="dark"] .pmx-hand-empty-hint {
+  color: #a9bdb0;
+}
+
+html[data-theme="dark"] .pmx-live-peers-pill,
+html[data-theme="dark"] .pmx-hand-btn,
+html[data-theme="dark"] .pmx-hand-clear-btn {
+  border-color: #364a3a;
+  color: #e2ece3;
+  background: #223226;
+}
+
+html[data-theme="dark"] .pmx-raised-hands-list li {
+  border-color: #78350f;
+  background: rgba(120, 53, 15, 0.28);
+}
+
+@media (max-width: 768px) {
+  .pmx-inline-stage-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pmx-live-stage-topbar {
+    padding: 9px 10px;
+  }
+
+  .pmx-jitsi-mount-box iframe {
+    min-height: 290px;
+  }
+}

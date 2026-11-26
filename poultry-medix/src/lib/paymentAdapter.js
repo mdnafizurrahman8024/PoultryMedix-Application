@@ -195,17 +195,107 @@ export function createCallRoomCode(trxId = '') {
   return `PMX-ROOM-${suffix}`
 }
 
+export function buildLiveJitsiRoomName(roomId = 'PMX-ROOM-LIVE') {
+  const clean = String(roomId || 'PMX-ROOM-LIVE').replace(/[^A-Za-z0-9_-]/g, '') || 'PMX-ROOM-LIVE'
+  return `PoultryMedix-Live-${clean}`
+}
+
+export function buildJitsiMountOptions({
+  roomId = 'PMX-ROOM-LIVE',
+  displayName = 'PoultryMedix Participant',
+  isHost = false,
+  startAudioOnly = false,
+  height = 380,
+  parentNode = null,
+} = {}) {
+  const safeName = sanitizePaymentInput(displayName || 'PoultryMedix Participant', 60) || 'PoultryMedix Participant'
+  return {
+    roomName: buildLiveJitsiRoomName(roomId),
+    width: '100%',
+    height,
+    parentNode,
+    userInfo: { displayName: safeName },
+    configOverwrite: {
+      prejoinPageEnabled: false,
+      startWithAudioMuted: isHost ? false : true,
+      startWithVideoMuted: isHost ? Boolean(startAudioOnly) : true,
+      startAudioOnly: isHost ? Boolean(startAudioOnly) : false,
+      disableDeepLinking: true,
+    },
+    interfaceConfigOverwrite: {
+      TOOLBAR_BUTTONS: isHost
+        ? ['microphone', 'camera', 'desktop', 'tileview', 'raisehand', 'fullscreen', 'hangup']
+        : ['microphone', 'camera', 'raisehand', 'tileview', 'fullscreen', 'hangup'],
+      SHOW_JITSI_WATERMARK: false,
+      SHOW_WATERMARK_FOR_GUESTS: false,
+    },
+  }
+}
+
+let jitsiApiLoadPromise = null
+
+export function loadJitsiExternalApi(timeoutMs = 7000) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return Promise.reject(new Error('Jitsi External API requires a browser DOM.'))
+  }
+  if (typeof window.JitsiMeetExternalAPI === 'function') {
+    return Promise.resolve(window.JitsiMeetExternalAPI)
+  }
+  if (jitsiApiLoadPromise) return jitsiApiLoadPromise
+
+  jitsiApiLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-pmx-jitsi-api="true"]')
+    const timer = window.setTimeout(() => {
+      jitsiApiLoadPromise = null
+      reject(new Error('Jitsi Meet script timed out (network restricted or offline).'))
+    }, timeoutMs)
+
+    const onReady = () => {
+      window.clearTimeout(timer)
+      if (typeof window.JitsiMeetExternalAPI === 'function') {
+        resolve(window.JitsiMeetExternalAPI)
+      } else {
+        jitsiApiLoadPromise = null
+        reject(new Error('JitsiMeetExternalAPI unavailable after script load.'))
+      }
+    }
+
+    const onError = () => {
+      window.clearTimeout(timer)
+      jitsiApiLoadPromise = null
+      reject(new Error('Unable to load Jitsi Meet External API script.'))
+    }
+
+    if (existing) {
+      existing.addEventListener('load', onReady, { once: true })
+      existing.addEventListener('error', onError, { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://meet.jit.si/external_api.js'
+    script.async = true
+    script.dataset.pmxJitsiApi = 'true'
+    script.addEventListener('load', onReady, { once: true })
+    script.addEventListener('error', onError, { once: true })
+    document.head.appendChild(script)
+  })
+
+  return jitsiApiLoadPromise
+}
+
 export function buildJitsiRoomUrl({
   roomId = 'PMX-ROOM-LIVE',
   displayName = 'PoultryMedix Participant',
   startAudioOnly = false,
+  isHost = false,
 } = {}) {
-  const safeRoom = `PoultryMedix-${String(roomId || 'PMX-ROOM-LIVE').replace(/[^A-Za-z0-9_-]/g, '')}`
+  const safeRoom = buildLiveJitsiRoomName(roomId)
   const safeName = sanitizePaymentInput(displayName || 'PoultryMedix Participant', 60) || 'PoultryMedix Participant'
   const hashParams = [
     'config.prejoinPageEnabled=false',
-    'config.startWithAudioMuted=false',
-    `config.startWithVideoMuted=${startAudioOnly ? 'true' : 'false'}`,
+    `config.startWithAudioMuted=${isHost ? 'false' : 'true'}`,
+    `config.startWithVideoMuted=${isHost && !startAudioOnly ? 'false' : 'true'}`,
     `config.startAudioOnly=${startAudioOnly ? 'true' : 'false'}`,
     `userInfo.displayName=${encodeURIComponent(safeName)}`,
   ].join('&')
