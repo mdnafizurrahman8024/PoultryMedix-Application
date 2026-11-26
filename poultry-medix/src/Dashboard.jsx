@@ -1,4 +1,4 @@
-import React, { Suspense, useEffect, useRef, useState } from 'react'
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronsDownUp, ChevronsUpDown, Globe, Menu, X } from 'lucide-react'
 import AIChat from './AIChat.jsx'
 import DiagnosisHub from './DiagnosisHub.jsx'
@@ -14,8 +14,25 @@ import ShedFlockManager from './veterinary/ShedFlockManager.jsx'
 import VaccineScheduleTracker from './veterinary/VaccineScheduleTracker.jsx'
 import EthicalCareBar from './veterinary/EthicalCareBar.jsx'
 import UloDirectoryModal from './veterinary/UloDirectoryModal.jsx'
-import { POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, POULTRYMEDIX_OPEN_ULO_EVENT } from './lib/uloDirectory.js'
+import {
+  POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT,
+  POULTRYMEDIX_OPEN_ULO_EVENT,
+} from './lib/uloDirectory.js'
+import { POULTRYMEDIX_ROOMS_UPDATED_EVENT } from './lib/telehealthNotifier.js'
+import { CLINICAL_LOGS_UPDATED_EVENT } from './lib/clinicalLogsStore.js'
 import { getSheds, evaluateAllSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
+import { POULTRYMEDIX_VACCINES_UPDATED_EVENT } from './lib/vaccineManager.js'
+import {
+  POULTRYMEDIX_SEMINARS_CHANNEL,
+  POULTRYMEDIX_SEMINARS_UPDATED_EVENT,
+  getFreeSeminars,
+} from './lib/seminarStore.js'
+import {
+  POULTRYMEDIX_NOTIFICATIONS_READ_EVENT,
+  buildAppNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from './lib/notificationsEngine.js'
 import {
   POULTRYMEDIX_POINTS_UPDATED_EVENT,
   formatPointsValue,
@@ -29,6 +46,7 @@ import './VeterinaryFeatures.css'
 
 const EpidemiologyMap = React.lazy(() => import('./veterinary/EpidemiologyMap.jsx'))
 const FarmBlueprint = React.lazy(() => import('./veterinary/FarmBlueprint.jsx'))
+const FreeSeminarHub = React.lazy(() => import('./veterinary/FreeSeminarHub.jsx'))
 
 const guidelinesData = [
   {
@@ -85,10 +103,17 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isWideDesktop, setIsWideDesktop] = useState(() => window.matchMedia('(min-width: 1024px)').matches)
   const [showPointsPopup, setShowPointsPopup] = useState(false)
+  const [showNotificationsPopup, setShowNotificationsPopup] = useState(false)
+  const [notificationFilter, setNotificationFilter] = useState('all')
+  const [selectedSeminarId, setSelectedSeminarId] = useState('')
+  const [freeSeminars, setFreeSeminars] = useState(() => getFreeSeminars())
+  const [notifRevision, setNotifRevision] = useState(0)
+  const [notifNowMs, setNotifNowMs] = useState(() => Date.now())
   const languageMenuRef = useRef(null)
   const mobileLanguageMenuRef = useRef(null)
   const headerRef = useRef(null)
   const pointsPopupRef = useRef(null)
+  const notificationsPopupRef = useRef(null)
   const hasGeolocation = typeof navigator !== 'undefined' && Boolean(navigator.geolocation)
   const canFetchWeather = Boolean(hasGeolocation && openWeatherApiKey)
   const [weather, setWeather] = useState(null)
@@ -235,11 +260,38 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   useEffect(() => {
     function syncSheds() {
       setSheds(getSheds())
+      setNotifNowMs(Date.now())
+      setNotifRevision((r) => r + 1)
+    }
+    function syncNotificationsAndSeminars() {
+      setFreeSeminars(getFreeSeminars())
+      setNotifNowMs(Date.now())
+      setNotifRevision((r) => r + 1)
     }
     window.addEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncSheds)
+    window.addEventListener(POULTRYMEDIX_VACCINES_UPDATED_EVENT, syncNotificationsAndSeminars)
+    window.addEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncNotificationsAndSeminars)
+    window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncNotificationsAndSeminars)
+    window.addEventListener(POULTRYMEDIX_SEMINARS_UPDATED_EVENT, syncNotificationsAndSeminars)
+    window.addEventListener(POULTRYMEDIX_NOTIFICATIONS_READ_EVENT, syncNotificationsAndSeminars)
     window.addEventListener('storage', syncSheds)
+
+    let seminarChannel = null
+    if (typeof window !== 'undefined' && typeof BroadcastChannel !== 'undefined') {
+      seminarChannel = new BroadcastChannel(POULTRYMEDIX_SEMINARS_CHANNEL)
+      seminarChannel.onmessage = syncNotificationsAndSeminars
+    }
+    const tick = window.setInterval(() => setNotifNowMs(Date.now()), 30000)
+
     return () => {
+      if (seminarChannel) seminarChannel.close()
+      window.clearInterval(tick)
       window.removeEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncSheds)
+      window.removeEventListener(POULTRYMEDIX_VACCINES_UPDATED_EVENT, syncNotificationsAndSeminars)
+      window.removeEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncNotificationsAndSeminars)
+      window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncNotificationsAndSeminars)
+      window.removeEventListener(POULTRYMEDIX_SEMINARS_UPDATED_EVENT, syncNotificationsAndSeminars)
+      window.removeEventListener(POULTRYMEDIX_NOTIFICATIONS_READ_EVENT, syncNotificationsAndSeminars)
       window.removeEventListener('storage', syncSheds)
     }
   }, [])
@@ -315,25 +367,31 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
   }, [isMobileMenuOpen])
 
   useEffect(() => {
-    if (!showPointsPopup) return undefined
+    if (!showPointsPopup && !showNotificationsPopup) return undefined
 
-    function closePointsPopup(event) {
-      if (pointsPopupRef.current && !pointsPopupRef.current.contains(event.target)) {
+    function closePopupsOnOutsideClick(event) {
+      if (showPointsPopup && pointsPopupRef.current && !pointsPopupRef.current.contains(event.target)) {
         setShowPointsPopup(false)
+      }
+      if (showNotificationsPopup && notificationsPopupRef.current && !notificationsPopupRef.current.contains(event.target)) {
+        setShowNotificationsPopup(false)
       }
     }
 
-    function closePointsPopupOnEscape(event) {
-      if (event.key === 'Escape') setShowPointsPopup(false)
+    function closePopupsOnEscape(event) {
+      if (event.key === 'Escape') {
+        setShowPointsPopup(false)
+        setShowNotificationsPopup(false)
+      }
     }
 
-    document.addEventListener('mousedown', closePointsPopup)
-    document.addEventListener('keydown', closePointsPopupOnEscape)
+    document.addEventListener('mousedown', closePopupsOnOutsideClick)
+    document.addEventListener('keydown', closePopupsOnEscape)
     return () => {
-      document.removeEventListener('mousedown', closePointsPopup)
-      document.removeEventListener('keydown', closePointsPopupOnEscape)
+      document.removeEventListener('mousedown', closePopupsOnOutsideClick)
+      document.removeEventListener('keydown', closePopupsOnEscape)
     }
-  }, [showPointsPopup])
+  }, [showPointsPopup, showNotificationsPopup])
 
   useEffect(() => {
     if (!shareMessage) return undefined
@@ -453,6 +511,67 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     ? shedThermalSummary.activeAlerts.length > 0
     : fallbackHeatStress
   const weatherTheme = weather?.theme || 'sunny'
+
+  const appNotifications = useMemo(() => {
+    void notifRevision
+    return buildAppNotifications({
+      weather,
+      heatStress,
+      shedThermalSummary,
+      sheds,
+      dailyTipsEnabled,
+      noticesEnabled,
+      freeSeminars,
+      language,
+      nowMs: notifNowMs,
+    })
+  }, [notifRevision, weather, heatStress, shedThermalSummary, sheds, dailyTipsEnabled, noticesEnabled, freeSeminars, language, notifNowMs])
+
+  const unreadNotificationsCount = useMemo(
+    () => appNotifications.filter((n) => !n.isRead).length,
+    [appNotifications]
+  )
+
+  const filteredNotifications = useMemo(() => {
+    if (notificationFilter === 'all') return appNotifications
+    if (notificationFilter === 'alerts') {
+      return appNotifications.filter((n) => n.category === 'heat_stress' || n.category === 'vaccine')
+    }
+    if (notificationFilter === 'telemedicine') {
+      return appNotifications.filter((n) => n.category === 'telemedicine')
+    }
+    return appNotifications.filter((n) => n.category === 'seminar' || n.category === 'daily_tip')
+  }, [appNotifications, notificationFilter])
+
+  function handleOpenNotification(item) {
+    markNotificationRead(item.id)
+    setShowNotificationsPopup(false)
+    if (item.targetView === 'seminars') {
+      setSelectedSeminarId(item.seminarId || '')
+      setActiveView('seminars')
+      return
+    }
+    if (item.targetView === 'telemedicine') {
+      setActiveView('telemedicine')
+      return
+    }
+    setActiveView('home')
+    if (item.targetSection === 'sheds') {
+      setOpenSections((prev) => ({ ...prev, sheds: true }))
+      requestAnimationFrame(() => {
+        document.getElementById('shed-flock-manager')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    } else if (item.targetSection === 'vaccines') {
+      setOpenSections((prev) => ({ ...prev, vaccines: true }))
+      requestAnimationFrame(() => {
+        document.getElementById('home-vaccines-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    } else if (item.targetSection === 'notices') {
+      requestAnimationFrame(() => {
+        document.getElementById('notices-heading')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  }
 
   async function shareApp() {
     setShareMessage('')
@@ -654,7 +773,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
 
   return (
     <main className="dashboard-shell w-full min-w-0 max-w-full md:text-lg bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
-      <header className={`dashboard-header bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:border-gray-700${isMobileMenuOpen || showPointsPopup ? ' is-mobile-menu-open' : ''}`} ref={headerRef}>
+      <header className={`dashboard-header bg-white dark:bg-gray-900 text-gray-900 dark:text-white dark:border-gray-700${isMobileMenuOpen || showPointsPopup || showNotificationsPopup ? ' is-mobile-menu-open' : ''}`} ref={headerRef}>
         <a className="dashboard-brand" href="#dashboard" aria-label={t('brand')} onClick={() => setActiveView('home')}>
           <img className="dashboard-brand-mark" src="/images/logo.png" alt="" />
           <span>Poultry<span>Medix</span></span>
@@ -662,29 +781,16 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
         <div className="dashboard-header-actions flex items-center gap-4">
           <div className="header-points-wrap" ref={pointsPopupRef}>
             <button
-              className="points-pill header-points-pill"
+              className="header-star-trigger"
               type="button"
+              title={`${formatPointsValue(points)} ${t('points')}`}
               aria-label={`${t('points')}: ${formatPointsValue(points)}`}
               aria-expanded={showPointsPopup}
               aria-haspopup="dialog"
-              onClick={() => { setIsMobileMenuOpen(false); setLanguageMenuOpen(false); setDesktopProfileMenuOpen(false); setShowPointsPopup((current) => !current) }}
+              onClick={() => { setIsMobileMenuOpen(false); setLanguageMenuOpen(false); setDesktopProfileMenuOpen(false); setShowNotificationsPopup(false); setShowPointsPopup((current) => !current) }}
             >
-              <Icon name="star" size={14} />
-              <strong>{formatPointsValue(points)}</strong>
-              <span>{t('points')}</span>
+              <Icon name="star" size={18} />
             </button>
-            <div className="mobile-points-wrap">
-              <button
-                className="mobile-points-trigger"
-                type="button"
-                aria-label={`${formatPointsValue(points)} ${t('points')}`}
-                aria-expanded={showPointsPopup}
-                aria-haspopup="dialog"
-                onClick={() => { setIsMobileMenuOpen(false); setLanguageMenuOpen(false); setShowPointsPopup((current) => !current) }}
-              >
-                <Icon name="star" size={20} />
-              </button>
-            </div>
             {showPointsPopup && (
               <div className="points-popover dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="dialog" aria-label={t('pointsSummaryTitle')}>
                 <div className="points-popover-header">
@@ -744,6 +850,117 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
               </div>
             )}
           </div>
+
+          <div className="header-points-wrap" ref={notificationsPopupRef}>
+            <button
+              className="header-bell-trigger"
+              type="button"
+              title={t('notificationsCenterTitle')}
+              aria-label={`${t('notificationsCenterTitle')} (${unreadNotificationsCount})`}
+              aria-expanded={showNotificationsPopup}
+              aria-haspopup="dialog"
+              onClick={() => { setIsMobileMenuOpen(false); setLanguageMenuOpen(false); setDesktopProfileMenuOpen(false); setShowPointsPopup(false); setShowNotificationsPopup((current) => !current) }}
+            >
+              <Icon name="bell" size={18} />
+              {unreadNotificationsCount > 0 && (
+                <span className="header-bell-badge" aria-hidden="true">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </button>
+            {showNotificationsPopup && (
+              <div className="notifications-popover dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" role="dialog" aria-label={t('notificationsCenterTitle')}>
+                <div className="points-popover-header">
+                  <div>
+                    <span className="points-popover-label">{t('notificationsCenterTitle')}</span>
+                    <strong className="notifications-count-sub">
+                      {unreadNotificationsCount > 0
+                        ? t('notificationsUnreadCount', { count: unreadNotificationsCount })
+                        : t('notificationsAllCaughtUp')}
+                    </strong>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {unreadNotificationsCount > 0 && (
+                      <button
+                        type="button"
+                        className="notifications-mark-read-btn"
+                        onClick={() => markAllNotificationsRead(appNotifications.map((n) => n.id))}
+                      >
+                        {t('notificationsMarkAllRead')}
+                      </button>
+                    )}
+                    <button
+                      className="points-popover-close"
+                      type="button"
+                      aria-label={t('close')}
+                      onClick={() => setShowNotificationsPopup(false)}
+                    >
+                      <Icon name="close" size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="notifications-filter-row" role="tablist" aria-label={t('notificationsCenterTitle')}>
+                  {[
+                    ['all', 'notifFilterAll'],
+                    ['alerts', 'notifFilterAlerts'],
+                    ['telemedicine', 'notifFilterTelemedicine'],
+                    ['seminars', 'notifFilterSeminars'],
+                  ].map(([fKey, labelKey]) => (
+                    <button
+                      key={fKey}
+                      type="button"
+                      role="tab"
+                      aria-selected={notificationFilter === fKey}
+                      className={notificationFilter === fKey ? 'is-active' : undefined}
+                      onClick={() => setNotificationFilter(fKey)}
+                    >
+                      {t(labelKey)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="notifications-list-scroll">
+                  {filteredNotifications.length === 0 ? (
+                    <p className="points-popover-empty">{t('notificationsEmpty')}</p>
+                  ) : (
+                    <ul>
+                      {filteredNotifications.map((item) => (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            className={`notifications-item-btn is-${item.severity}${item.isRead ? ' is-read' : ''}`}
+                            onClick={() => handleOpenNotification(item)}
+                          >
+                            <div className="notifications-item-top">
+                              <span className={`notifications-cat-pill is-${item.category}`}>
+                                {t(`notifCategoryLabels.${item.category}`, item.category)}
+                              </span>
+                              <small>{item.meta}</small>
+                            </div>
+                            <strong>{item.title}</strong>
+                            <p>{item.body}</p>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="notifications-popover-footer">
+                  <button
+                    type="button"
+                    className="points-action-primary"
+                    style={{ width: '100%' }}
+                    onClick={() => { setShowNotificationsPopup(false); setActiveView('seminars') }}
+                  >
+                    <Icon name="graduationCap" size={15} />
+                    <span>{t('notificationsOpenFreeSeminarsBtn')}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <ThemeToggle />
           <button
             className="mobile-header-menu-trigger block md:hidden"
@@ -751,7 +968,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             aria-label={isMobileMenuOpen ? t('close') : t('profileSettings')}
             aria-expanded={isMobileMenuOpen}
             aria-controls="dashboard-mobile-menu"
-            onClick={() => { setShowPointsPopup(false); setIsMobileMenuOpen((current) => !current) }}
+            onClick={() => { setShowPointsPopup(false); setShowNotificationsPopup(false); setIsMobileMenuOpen((current) => !current) }}
           >
             {isMobileMenuOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
           </button>
@@ -958,10 +1175,28 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           onToggle={() => toggleSection('sheds')}
         />
 
-        <VaccineScheduleTracker
-          isOpen={openSections.vaccines}
-          onToggle={() => toggleSection('vaccines')}
-        />
+        <div id="home-vaccines-section">
+          <VaccineScheduleTracker
+            isOpen={openSections.vaccines}
+            onToggle={() => toggleSection('vaccines')}
+          />
+        </div>
+
+        <section className="home-free-seminar-banner dark:bg-gray-800 dark:border-gray-700">
+          <div className="home-free-seminar-copy">
+            <span className="seminar-free-badge">{language === 'bn' ? '১০০% ফ্রি · সবার জন্য উন্মুক্ত' : '100% FREE · OPEN ACCESS'}</span>
+            <h3>{t('homeSeminarBannerTitle')}</h3>
+            <p>{t('homeSeminarBannerDesc')}</p>
+          </div>
+          <button
+            type="button"
+            className="pmx-primary-submit-btn"
+            onClick={() => setActiveView('seminars')}
+          >
+            <Icon name="graduationCap" size={16} />
+            <span>{t('homeSeminarBannerBtn')}</span>
+          </button>
+        </section>
 
         <section className="guidelines-section bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="guidelines-heading">
           <button
@@ -1033,6 +1268,10 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
           <Suspense fallback={<div className="p-4 text-center">{t('pleaseWait')}</div>}>
             <FarmBlueprint />
           </Suspense>
+        ) : activeView === 'seminars' ? (
+          <Suspense fallback={<div className="p-4 text-center">{t('pleaseWait')}</div>}>
+            <FreeSeminarHub preselectedSeminarId={selectedSeminarId} />
+          </Suspense>
         ) : (
           <Suspense fallback={<div className="p-4 text-center">{t('loadingMap')}</div>}>
             <EpidemiologyMap />
@@ -1051,6 +1290,7 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
             ['data', 'brain', 'bottomContribute'],
             ['telemedicine', 'stethoscope', 'consultVetNav'],
             ['blueprint', 'blueprint', 'blueprintNav'],
+            ['seminars', 'graduationCap', 'seminarsNav'],
           ].map(([view, icon, label]) => (
             <button
               type="button"
