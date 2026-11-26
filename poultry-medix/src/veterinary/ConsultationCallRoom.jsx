@@ -464,6 +464,9 @@ export default function ConsultationCallRoom({
               {doctor.degrees} · {doctor.regNo}
               {doctor.specialty ? ` · ${doctor.specialty}` : ''}
             </p>
+            <div className="pmx-ethical-audit-strip">
+              <span>{t('callEthicalAuditBanner', { regNo: doctor.regNo })}</span>
+            </div>
           </div>
         </div>
 

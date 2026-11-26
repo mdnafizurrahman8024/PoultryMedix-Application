@@ -2568,3 +2568,100 @@ html[data-theme="dark"] .pmx-sync-banner {
   border-color: #3b82f6;
   color: #bfdbfe;
 }
+
+/* Ethical Schedule Gating, Consent, Receipt Protocol Note & Doctor Call Ringing */
+.pmx-telehealth-consent-box {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.pmx-telehealth-consent-box input {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  flex: 0 0 auto;
+  accent-color: #15803d;
+}
+
+.pmx-receipt-schedule-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.pmx-schedule-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.pmx-schedule-pill.is-upcoming {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.pmx-schedule-pill.is-active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.pmx-schedule-pill.is-expired,
+.pmx-schedule-pill.is-invalid {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.pmx-schedule-pill.is-completed {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.telemedicine-call-actions.is-ringing {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+
+.pmx-ringing-prompt {
+  color: #14532d !important;
+  font-weight: 800 !important;
+}
+
+.pmx-ethical-audit-strip {
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #047857;
+}
+
+html[data-theme="dark"] .telemedicine-call-actions.is-ringing {
+  border-color: #22c55e;
+  background: rgba(20, 83, 45, 0.35);
+}
+
+html[data-theme="dark"] .pmx-ringing-prompt,
+html[data-theme="dark"] .pmx-ethical-audit-strip {
+  color: #86efac !important;
+}

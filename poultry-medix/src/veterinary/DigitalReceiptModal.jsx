@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   CheckCircle2,
+  Clock,
   Download,
-  Phone,
   Printer,
   ShieldCheck,
-  Video,
   X,
 } from 'lucide-react'
 import { buildDigitalReceiptMarkup } from '../lib/paymentAdapter.js'
@@ -15,7 +14,6 @@ import { useLanguage } from '../context/useLanguage.js'
 export default function DigitalReceiptModal({
   receipt,
   onClose,
-  onStartCall,
 }) {
   const { t, language } = useLanguage()
   const isBn = language === 'bn'
@@ -149,6 +147,11 @@ export default function DigitalReceiptModal({
             </p>
           </div>
 
+          <div className="pmx-receipt-schedule-note dark:bg-gray-800 dark:border-gray-700 dark:text-gray-200">
+            <Clock size={15} aria-hidden="true" className="shrink-0" />
+            <span>{t('receiptScheduleProtocolNote', { date: receipt.bookingDate, time: receipt.bookingTime })}</span>
+          </div>
+
           {statusNote && (
             <p className="telemedicine-status" role="status">
               {statusNote}
@@ -164,31 +167,10 @@ export default function DigitalReceiptModal({
               <Download size={15} aria-hidden="true" />
               {t('receiptDownloadBtn')}
             </button>
+            <button type="button" className="pmx-primary-submit-btn" onClick={onClose}>
+              {t('close')}
+            </button>
           </div>
-
-          {onStartCall && (
-            <div className="pmx-receipt-unlock-bar dark:bg-gray-800 dark:border-gray-700">
-              <span>{t('receiptCallUnlockedHint')}</span>
-              <div className="pmx-receipt-call-btns">
-                <button
-                  type="button"
-                  className="telemedicine-audio-button"
-                  onClick={() => onStartCall('audio')}
-                >
-                  <Phone size={15} aria-hidden="true" />
-                  {t('startAudioCall')}
-                </button>
-                <button
-                  type="button"
-                  className="telemedicine-video-button"
-                  onClick={() => onStartCall('video')}
-                >
-                  <Video size={16} aria-hidden="true" />
-                  {t('startVideoCall')}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </section>
     </div>,

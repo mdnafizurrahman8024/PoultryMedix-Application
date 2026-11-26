@@ -28,9 +28,17 @@ import {
   sanitizePaymentInput,
 } from '../lib/paymentAdapter.js'
 import {
+  POULTRYMEDIX_ROOMS_UPDATED_EVENT,
   TELEHEALTH_SIGNAL_CHANNEL,
   broadcastLivePrescription,
   dispatchDoctorBookingNotifications,
+  evaluateConsultationScheduleWindow,
+  getActiveRoomCalls,
+  getLocalTodayDateStr,
+  getSuggestedSlotTime,
+  markRoomCallCompleted,
+  openDoctorCallRoom,
+  parseSlotTimestamp,
 } from '../lib/telehealthNotifier.js'
 import { getSheds } from '../lib/shedManager.js'
 import { useUser } from '../context/user-context.js'
@@ -177,11 +185,14 @@ export default function Telemedicine() {
     farmer: '',
     farm: '',
     concern: initialPrefill?.concern || '',
-    date: new Date().toISOString().slice(0, 10),
-    time: '10:30',
+    date: getLocalTodayDateStr(),
+    time: getSuggestedSlotTime(5),
     payment: 'bkash',
   }))
-  const [bookingConfirmed, setBookingConfirmed] = useState(false)
+  const [consentAccepted, setConsentAccepted] = useState(false)
+  const [slotError, setSlotError] = useState('')
+  const [clockMs, setClockMs] = useState(() => Date.now())
+  const [activeRooms, setActiveRooms] = useState(() => getActiveRoomCalls())
   const [bookingMessage, setBookingMessage] = useState('')
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [checkoutBooking, setCheckoutBooking] = useState(null)
@@ -206,12 +217,47 @@ export default function Telemedicine() {
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
   const selectedVet = VETERINARY_DOCTORS.find((doc) => doc.id === booking.vetId) || VETERINARY_DOCTORS[0]
-  const canStartCall = isRegisteredVet || bookingConfirmed
   const fallbackContext = useMemo(() => buildFlockContextSnapshot(language), [language])
+
+  // Active paid booking (survives page refresh for waiting room countdown + doctor ring)
+  const activePaidBooking = useMemo(() => {
+    if (verifiedReceipt) return verifiedReceipt
+    return recentBookings.find((item) => item?.trxId && item?.roomCode && item?.paymentStatus === 'Completed') || null
+  }, [verifiedReceipt, recentBookings])
+
+  const activeRoomCode = activePaidBooking?.roomCode || createCallRoomCode(activePaidBooking?.trxId || '')
+  const activeBookingDoctor = useMemo(() => {
+    const docName = activePaidBooking?.doctorName || activePaidBooking?.vetName
+    return VETERINARY_DOCTORS.find((doc) => doc.name === docName) || selectedVet
+  }, [activePaidBooking, selectedVet])
+
+  const scheduleStatus = useMemo(
+    () => evaluateConsultationScheduleWindow(activePaidBooking?.bookingDate, activePaidBooking?.bookingTime, clockMs),
+    [activePaidBooking?.bookingDate, activePaidBooking?.bookingTime, clockMs]
+  )
+  const farmerRoomSignal = activeRooms[activeRoomCode] || null
+  const isDoctorCallingFarmer = farmerRoomSignal?.status === 'DOCTOR_CALLING'
+  const isRoomCompleted = farmerRoomSignal?.status === 'COMPLETED'
+  const farmerCanJoinCall = Boolean(
+    activePaidBooking &&
+    scheduleStatus.isWithinWindow &&
+    isDoctorCallingFarmer &&
+    !isRoomCompleted
+  )
+  const canStartCall = isRegisteredVet ? Boolean(vetRoomCode || recentBookings[0]?.roomCode) : farmerCanJoinCall
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClockMs(Date.now()), 10000)
+    return () => window.clearInterval(timer)
+  }, [])
 
   useEffect(() => {
     function syncBookings() {
       setRecentBookings(loadConsultationBookings())
+      setActiveRooms(getActiveRoomCalls())
+    }
+    function syncRoomsOnly() {
+      setActiveRooms(getActiveRoomCalls())
     }
     function handlePrefillReferral(event) {
       const detail = event?.detail || consumeTelemedicinePrefill()
@@ -242,16 +288,20 @@ export default function Telemedicine() {
         if (event.data?.type === 'booking-alert' && event.data.roomCode) {
           setVetRoomCode(event.data.roomCode)
           syncBookings()
+        } else if (event.data?.type === 'doctor-room-status') {
+          syncRoomsOnly()
         }
       }
     }
 
     window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
+    window.addEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncRoomsOnly)
     window.addEventListener('storage', syncBookings)
     window.addEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     return () => {
       if (bc) bc.close()
       window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
+      window.removeEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncRoomsOnly)
       window.removeEventListener('storage', syncBookings)
       window.removeEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     }
@@ -287,7 +337,6 @@ export default function Telemedicine() {
           aiDiagnosisSummary,
         }
         setVerifiedReceipt(enriched)
-        setBookingConfirmed(true)
         savePaymentLog({ ...enriched, status: 'Completed' })
         saveConsultationLog({
           id: `consult-${enriched.id}`,
@@ -308,7 +357,7 @@ export default function Telemedicine() {
 
   function updateBooking(field, value) {
     setBooking((current) => ({ ...current, [field]: value }))
-    setBookingConfirmed(false)
+    setSlotError('')
     setBookingMessage('')
     setVerifiedReceipt(null)
     setCallSessionNotice('')
@@ -358,8 +407,8 @@ export default function Telemedicine() {
     setComplaintDraft('')
   }
 
-  function loadBookingIntoPrescription(appt, openCallAfterLoad = false) {
-    const matchedDoc = VETERINARY_DOCTORS.find((doc) => doc.name === (appt.doctorName || appt.vetName))
+  function loadBookingIntoPrescription(appt, callTypeToStart = '') {
+    const matchedDoc = VETERINARY_DOCTORS.find((doc) => doc.name === (appt.doctorName || appt.vetName)) || VETERINARY_DOCTORS[0]
     const resolvedRoom = appt.roomCode || appt.roomId || createCallRoomCode(appt.trxId || appt.id)
     setVetRoomCode(resolvedRoom)
     setActiveVetPatient({ ...appt, roomCode: resolvedRoom })
@@ -377,8 +426,11 @@ export default function Telemedicine() {
         ? [appt.concern, ...current.complaints]
         : current.complaints,
     }))
-    if (openCallAfterLoad) {
-      setCallMode('video')
+    if (callTypeToStart) {
+      const normalizedType = callTypeToStart === 'audio' ? 'audio' : 'video'
+      openDoctorCallRoom({ roomCode: resolvedRoom, doctor: matchedDoc, callType: normalizedType })
+      setActiveRooms(getActiveRoomCalls())
+      setCallMode(normalizedType)
       setMobileRxOpen(true)
     }
     setSaveMessage(language === 'bn'
@@ -386,8 +438,23 @@ export default function Telemedicine() {
       : `Loaded patient consultation: ${appt.farmerName || 'Farmer'} (${resolvedRoom})`)
   }
 
+  function validateBookingFormReady() {
+    if (!consentAccepted) {
+      setSlotError(t('telemedicineConsentRequiredError'))
+      return false
+    }
+    const slotMs = parseSlotTimestamp(booking.date, booking.time)
+    if (!slotMs || slotMs < Date.now() - 5 * 60 * 1000) {
+      setSlotError(t('bookingPastSlotError'))
+      return false
+    }
+    setSlotError('')
+    return true
+  }
+
   function openCheckoutModal(event) {
     event.preventDefault()
+    if (!validateBookingFormReady()) return
     const resolved = resolveBookingWithSandboxDefaults(booking)
     const cleanFarmer = sanitizePaymentInput(resolved.farmer, 120)
     const cleanFarm = sanitizePaymentInput(resolved.farm, 120)
@@ -398,8 +465,14 @@ export default function Telemedicine() {
     setCheckoutOpen(true)
   }
 
-  async function handleQuickDevVerifyAndOpen(autoOpenCallMode = '') {
+  async function handleQuickDevVerifyAndOpen() {
     if (PAYMENT_MODE !== 'sandbox' || devVerifyBusy) return
+    const slotMs = parseSlotTimestamp(booking.date, booking.time)
+    if (!slotMs || slotMs < Date.now() - 5 * 60 * 1000) {
+      setSlotError(t('bookingPastSlotError'))
+      return
+    }
+    setSlotError('')
     setDevVerifyBusy(true)
     try {
       const resolved = resolveBookingWithSandboxDefaults(booking)
@@ -414,8 +487,7 @@ export default function Telemedicine() {
       })
       if (result.ok) {
         await handlePaymentVerified(result.receipt, {
-          openReceiptModal: !autoOpenCallMode,
-          autoOpenCallMode,
+          openReceiptModal: true,
         })
       }
     } finally {
@@ -423,7 +495,7 @@ export default function Telemedicine() {
     }
   }
 
-  async function handlePaymentVerified(receipt, options = { openReceiptModal: true, autoOpenCallMode: '' }) {
+  async function handlePaymentVerified(receipt, options = { openReceiptModal: true }) {
     const roomCode = receipt.roomCode || createCallRoomCode(receipt.trxId)
     const { shedSummary, aiDiagnosisSummary } = buildFlockContextSnapshot(language)
     const enrichedReceipt = {
@@ -435,7 +507,6 @@ export default function Telemedicine() {
     }
     setCheckoutOpen(false)
     setVerifiedReceipt(enrichedReceipt)
-    setBookingConfirmed(true)
     setCallSessionNotice('')
 
     try {
@@ -519,17 +590,29 @@ export default function Telemedicine() {
       })
 
       setBookingMessage(language === 'bn'
-        ? `${enrichedReceipt.doctorName}-এর সাথে পেমেন্ট (${enrichedReceipt.trxId}) সম্পন্ন হয়েছে! গোপনীয়তা-সুরক্ষিত রুম ${roomCode} নিচে সক্রিয় করা হয়েছে।`
-        : `Payment verified (${enrichedReceipt.trxId}) with ${enrichedReceipt.doctorName}. Privacy-protected Room ${roomCode} is now active below.`)
-      if (options.autoOpenCallMode) {
-        setCallMode(options.autoOpenCallMode)
-      } else if (options.openReceiptModal !== false) {
+        ? `${enrichedReceipt.doctorName}-এর সাথে বুকিং ও পেমেন্ট (${enrichedReceipt.trxId}) নিশ্চিত হয়েছে! নির্ধারিত সময়ে (${enrichedReceipt.bookingDate} · ${enrichedReceipt.bookingTime}) চিকিৎসক রুম ${roomCode}-এ কল শুরু করবেন।`
+        : `Payment verified (${enrichedReceipt.trxId}) with ${enrichedReceipt.doctorName}. Wait in Room ${roomCode} at your scheduled slot (${enrichedReceipt.bookingDate} · ${enrichedReceipt.bookingTime}); the veterinarian will initiate the call.`)
+      if (options.openReceiptModal !== false) {
         setReceiptModalOpen(true)
       }
     } catch (error) {
       console.error('Unable to save verified booking to clinical logs.', error)
       setBookingMessage(t('mockBookingSaveFailed', { payment: receipt.paymentMethodLabel }))
     }
+  }
+
+  function handleVetInitiateDirectCall(mode) {
+    const targetRoom = vetRoomCode || activeVetPatient?.roomCode || recentBookings[0]?.roomCode || 'PMX-ROOM-LIVE'
+    const docForCall = {
+      ...VETERINARY_DOCTORS[0],
+      name: prescription.vetName || VETERINARY_DOCTORS[0].name,
+      regNo: prescription.bvcRegNo || prescription.registrationNumber || VETERINARY_DOCTORS[0].regNo,
+    }
+    setVetRoomCode(targetRoom)
+    openDoctorCallRoom({ roomCode: targetRoom, doctor: docForCall, callType: mode })
+    setActiveRooms(getActiveRoomCalls())
+    setCallMode(mode)
+    if (mode === 'video') setMobileRxOpen(true)
   }
 
   function handleEndCall(sessionInfo) {
@@ -541,18 +624,24 @@ export default function Telemedicine() {
           regNo: prescription.bvcRegNo || VETERINARY_DOCTORS[0].regNo,
           clinic: prescription.clinicDetails || VETERINARY_DOCTORS[0].clinic,
         }
-      : selectedVet
+      : activeBookingDoctor
 
     const resolvedRoomId =
       sessionInfo.roomId ||
       sessionInfo.roomCode ||
       verifiedReceipt?.roomCode ||
+      activePaidBooking?.roomCode ||
       vetRoomCode ||
       activeVetPatient?.roomCode ||
       'PMX-ROOM-LIVE'
 
+    if (isRegisteredVet && resolvedRoomId !== 'PMX-ROOM-LIVE') {
+      markRoomCallCompleted(resolvedRoomId)
+      setActiveRooms(getActiveRoomCalls())
+    }
+
     saveCallSessionLog({
-      bookingId: verifiedReceipt?.trxId || activeVetPatient?.trxId || resolvedRoomId,
+      bookingId: verifiedReceipt?.trxId || activePaidBooking?.trxId || activeVetPatient?.trxId || resolvedRoomId,
       roomId: resolvedRoomId,
       roomCode: resolvedRoomId,
       doctorName: doctorForSession.name,
@@ -562,10 +651,10 @@ export default function Telemedicine() {
       duration: sessionInfo.duration,
       durationSeconds: sessionInfo.durationSeconds,
       timestamp: sessionInfo.timestamp,
-      farmerName: verifiedReceipt?.farmerName || activeVetPatient?.farmerName || sanitizePaymentInput(booking.farmer, 120) || prescription.farmerName || 'Registered Farmer',
-      farmName: verifiedReceipt?.farmName || activeVetPatient?.farmName || sanitizePaymentInput(booking.farm, 120) || prescription.farmName,
+      farmerName: verifiedReceipt?.farmerName || activePaidBooking?.farmerName || activeVetPatient?.farmerName || sanitizePaymentInput(booking.farmer, 120) || prescription.farmerName || 'Registered Farmer',
+      farmName: verifiedReceipt?.farmName || activePaidBooking?.farmName || activeVetPatient?.farmName || sanitizePaymentInput(booking.farm, 120) || prescription.farmName,
       district: booking.district || prescription.district || 'Rajshahi',
-      concern: verifiedReceipt?.concern || activeVetPatient?.concern || sanitizePaymentInput(booking.concern, 300) || prescription.diagnosis || 'Flock Consultation',
+      concern: verifiedReceipt?.concern || activePaidBooking?.concern || activeVetPatient?.concern || sanitizePaymentInput(booking.concern, 300) || prescription.diagnosis || 'Flock Consultation',
     })
 
     setCallSessionNotice(language === 'bn'
@@ -718,7 +807,7 @@ export default function Telemedicine() {
           <Field label={t('farmerName')}><input required={PAYMENT_MODE === 'live'} maxLength={120} value={booking.farmer} onChange={(event) => updateBooking('farmer', event.target.value)} placeholder={t('namePlaceholder')} /></Field>
           <Field label={t('farmName')}><input required={PAYMENT_MODE === 'live'} maxLength={120} value={booking.farm} onChange={(event) => updateBooking('farm', event.target.value)} placeholder={t('farmFlockPlaceholder')} /></Field>
           <Field label={t('mainConcern')}><input required={PAYMENT_MODE === 'live'} maxLength={300} value={booking.concern} onChange={(event) => updateBooking('concern', event.target.value)} placeholder={t('concernPlaceholder')} /></Field>
-          <Field label={t('preferredDate')}><input required type="date" min={new Date().toISOString().slice(0, 10)} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
+          <Field label={t('preferredDate')}><input required type="date" min={getLocalTodayDateStr()} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
           <Field label={t('preferredTime')}><input required type="time" value={booking.time} onChange={(event) => updateBooking('time', event.target.value)} /></Field>
           <fieldset className="telemedicine-payment-options dark:border-gray-700 dark:text-gray-100">
             <legend>{t('selectPaymentMethod')} (৳ {CONSULTATION_FEE_BDT})</legend>
@@ -734,12 +823,24 @@ export default function Telemedicine() {
             <p className="telemedicine-payment-note">
               {PAYMENT_MODE === 'live' ? t('paymentLiveNotice') : t('paymentSandboxNotice')}
             </p>
-            {PAYMENT_MODE === 'sandbox' && (
-              <p className="telemedicine-payment-note" style={{ color: '#047857', fontWeight: 600 }}>
-                {t('bookingOptionalSandboxHint')}
-              </p>
-            )}
           </fieldset>
+          <label className="pmx-telehealth-consent-box dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200">
+            <input
+              type="checkbox"
+              checked={consentAccepted}
+              onChange={(event) => {
+                setConsentAccepted(event.target.checked)
+                if (slotError) setSlotError('')
+              }}
+            />
+            <span>{t('telemedicineConsentLabel')}</span>
+          </label>
+          {slotError && (
+            <div className="pmx-checkout-error" style={{ gridColumn: '1 / -1' }} role="alert">
+              <Icon name="alert" size={15} />
+              <span>{slotError}</span>
+            </div>
+          )}
           <div className="pmx-booking-submit-row">
             <button className="telemedicine-primary-button" type="submit"><Icon name="lock" size={16} />{t('confirmBookingBtn')}</button>
             {PAYMENT_MODE === 'sandbox' && (
@@ -747,9 +848,9 @@ export default function Telemedicine() {
                 type="button"
                 className="pmx-dev-quick-btn"
                 disabled={devVerifyBusy}
-                onClick={() => handleQuickDevVerifyAndOpen('video')}
+                onClick={() => handleQuickDevVerifyAndOpen()}
               >
-                <Icon name="video" size={16} />
+                <Icon name="shield" size={16} />
                 {devVerifyBusy ? t('checkoutProcessing') : t('devQuickVerifyUnlockBtn')}
               </button>
             )}
@@ -758,23 +859,44 @@ export default function Telemedicine() {
           {callSessionNotice && <p className="telemedicine-status" role="status">{callSessionNotice}</p>}
         </form>
 
-        <div className="telemedicine-call-actions">
+        <div className={`telemedicine-call-actions${farmerCanJoinCall ? ' is-ringing' : ''}`}>
           <div>
-            <h3>{t('consultationRoom')} — {selectedVet.name}</h3>
-            <p>
-              {bookingConfirmed
-                ? t('bookingVerifiedReady', { trxId: verifiedReceipt?.trxId || '' })
-                : t('confirmBookingToCall')}
-            </p>
+            <h3>{t('waitingRoomTitle')} — {activeBookingDoctor.name}</h3>
+            {!activePaidBooking ? (
+              <p>{t('confirmBookingToCall')}</p>
+            ) : isRoomCompleted ? (
+              <p>{t('roomCompletedLockedNote', { roomCode: activeRoomCode })}</p>
+            ) : !scheduleStatus.isWithinWindow ? (
+              <p>
+                <strong>{activePaidBooking.bookingDate} · {activePaidBooking.bookingTime}</strong> —{' '}
+                {language === 'bn' ? scheduleStatus.countdownBn : scheduleStatus.countdownEn}. {t('doctorOnlyCallsOnScheduleNote')}
+              </p>
+            ) : isDoctorCallingFarmer ? (
+              <p className="pmx-ringing-prompt">
+                {t('doctorCallingJoinPrompt', { doctor: activeBookingDoctor.name, roomCode: activeRoomCode })}
+              </p>
+            ) : (
+              <p>{t('waitingForDoctorCallPrompt', { doctor: activeBookingDoctor.name, roomCode: activeRoomCode })}</p>
+            )}
           </div>
           <div className="telemedicine-call-buttons">
-            <button type="button" className="telemedicine-audio-button" disabled={!canStartCall} onClick={() => setCallMode('audio')}>
+            <button
+              type="button"
+              className="telemedicine-audio-button"
+              disabled={!farmerCanJoinCall}
+              onClick={() => setCallMode('audio')}
+            >
               <Icon name="phone" size={17} />
-              {t('startAudioCall')}
+              {t('farmerJoinAudioBtn')}
             </button>
-            <button type="button" className="telemedicine-video-button" disabled={!canStartCall} onClick={() => setCallMode('video')}>
+            <button
+              type="button"
+              className="telemedicine-video-button"
+              disabled={!farmerCanJoinCall}
+              onClick={() => setCallMode('video')}
+            >
               <Icon name="video" size={18} />
-              {t('startVideoCall')}
+              {t('farmerJoinVideoBtn')}
             </button>
           </div>
         </div>
@@ -785,44 +907,55 @@ export default function Telemedicine() {
               <Icon name="shield" size={13} />
               {t('privacyProtectedCallBadge')}
             </span>
-            <strong>{selectedVet.name}</strong>
-            <span>{selectedVet.degrees} · {selectedVet.regNo}</span>
-            <small>{selectedVet.specialty}</small>
+            <strong>{activeBookingDoctor.name}</strong>
+            <span>{activeBookingDoctor.degrees} · {activeBookingDoctor.regNo}</span>
+            <small>{activeBookingDoctor.specialty}</small>
           </div>
-          {verifiedReceipt && (
+          {activePaidBooking && (
             <div className="pmx-verified-room-actions">
-              <span className="pmx-verified-trx-chip">{verifiedReceipt.trxId}</span>
-              <span className="pmx-room-code-pill">{verifiedReceipt.roomCode}</span>
-              <button
-                type="button"
-                className="pmx-receipt-open-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
-                onClick={() => setReceiptModalOpen(true)}
-              >
-                <Icon name="file" size={15} />
-                {t('viewDigitalReceipt')}
-              </button>
+              <span className="pmx-verified-trx-chip">{activePaidBooking.trxId}</span>
+              <span className="pmx-room-code-pill">{activeRoomCode}</span>
+              <span className={`pmx-schedule-pill is-${isRoomCompleted ? 'completed' : scheduleStatus.phase.toLowerCase()}`}>
+                {isRoomCompleted
+                  ? t('slotStatusCompleted')
+                  : scheduleStatus.isWithinWindow
+                    ? (isDoctorCallingFarmer ? t('slotStatusDoctorCalling') : t('slotStatusWindowOpen'))
+                    : scheduleStatus.phase === 'EXPIRED'
+                      ? t('slotStatusExpired')
+                      : t('slotStatusUpcoming')}
+              </span>
+              {verifiedReceipt && (
+                <button
+                  type="button"
+                  className="pmx-receipt-open-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+                  onClick={() => setReceiptModalOpen(true)}
+                >
+                  <Icon name="file" size={15} />
+                  {t('viewDigitalReceipt')}
+                </button>
+              )}
             </div>
           )}
         </div>
 
-        {callMode && (
+        {callMode && farmerCanJoinCall && (
           <ConsultationCallRoom
             initialCallType={callMode}
-            doctor={selectedVet}
+            doctor={activeBookingDoctor}
             participantRole="farmer"
             bookingContext={{
-              trxId: verifiedReceipt?.trxId || 'PMX-TRX-DEV',
-              roomCode: verifiedReceipt?.roomCode || createCallRoomCode(verifiedReceipt?.trxId),
-              farmerName: verifiedReceipt?.farmerName || sanitizePaymentInput(booking.farmer, 120) || 'Registered Farmer',
-              farmName: verifiedReceipt?.farmName || sanitizePaymentInput(booking.farm, 120),
-              district: t(`districts.${booking.district}`, booking.district),
-              bookingDate: booking.date,
-              bookingTime: booking.time,
-              concern: verifiedReceipt?.concern || sanitizePaymentInput(booking.concern, 300),
-              shedSummary: verifiedReceipt?.shedSummary || fallbackContext.shedSummary,
-              aiDiagnosisSummary: verifiedReceipt?.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary,
+              trxId: activePaidBooking?.trxId || 'PMX-TRX-DEV',
+              roomCode: activeRoomCode,
+              farmerName: activePaidBooking?.farmerName || sanitizePaymentInput(booking.farmer, 120) || 'Registered Farmer',
+              farmName: activePaidBooking?.farmName || sanitizePaymentInput(booking.farm, 120),
+              district: t(`districts.${activePaidBooking?.district || booking.district}`, activePaidBooking?.district || booking.district),
+              bookingDate: activePaidBooking?.bookingDate || booking.date,
+              bookingTime: activePaidBooking?.bookingTime || booking.time,
+              concern: activePaidBooking?.concern || sanitizePaymentInput(booking.concern, 300),
+              shedSummary: activePaidBooking?.shedSummary || fallbackContext.shedSummary,
+              aiDiagnosisSummary: activePaidBooking?.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary,
               amount: CONSULTATION_FEE_BDT,
-              paymentMethodLabel: verifiedReceipt?.paymentMethodLabel || booking.payment,
+              paymentMethodLabel: activePaidBooking?.paymentMethodLabel || booking.payment,
             }}
             onEndCall={handleEndCall}
           />
@@ -871,6 +1004,9 @@ export default function Telemedicine() {
               const roomBadge = appt.roomCode || appt.roomId || createCallRoomCode(appt.trxId || appt.id)
               const shedLabel = appt.shedSummary || fallbackContext.shedSummary || t('callFlockSnapshotEmpty')
               const aiLabel = appt.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary || t('queueNoAiScanYet')
+              const slotEval = evaluateConsultationScheduleWindow(appt.bookingDate, appt.bookingTime, clockMs)
+              const qRoomState = activeRooms[roomBadge]
+              const isCompleted = qRoomState?.status === 'COMPLETED'
               return (
                 <div key={appt.id} className="pmx-queue-card dark:bg-gray-900 dark:border-gray-700">
                   <div>
@@ -881,6 +1017,17 @@ export default function Telemedicine() {
                     <p className="pmx-queue-meta">
                       {t(`districts.${appt.district || 'Rajshahi'}`, appt.district || 'Rajshahi')} · {appt.bookingDate || t('today')} {appt.bookingTime || ''}
                     </p>
+                    <div style={{ margin: '4px 0 6px' }}>
+                      <span className={`pmx-schedule-pill is-${isCompleted ? 'completed' : slotEval.phase.toLowerCase()}`}>
+                        {isCompleted
+                          ? t('slotStatusCompleted')
+                          : slotEval.isWithinWindow
+                            ? t('slotStatusWindowOpen')
+                            : slotEval.phase === 'EXPIRED'
+                              ? t('slotStatusExpired')
+                              : (language === 'bn' ? slotEval.countdownBn : slotEval.countdownEn)}
+                      </span>
+                    </div>
                     <p className="pmx-queue-shed"><strong>{t('shedLabelShort')}:</strong> {shedLabel}</p>
                     <p className="pmx-queue-symptom"><strong>{t('symptomsShort')}:</strong> {appt.concern || t('historyNoDetails')}</p>
                     <div className="pmx-queue-ai-chip">{t('aiDiagnosisBadgeLabel')}: {aiLabel}</div>
@@ -888,16 +1035,26 @@ export default function Telemedicine() {
                   <div className="pmx-queue-card-actions">
                     <button
                       type="button"
-                      onClick={() => loadBookingIntoPrescription(appt, true)}
+                      disabled={isCompleted || (!slotEval.isWithinWindow && !import.meta.env.DEV)}
+                      onClick={() => loadBookingIntoPrescription(appt, 'video')}
                       className="pmx-primary-submit-btn"
                       style={{ flex: 1, minHeight: '34px', fontSize: '11px' }}
                     >
                       <Icon name="video" size={14} />
-                      {t('joinCallOpenRxBtn')}
+                      {t('vetRingVideoBtn')}
                     </button>
                     <button
                       type="button"
-                      onClick={() => loadBookingIntoPrescription(appt, false)}
+                      disabled={isCompleted || (!slotEval.isWithinWindow && !import.meta.env.DEV)}
+                      onClick={() => loadBookingIntoPrescription(appt, 'audio')}
+                      className="pmx-secondary-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+                      style={{ minHeight: '34px', fontSize: '11px', padding: '0 9px' }}
+                    >
+                      <Icon name="phone" size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => loadBookingIntoPrescription(appt, '')}
                       className="pmx-secondary-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
                       style={{ minHeight: '34px', fontSize: '11px', padding: '0 9px' }}
                     >
@@ -926,8 +1083,8 @@ export default function Telemedicine() {
               placeholder={t('roomCodeLabel')}
               aria-label={t('roomCodeLabel')}
             />
-            <button type="button" className="telemedicine-audio-button" onClick={() => setCallMode('audio')}><Icon name="phone" size={17} />{t('startAudioCall')}</button>
-            <button type="button" className="telemedicine-video-button" onClick={() => { setCallMode('video'); setMobileRxOpen(true) }}><Icon name="video" size={18} />{t('startVideoCall')}</button>
+            <button type="button" className="telemedicine-audio-button" disabled={!canStartCall} onClick={() => handleVetInitiateDirectCall('audio')}><Icon name="phone" size={17} />{t('vetInitiateAudioBtn')}</button>
+            <button type="button" className="telemedicine-video-button" disabled={!canStartCall} onClick={() => handleVetInitiateDirectCall('video')}><Icon name="video" size={18} />{t('vetInitiateVideoBtn')}</button>
           </div>
         </div>
         {callSessionNotice && <p className="telemedicine-status" style={{ marginTop: '10px' }} role="status">{callSessionNotice}</p>}
@@ -1133,10 +1290,6 @@ export default function Telemedicine() {
         <DigitalReceiptModal
           receipt={verifiedReceipt}
           onClose={() => setReceiptModalOpen(false)}
-          onStartCall={(mode) => {
-            setReceiptModalOpen(false)
-            setCallMode(mode)
-          }}
         />
       )}
     </main>
