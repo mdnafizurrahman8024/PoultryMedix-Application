@@ -30,7 +30,7 @@ export function calculateShedDesign({
   farmType = 'Broiler',
   shedMode = 'auto', // 'auto' | 'open' | 'ec'
 }) {
-  const safeFlock = Math.max(100, Number(flockSize) || 1000)
+  const safeFlock = Math.max(10, Math.min(100000, Math.round(Number(flockSize)) || 1000))
   const recommendedType = safeFlock >= 2500 ? 'ec' : 'open'
   const activeType = shedMode === 'auto' ? recommendedType : shedMode
 
@@ -39,10 +39,10 @@ export function calculateShedDesign({
   const rawAreaSqFt = Math.round(safeFlock * sqFtPerBird)
 
   const widthFt = activeType === 'open'
-    ? (safeFlock <= 500 ? 22 : safeFlock <= 1000 ? 25 : 30)
-    : (safeFlock <= 1000 ? 28 : 38)
+    ? (safeFlock <= 150 ? 14 : safeFlock <= 350 ? 18 : safeFlock <= 500 ? 22 : safeFlock <= 1000 ? 25 : 30)
+    : (safeFlock <= 500 ? 24 : safeFlock <= 1000 ? 28 : 38)
 
-  const lengthFt = Math.max(25, Math.ceil(rawAreaSqFt / widthFt / 2) * 2)
+  const lengthFt = Math.max(12, Math.ceil(rawAreaSqFt / widthFt / 2) * 2)
   const totalAreaSqFt = widthFt * lengthFt
   const widthM = Number((widthFt * 0.3048).toFixed(1))
   const lengthM = Number((lengthFt * 0.3048).toFixed(1))

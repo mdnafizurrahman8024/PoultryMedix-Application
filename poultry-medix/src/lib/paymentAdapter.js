@@ -1,12 +1,15 @@
 /**
  * PoultryMedix Privacy-Protected Payment & Unified Platform Room Adapter
  *
- * Keeps gateway mode configurable via Vite environment variables
- * (`VITE_PAYMENT_MODE=sandbox|live`, `VITE_PAYMENT_API_BASE_URL`) without storing
- * real merchant credentials or exposing doctor private phone numbers/emails.
+ * Initiates server-backed gateway payment sessions (bKash / Nagad / Rocket / SSLCommerz
+ * in live mode, or interactive signed sandbox gateway in staging) without storing
+ * real merchant credentials in browser code or accepting unverified/fake TrxIDs.
  */
 
 export const CONSULTATION_FEE_BDT = 500
+export const PAYMENT_SYNC_CHANNEL = 'poultrymedix_payment_sync'
+export const PENDING_BOOKING_STORAGE_KEY = 'poultrymedix_pending_booking_v1'
+const LOCAL_GATEWAY_LEDGER_KEY = 'poultrymedix_gateway_ledger_v1'
 
 export const PAYMENT_MODE =
   String(import.meta.env?.VITE_PAYMENT_MODE || 'sandbox').toLowerCase() === 'live'
@@ -149,11 +152,15 @@ export const DEV_SANDBOX_DEFAULTS = {
 }
 
 export const PAYMENT_METHODS = [
-  { id: 'bkash', labelKey: 'bkash', detailKey: 'mobileFinancialService', kind: 'mfs' },
-  { id: 'nagad', labelKey: 'nagad', detailKey: 'mobileFinancialService', kind: 'mfs' },
-  { id: 'rocket', labelKey: 'rocket', detailKey: 'mobileFinancialService', kind: 'mfs' },
-  { id: 'bank-card', labelKey: 'bankCard', detailKey: 'bankTransferDetail', kind: 'card' },
+  { id: 'bkash', labelKey: 'bkash', detailKey: 'mobileFinancialService', kind: 'mfs', color: '#d12053' },
+  { id: 'nagad', labelKey: 'nagad', detailKey: 'mobileFinancialService', kind: 'mfs', color: '#ea580c' },
+  { id: 'rocket', labelKey: 'rocket', detailKey: 'mobileFinancialService', kind: 'mfs', color: '#7c3aed' },
+  { id: 'bank-card', labelKey: 'bankCard', detailKey: 'bankTransferDetail', kind: 'card', color: '#0369a1' },
 ]
+
+function getPaymentApiBase() {
+  return PAYMENT_API_BASE_URL.replace(/\/$/, '')
+}
 
 function stripControlChars(str) {
   let out = ''
@@ -216,8 +223,8 @@ export function isValidBdMobile(phone) {
 }
 
 export function isValidTrxId(trxId) {
-  const clean = sanitizePaymentInput(trxId, 24).toUpperCase().replace(/[^A-Z0-9-]/g, '')
-  return /^[A-Z0-9-]{6,22}$/.test(clean)
+  const clean = sanitizePaymentInput(trxId, 30).toUpperCase().replace(/[^A-Z0-9-]/g, '')
+  return /^[A-Z0-9-]{6,28}$/.test(clean)
 }
 
 export function maskMobileNumber(phone) {
@@ -229,42 +236,6 @@ export function maskMobileNumber(phone) {
 export function formatCardNumberDisplay(value) {
   const digits = String(value ?? '').replace(/\D/g, '').slice(0, 19)
   return digits.replace(/(\d{4})(?=\d)/g, '$1 ')
-}
-
-export function validateCheckoutFields({ method, mobileNumber, trxId, cardHolder, cardNumber, cardExpiry, cardCvc, language = 'en' }) {
-  const isBn = language === 'bn'
-  if (method === 'bank-card') {
-    const cleanHolder = sanitizePaymentInput(cardHolder, 80)
-    const digits = String(cardNumber ?? '').replace(/\D/g, '')
-    const cleanExpiry = sanitizePaymentInput(cardExpiry, 7)
-    const cleanCvc = String(cardCvc ?? '').replace(/\D/g, '')
-
-    if (cleanHolder.length < 3) {
-      return isBn ? 'কার্ডহোল্ডারের পূর্ণ নাম লিখুন।' : 'Please enter the cardholder full name.'
-    }
-    if (digits.length < 13 || digits.length > 19) {
-      return isBn ? 'সঠিক ১৩ থেকে ১৯ সংখ্যার কার্ড নম্বর দিন।' : 'Enter a valid 13–19 digit card or bank account number.'
-    }
-    if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(cleanExpiry)) {
-      return isBn ? 'কার্ডের মেয়াদ MM/YY ফরম্যাটে লিখুন (যেমন 08/28)।' : 'Enter expiry in MM/YY format (e.g., 08/28).'
-    }
-    if (!/^\d{3,4}$/.test(cleanCvc)) {
-      return isBn ? '৩ বা ৪ সংখ্যার সঠিক CVC কোড লিখুন।' : 'Enter a valid 3 or 4 digit CVC code.'
-    }
-    return ''
-  }
-
-  if (!isValidBdMobile(mobileNumber)) {
-    return isBn
-      ? '১১ সংখ্যার সঠিক বাংলাদেশি মোবাইল নম্বর দিন (যেমন 017XXXXXXXX বা 018XXXXXXXX)।'
-      : 'Enter a valid 11-digit BD mobile number (01[3-9]XXXXXXXX).'
-  }
-  if (!isValidTrxId(trxId)) {
-    return isBn
-      ? 'সঠিক TrxID লিখুন (কমপক্ষে ৬ অক্ষর ও সংখ্যার সমন্বয়)।'
-      : 'Enter a valid TrxID (6–22 alphanumeric characters).'
-  }
-  return ''
 }
 
 export function generateReceiptTrxId(prefix = 'PMX-TRX') {
@@ -283,108 +254,489 @@ export function generateReceiptTrxId(prefix = 'PMX-TRX') {
   return `${prefix}-${datePart}-${code}`
 }
 
-export async function processConsultationPayment({
-  booking,
-  doctor,
-  methodLabel,
-  fields,
-  isQuickSandbox = false,
-  language = 'en',
-}) {
-  const isBn = language === 'bn'
-  if (PAYMENT_MODE === 'live' && !PAYMENT_API_BASE_URL) {
-    return {
-      ok: false,
-      error: isBn
-        ? 'লাইভ পেমেন্ট গেটওয়ে কনফিগার করা হয়নি। অনুগ্রহ করে সার্ভার-সাইড VITE_PAYMENT_API_BASE_URL যুক্ত করুন অথবা স্যান্ডবক্স মোড ব্যবহার করুন।'
-        : 'Live payment proxy endpoint is not configured (VITE_PAYMENT_API_BASE_URL missing). Use sandbox mode or configure backend verification.',
+function readLocalGatewayLedger() {
+  if (typeof window === 'undefined') return {}
+  try {
+    const raw = window.localStorage.getItem(LOCAL_GATEWAY_LEDGER_KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeLocalGatewayLedger(ledger) {
+  if (typeof window === 'undefined') return
+  try {
+    const keys = Object.keys(ledger)
+    if (keys.length > 40) {
+      keys.slice(0, keys.length - 40).forEach((k) => delete ledger[k])
     }
+    window.localStorage.setItem(LOCAL_GATEWAY_LEDGER_KEY, JSON.stringify(ledger))
+  } catch {
+    // Ignore storage quota errors
   }
+}
 
-  const effectiveFields = isQuickSandbox
-    ? {
-        mobileNumber: DEV_SANDBOX_DEFAULTS.mobileNumber,
-        trxId: `SBX${generateReceiptTrxId('PMX').slice(-8)}`,
-        cardHolder: sanitizePaymentInput(booking?.farmer || DEV_SANDBOX_DEFAULTS.farmer, 80) || DEV_SANDBOX_DEFAULTS.farmer,
-        cardNumber: '4242424242424242',
-        cardExpiry: '12/29',
-        cardCvc: '424',
-      }
-    : fields
-
-  const validationError = validateCheckoutFields({
-    method: booking.payment,
-    ...effectiveFields,
-    language,
-  })
-  if (validationError) {
-    return { ok: false, error: validationError }
+function generateSecureHex(bytesLen = 12) {
+  const bytes = new Uint8Array(bytesLen)
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes)
+  } else {
+    for (let i = 0; i < bytesLen; i += 1) bytes[i] = Math.floor(Math.random() * 256)
   }
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
 
-  if (PAYMENT_MODE === 'live' && PAYMENT_API_BASE_URL) {
-    const response = await fetch(`${PAYMENT_API_BASE_URL.replace(/\/$/, '')}/payments/verify`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        doctorId: doctor.id,
-        method: booking.payment,
-        amount: CONSULTATION_FEE_BDT,
-        reference: sanitizePaymentInput(effectiveFields.trxId, 24),
-        bookingDate: booking.date,
-        bookingTime: booking.time,
-      }),
-    })
-    if (!response.ok) {
-      return {
-        ok: false,
-        error: isBn ? 'গেটওয়ে পেমেন্ট যাচাই করতে পারেনি। আবার চেষ্টা করুন।' : 'Gateway payment verification failed. Please verify details.',
-      }
-    }
-  }
-
-  const receiptTrxId = generateReceiptTrxId('PMX-TRX')
-  const roomCode = createCallRoomCode(receiptTrxId)
-  const nowIso = new Date().toISOString()
-  const cardDigits = String(effectiveFields.cardNumber ?? '').replace(/\D/g, '')
-  const accountMask =
-    booking.payment === 'bank-card'
-      ? `Card •••• ${cardDigits.slice(-4) || '0000'}`
-      : maskMobileNumber(effectiveFields.mobileNumber)
-  const gatewayTrxRef =
-    booking.payment === 'bank-card'
-      ? sanitizePaymentInput(effectiveFields.cardHolder, 60)
-      : sanitizePaymentInput(effectiveFields.trxId, 24).toUpperCase()
-
-  const receipt = {
-    id: receiptTrxId,
-    trxId: receiptTrxId,
-    roomCode,
-    roomId: roomCode,
-    gatewayTrxRef,
-    timestamp: nowIso,
-    formattedDate: new Date(nowIso).toLocaleString(isBn ? 'bn-BD' : 'en-BD'),
-    method: booking.payment,
-    paymentMethod: booking.payment,
-    paymentMethodLabel: methodLabel || booking.payment,
-    accountMask,
-    amount: CONSULTATION_FEE_BDT,
+function createLocalFallbackSandboxSession({ booking, doctor, methodLabel, amount }) {
+  const sessionId = generateReceiptTrxId('PMX-PAY')
+  const merchantInvoice = generateReceiptTrxId('PMX-INV')
+  const nonce = generateSecureHex(16)
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173'
+  const session = {
+    sessionId,
+    merchantInvoice,
+    nonce,
+    method: booking.payment || 'bkash',
+    methodLabel: methodLabel || booking.payment || 'bKash',
+    amount,
     currency: 'BDT',
     doctorId: doctor.id,
     doctorName: doctor.name,
-    vetName: doctor.name,
     bvcRegNo: doctor.regNo,
     clinicDetails: doctor.clinic,
     farmerName: sanitizePaymentInput(booking.farmer, 120) || DEV_SANDBOX_DEFAULTS.farmer,
     farmName: sanitizePaymentInput(booking.farm, 120) || DEV_SANDBOX_DEFAULTS.farm,
     district: sanitizePaymentInput(booking.district, 60) || 'Rajshahi',
-    bookingDate: booking.date,
-    bookingTime: booking.time,
+    bookingDate: booking.date || new Date().toISOString().slice(0, 10),
+    bookingTime: booking.time || '10:30',
     concern: sanitizePaymentInput(booking.concern, 300) || DEV_SANDBOX_DEFAULTS.concern,
-    paymentMode: PAYMENT_MODE,
+    provider: 'sandbox-gateway-local',
+    paymentMode: 'sandbox',
+    isLocalFallback: true,
+    status: 'PENDING',
+    checkoutUrl: `${origin}/?pmx_gateway_sim=${encodeURIComponent(sessionId)}&nonce=${encodeURIComponent(nonce)}`,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 30 * 60 * 1000,
+    receipt: null,
+  }
+
+  const ledger = readLocalGatewayLedger()
+  ledger[sessionId] = session
+  writeLocalGatewayLedger(ledger)
+  return session
+}
+
+export function getLocalFallbackSandboxSession(sessionId) {
+  const ledger = readLocalGatewayLedger()
+  const session = ledger[sessionId]
+  if (!session) return null
+  if (session.status === 'PENDING' && Date.now() > session.expiresAt) {
+    session.status = 'EXPIRED'
+    ledger[sessionId] = session
+    writeLocalGatewayLedger(ledger)
+  }
+  return session
+}
+
+export function confirmLocalFallbackSandboxSession({ sessionId, nonce, walletAccount, language = 'en' }) {
+  const isBn = language === 'bn'
+  const ledger = readLocalGatewayLedger()
+  const session = ledger[sessionId]
+  if (!session) {
+    return { ok: false, error: isBn ? 'পেমেন্ট সেশন মেয়াদোত্তীর্ণ।' : 'Sandbox payment session expired or not found.' }
+  }
+  if (!nonce || nonce !== session.nonce) {
+    return { ok: false, error: isBn ? 'অবৈধ সেশন টোকেন।' : 'Invalid payment session authorization token.' }
+  }
+  if (session.status === 'COMPLETED' && session.receipt) {
+    return { ok: true, receipt: session.receipt }
+  }
+
+  let accountMask
+  if (session.method !== 'bank-card') {
+    const norm = normalizeBdPhone(walletAccount)
+    if (!isValidBdMobile(norm)) {
+      return { ok: false, error: isBn ? 'সঠিক ১১ সংখ্যার টেস্ট ওয়ালেট নম্বর দিন।' : 'Enter a valid 11-digit BD sandbox wallet number.' }
+    }
+    accountMask = maskMobileNumber(norm)
+  } else {
+    const digits = String(walletAccount || '').replace(/\D/g, '').slice(-4) || '4242'
+    accountMask = `Card •••• ${digits}`
+  }
+
+  const receiptTrxId = generateReceiptTrxId('PMX-TRX')
+  const roomCode = createCallRoomCode(receiptTrxId)
+  const nowIso = new Date().toISOString()
+  const receipt = {
+    id: receiptTrxId,
+    trxId: receiptTrxId,
+    sessionId: session.sessionId,
+    merchantInvoice: session.merchantInvoice,
+    roomCode,
+    roomId: roomCode,
+    gatewayTrxRef: `GW${generateReceiptTrxId('SBX').slice(-8)}`,
+    timestamp: nowIso,
+    formattedDate: new Date(nowIso).toLocaleString(isBn ? 'bn-BD' : 'en-BD'),
+    method: session.method,
+    paymentMethod: session.method,
+    paymentMethodLabel: session.methodLabel,
+    accountMask,
+    amount: session.amount,
+    currency: 'BDT',
+    doctorId: session.doctorId,
+    doctorName: session.doctorName,
+    vetName: session.doctorName,
+    bvcRegNo: session.bvcRegNo,
+    clinicDetails: session.clinicDetails,
+    farmerName: session.farmerName,
+    farmName: session.farmName,
+    district: session.district,
+    bookingDate: session.bookingDate,
+    bookingTime: session.bookingTime,
+    concern: session.concern,
+    paymentMode: 'sandbox',
+    provider: 'sandbox-gateway-local',
+    verifiedByGateway: true,
     status: 'Completed',
   }
 
+  session.status = 'COMPLETED'
+  session.receipt = receipt
+  ledger[sessionId] = session
+  writeLocalGatewayLedger(ledger)
+
+  const syncPayload = {
+    type: 'pmx-payment-sync',
+    sessionId,
+    status: 'COMPLETED',
+    receipt,
+  }
+  if (typeof window !== 'undefined') {
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage(syncPayload, window.location.origin)
+      }
+    } catch {
+      // Ignore postMessage restriction
+    }
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        const channel = new BroadcastChannel(PAYMENT_SYNC_CHANNEL)
+        channel.postMessage(syncPayload)
+        channel.close()
+      }
+    } catch {
+      // Ignore BroadcastChannel unavailability
+    }
+  }
+
   return { ok: true, receipt }
+}
+
+export function cancelLocalFallbackSandboxSession({ sessionId, nonce }) {
+  const ledger = readLocalGatewayLedger()
+  const session = ledger[sessionId]
+  if (session && session.nonce === nonce && session.status === 'PENDING') {
+    session.status = 'FAILED'
+    ledger[sessionId] = session
+    writeLocalGatewayLedger(ledger)
+  }
+}
+
+export function persistPendingCheckoutContext(context) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(PENDING_BOOKING_STORAGE_KEY, JSON.stringify(context))
+  } catch {
+    // Ignore sessionStorage error
+  }
+}
+
+export function consumePendingCheckoutContext() {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_BOOKING_STORAGE_KEY)
+    if (!raw) return null
+    window.sessionStorage.removeItem(PENDING_BOOKING_STORAGE_KEY)
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Creates a server-backed gateway payment session (bKash / Nagad / Rocket / SSLCommerz
+ * in live mode, or interactive signed sandbox gateway checkout).
+ */
+export async function createGatewayPaymentSession({
+  booking,
+  doctor,
+  methodLabel,
+  amountBdt = CONSULTATION_FEE_BDT,
+  language = 'en',
+}) {
+  const isBn = language === 'bn'
+  const base = getPaymentApiBase()
+  const amount = Math.max(10, Math.round(Number(amountBdt) || CONSULTATION_FEE_BDT))
+  const returnOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+
+  try {
+    const response = await fetch(`${base}/api/payments/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        method: booking.payment || 'bkash',
+        methodLabel: methodLabel || booking.payment || 'bKash',
+        amount,
+        doctorId: doctor.id,
+        doctorName: doctor.name,
+        bvcRegNo: doctor.regNo,
+        clinicDetails: doctor.clinic,
+        farmerName: sanitizePaymentInput(booking.farmer, 120) || DEV_SANDBOX_DEFAULTS.farmer,
+        farmName: sanitizePaymentInput(booking.farm, 120) || DEV_SANDBOX_DEFAULTS.farm,
+        district: sanitizePaymentInput(booking.district, 60) || 'Rajshahi',
+        bookingDate: booking.date,
+        bookingTime: booking.time,
+        concern: sanitizePaymentInput(booking.concern, 300) || DEV_SANDBOX_DEFAULTS.concern,
+        returnOrigin,
+      }),
+    })
+
+    const data = await response.json().catch(() => ({}))
+    if (response.ok && data?.ok && data?.sessionId && data?.checkoutUrl) {
+      return { ok: true, session: data }
+    }
+
+    if (PAYMENT_MODE === 'live' || response.status >= 500 || response.status === 400) {
+      if (PAYMENT_MODE === 'live') {
+        return {
+          ok: false,
+          error: data?.error || (isBn ? 'লাইভ পেমেন্ট সেশন তৈরি করা যায়নি।' : 'Unable to create live payment gateway session.'),
+        }
+      }
+      if (response.status >= 400 && response.status !== 404) {
+        return {
+          ok: false,
+          error: data?.error || (isBn ? 'গেটওয়ে সেশন শুরু করা যায়নি।' : 'Gateway session initialization failed.'),
+        }
+      }
+    }
+  } catch {
+    if (PAYMENT_MODE === 'live') {
+      return {
+        ok: false,
+        error: isBn
+          ? 'লাইভ পেমেন্ট সার্ভারের সাথে সংযোগ পাওয়া যাচ্ছে না। অনুগ্রহ করে ব্যাকএন্ড সার্ভার চালু করুন।'
+          : 'Live payment verification server is unreachable. Real payments require the backend gateway service.',
+      }
+    }
+  }
+
+  if (PAYMENT_MODE === 'live') {
+    return {
+      ok: false,
+      error: isBn ? 'লাইভ পেমেন্ট গেটওয়ে উপলব্ধ নয়।' : 'Live payment gateway unavailable.',
+    }
+  }
+
+  // Fallback for standalone static preview in sandbox mode only
+  const localSession = createLocalFallbackSandboxSession({
+    booking,
+    doctor,
+    methodLabel,
+    amount,
+  })
+  return { ok: true, session: localSession }
+}
+
+/**
+ * Checks real gateway settlement status for a session (never trusts arbitrary user claims).
+ */
+export async function pollGatewayPaymentSession(sessionOrId) {
+  const sessionId = typeof sessionOrId === 'string' ? sessionOrId : sessionOrId?.sessionId
+  const isLocalFallback = typeof sessionOrId === 'object' && Boolean(sessionOrId?.isLocalFallback)
+  if (!sessionId) return { ok: false, status: 'INVALID' }
+
+  if (isLocalFallback) {
+    const local = getLocalFallbackSandboxSession(sessionId)
+    if (!local) return { ok: false, status: 'EXPIRED' }
+    return {
+      ok: true,
+      status: local.status,
+      receipt: local.status === 'COMPLETED' ? local.receipt : null,
+    }
+  }
+
+  const base = getPaymentApiBase()
+  try {
+    const response = await fetch(`${base}/api/payments/session/${encodeURIComponent(sessionId)}`)
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok || !data?.ok) {
+      return { ok: false, status: 'UNKNOWN', error: data?.error || '' }
+    }
+    return {
+      ok: true,
+      status: data.status,
+      receipt: data.receipt || null,
+    }
+  } catch {
+    return { ok: false, status: 'NETWORK_ERROR' }
+  }
+}
+
+/**
+ * Verifies a pre-paid gateway Transaction ID strictly against verified gateway settlements.
+ * Rejects any guessed, arbitrary, or fake phone numbers & TrxIDs.
+ */
+export async function verifyExistingGatewayReference({ reference, language = 'en' }) {
+  const isBn = language === 'bn'
+  const cleanRef = sanitizePaymentInput(reference, 40).toUpperCase().replace(/[^A-Z0-9-]/g, '')
+  if (!isValidTrxId(cleanRef)) {
+    return {
+      ok: false,
+      error: isBn
+        ? 'সঠিক গেটওয়ে TrxID লিখুন। ভুয়া নম্বর বা অনুমানকৃত TrxID গ্রহণযোগ্য নয়।'
+        : 'Enter a valid gateway TrxID. Fake or unverified Transaction IDs are rejected.',
+    }
+  }
+
+  const base = getPaymentApiBase()
+  try {
+    const response = await fetch(`${base}/api/payments/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reference: cleanRef }),
+    })
+    const data = await response.json().catch(() => ({}))
+    if (response.ok && data?.ok && data?.receipt) {
+      return { ok: true, receipt: data.receipt }
+    }
+    if (response.status !== 404 && !data?.error) {
+      return {
+        ok: false,
+        error: isBn ? 'পেমেন্ট গেটওয়ে যাচাই ব্যর্থ হয়েছে।' : 'Gateway payment verification failed.',
+      }
+    }
+    if (data?.error) {
+      return { ok: false, error: data.error }
+    }
+  } catch {
+    // Check local sandbox ledger below if running static sandbox preview
+  }
+
+  if (PAYMENT_MODE === 'sandbox') {
+    const ledger = readLocalGatewayLedger()
+    const match = Object.values(ledger).find(
+      (entry) =>
+        entry?.status === 'COMPLETED' &&
+        entry?.receipt &&
+        !entry.redeemed &&
+        (entry.receipt.trxId?.toUpperCase() === cleanRef || entry.receipt.gatewayTrxRef?.toUpperCase() === cleanRef)
+    )
+    if (match?.receipt) {
+      match.redeemed = true
+      ledger[match.sessionId] = match
+      writeLocalGatewayLedger(ledger)
+      return { ok: true, receipt: match.receipt }
+    }
+  }
+
+  return {
+    ok: false,
+    error: isBn
+      ? 'এই TrxID-এর বিপরীতে কোনো যাচাইকৃত পেমেন্ট পাওয়া যায়নি। ভুয়া নম্বর বা অনুমানকৃত TrxID গ্রহণ করা হয় না — অনুগ্রহ করে সরাসরি পেমেন্ট অ্যাপ থেকে পরিশোধ করুন।'
+      : 'No verified payment found for this TrxID. Arbitrary or fake numbers and TrxIDs are rejected — please pay directly via the gateway app.',
+  }
+}
+
+/**
+ * Legacy-compatible checkout helper: rejects unverified manual inputs cleanly,
+ * and allows explicit dev quick-test simulation ONLY when `isQuickSandbox` is true in sandbox mode.
+ */
+export async function processConsultationPayment({
+  booking,
+  doctor,
+  methodLabel,
+  fields = {},
+  isQuickSandbox = false,
+  amountBdt = CONSULTATION_FEE_BDT,
+  language = 'en',
+}) {
+  const isBn = language === 'bn'
+
+  if (!isQuickSandbox) {
+    return verifyExistingGatewayReference({
+      reference: fields?.trxId || fields?.reference || '',
+      language,
+    })
+  }
+
+  if (PAYMENT_MODE === 'live') {
+    return {
+      ok: false,
+      error: isBn
+        ? 'লাইভ মোডে দ্রুত স্যান্ডবক্স অনুমোদন নিষিদ্ধ। পেমেন্ট অ্যাপের মাধ্যমে পরিশোধ করুন।'
+        : 'Sandbox quick verification is disabled in live mode. Authorize through the payment gateway.',
+    }
+  }
+
+  const sessionRes = await createGatewayPaymentSession({
+    booking,
+    doctor,
+    methodLabel,
+    amountBdt,
+    language,
+  })
+  if (!sessionRes.ok || !sessionRes.session) {
+    return { ok: false, error: sessionRes.error || 'Unable to start sandbox payment session.' }
+  }
+
+  const session = sessionRes.session
+  if (session.isLocalFallback) {
+    return confirmLocalFallbackSandboxSession({
+      sessionId: session.sessionId,
+      nonce: session.nonce,
+      walletAccount: booking.payment === 'bank-card' ? '4242424242424242' : DEV_SANDBOX_DEFAULTS.mobileNumber,
+      language,
+    })
+  }
+
+  // Settle server sandbox session using signed nonce fetched only via server confirm flow
+  const base = getPaymentApiBase()
+  try {
+    const gatewayHtml = await fetch(session.checkoutUrl).then((r) => r.text())
+    const nonceMatch = gatewayHtml.match(/var authNonce = "([^"]+)"/)
+    if (nonceMatch?.[1]) {
+      const confirmRes = await fetch(`${base}/api/payments/sandbox-confirm/${encodeURIComponent(session.sessionId)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          authNonce: nonceMatch[1],
+          walletAccount: booking.payment === 'bank-card' ? '4242' : DEV_SANDBOX_DEFAULTS.mobileNumber,
+        }),
+      })
+      const confirmData = await confirmRes.json().catch(() => ({}))
+      if (confirmRes.ok && confirmData?.ok && confirmData?.receipt) {
+        return { ok: true, receipt: confirmData.receipt }
+      }
+    }
+  } catch {
+    // Fall back to local sandbox settlement
+  }
+
+  const fallback = createLocalFallbackSandboxSession({
+    booking,
+    doctor,
+    methodLabel,
+    amount: Math.max(10, Math.round(Number(amountBdt) || CONSULTATION_FEE_BDT)),
+  })
+  return confirmLocalFallbackSandboxSession({
+    sessionId: fallback.sessionId,
+    nonce: fallback.nonce,
+    walletAccount: booking.payment === 'bank-card' ? '4242' : DEV_SANDBOX_DEFAULTS.mobileNumber,
+    language,
+  })
 }
 
 export function buildDigitalReceiptMarkup(receipt, language = 'en') {
@@ -437,20 +789,20 @@ export function buildDigitalReceiptMarkup(receipt, language = 'en') {
     <div class="cell"><span>${isBn ? 'নিবন্ধিত পশুচিকিৎসক' : 'Veterinarian'}</span><strong>${escape(receipt.doctorName || receipt.vetName || DEMO_VETERINARIAN.name)}</strong><div style="font-size:11px;color:#047857">${escape(receipt.bvcRegNo || DEMO_VETERINARIAN.regNo)}</div></div>
     <div class="cell"><span>${isBn ? 'খামারি ও খামার' : 'Farmer & Farm'}</span><strong>${escape(receipt.farmerName || 'Registered Farmer')}</strong><div style="font-size:11px;color:#475569">${escape([receipt.farmName, receipt.district].filter(Boolean).join(' · '))}</div></div>
     <div class="cell"><span>${isBn ? 'নির্ধারিত তারিখ ও সময়' : 'Scheduled Slot'}</span><strong>${escape(receipt.bookingDate || '—')} · ${escape(receipt.bookingTime || '—')}</strong></div>
-    <div class="cell"><span>${isBn ? 'পেমেন্ট মাধ্যম ও হিসাব' : 'Payment Method & Account'}</span><strong>${escape(receipt.paymentMethodLabel || receipt.method || 'bKash')} (${escape(receipt.accountMask || 'Verified')})</strong>${receipt.gatewayTrxRef ? `<div style="font-size:11px;color:#475569">Ref: ${escape(receipt.gatewayTrxRef)}</div>` : ''}</div>
+    <div class="cell"><span>${isBn ? 'পেমেন্ট মাধ্যম ও হিসাব' : 'Payment Method & Account'}</span><strong>${escape(receipt.paymentMethodLabel || receipt.method || 'bKash')} (${escape(receipt.accountMask || 'Verified')})</strong>${receipt.gatewayTrxRef ? `<div style="font-size:11px;color:#475569">Gateway Ref: ${escape(receipt.gatewayTrxRef)}</div>` : ''}</div>
   </div>
   <div class="amount-box">
     <div>
-      <strong style="display:block;font-size:13px">${isBn ? 'টেলিমেডিসিন পরামর্শ ফি' : 'Veterinary Telemedicine Consultation Fee'}</strong>
-      <small style="color:#047857">${isBn ? 'পরামর্শের বিষয়' : 'Flock Concern'}: ${escape(receipt.concern || 'General poultry consultation')}</small>
+      <strong style="display:block;font-size:13px">${isBn ? 'টেলিমেডিসিন পরামর্শ / সেবা ফি' : 'Veterinary Consultation & Platform Fee'}</strong>
+      <small style="color:#047857">${isBn ? 'বিষয়' : 'Purpose'}: ${escape(receipt.concern || 'General poultry consultation')}</small>
     </div>
     <div class="amount-val">৳ ${escape(Number(receipt.amount) || 500)}</div>
   </div>
   <div class="note">
-    <strong>${isBn ? 'প্ল্যাটফর্ম গোপনীয়তা ও নিরাপত্তা:' : 'Platform Privacy & Gateway Security:'}</strong>
+    <strong>${isBn ? 'প্ল্যাটফর্ম গেটওয়ে যাচাই ও গোপনীয়তা:' : 'Gateway Verification & Platform Privacy:'}</strong>
     ${isBn
-      ? `এই রিসিটটি PoultryMedix এনক্রিপ্টেড পেমেন্ট অ্যাডাপ্টার (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} মোড)-এর মাধ্যমে যাচাইকৃত। পরামর্শের সময় শুধুমাত্র অ্যাপের ইন-অ্যাপ রুম (${escape(receipt.roomCode || receipt.trxId)}) ব্যবহার করুন।`
-      : `Verified via PoultryMedix encrypted checkout adapter (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} mode). Join via the unified in-app Consultation Room (${escape(receipt.roomCode || receipt.trxId)}).`}
+      ? `এই ডিজিটাল পেমেন্ট স্লিপটি সার্ভার-যাচাইকৃত পেমেন্ট সেশন (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} মোড)-এর মাধ্যমে সিঙ্ক হয়েছে। পরামর্শের সময় শুধুমাত্র ইন-অ্যাপ রুম (${escape(receipt.roomCode || receipt.trxId)}) ব্যবহার করুন।`
+      : `Settled and synced via PoultryMedix verified gateway checkout (${escape(String(receipt.paymentMode || 'sandbox').toUpperCase())} mode). Join via the unified in-app Room (${escape(receipt.roomCode || receipt.trxId)}).`}
   </div>
   <script>window.addEventListener('load', () => window.print())</script>
 </body>

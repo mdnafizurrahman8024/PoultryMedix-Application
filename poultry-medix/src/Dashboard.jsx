@@ -124,7 +124,18 @@ function Dashboard({ onLogout, initialName, initialLocation }) {
     setProfileAction(action)
   }
 
-  const [activeView, setActiveView] = useState('home')
+  const [activeView, setActiveView] = useState(() => {
+    if (typeof window === 'undefined') return 'home'
+    const params = new URLSearchParams(window.location.search)
+    if (!params.get('pmx_session')) return 'home'
+    try {
+      const pendingRaw = window.sessionStorage.getItem('poultrymedix_pending_booking_v1')
+      const pending = pendingRaw ? JSON.parse(pendingRaw) : null
+      return pending?.returnView === 'blueprint' ? 'blueprint' : 'telemedicine'
+    } catch {
+      return 'telemedicine'
+    }
+  })
 
   function openSosModal() {
     setSettingsOpen(false)

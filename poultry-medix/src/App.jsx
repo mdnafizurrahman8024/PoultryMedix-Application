@@ -9,6 +9,7 @@ import './App.css'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import OnboardingScreen from './OnboardingScreen.jsx'
 import { useUser } from './context/user-context.js'
+import GatewaySandboxView from './veterinary/GatewaySandboxView.jsx'
 
 const languages = [
   ['en', 'English', 'EN'],
@@ -21,7 +22,7 @@ function BrandMark({ compact = false }) {
   )
 }
 
-function App() {
+function AuthApp() {
   const { language, setLanguage, t } = useLanguage()
   const { isLoggedIn, role, setRole, setLoggedIn } = useUser()
   const [roleSelectionComplete, setRoleSelectionComplete] = useState(false)
@@ -424,6 +425,18 @@ function App() {
       </section>
     </main>
   )
+}
+
+function App() {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search)
+    const gatewaySessionId = params.get('pmx_gateway_sim')
+    const gatewayNonce = params.get('nonce')
+    if (gatewaySessionId && gatewayNonce) {
+      return <GatewaySandboxView sessionId={gatewaySessionId} nonce={gatewayNonce} />
+    }
+  }
+  return <AuthApp />
 }
 
 export default App

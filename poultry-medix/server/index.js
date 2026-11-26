@@ -4,6 +4,7 @@ import axios from 'axios'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import process from 'node:process'
+import { registerPaymentRoutes } from './paymentGateway.js'
 
 const serverDirectory = path.dirname(fileURLToPath(import.meta.url))
 const projectRoot = path.resolve(serverDirectory, '..')
@@ -56,6 +57,7 @@ const veterinarySystemPrompt = [
 
 app.disable('x-powered-by')
 app.use(express.json({ limit: '22mb', strict: true }))
+registerPaymentRoutes(app)
 
 app.get('/api/health', (_request, response) => {
   response.json({

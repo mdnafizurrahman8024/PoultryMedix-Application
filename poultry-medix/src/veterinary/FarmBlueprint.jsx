@@ -31,11 +31,15 @@ import {
 import {
   CLINICAL_LOGS_UPDATED_EVENT,
   saveConsultationLog,
+  savePaymentLog,
 } from '../lib/clinicalLogsStore.js'
 import { saveHistoryEntry } from './historyStore.js'
 import { SURVEILLANCE_DISTRICTS, getDiseaseDisplayLabel } from '../lib/oneHealthSurveillance.js'
 import { DLS_PORTAL_URL, requestTelemedicineReferral, requestUloDirectoryModal } from '../lib/uloDirectory.js'
+import { consumePendingCheckoutContext, pollGatewayPaymentSession } from '../lib/paymentAdapter.js'
 import ShedBlueprintVisualizer from './ShedBlueprintVisualizer.jsx'
+import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
+import DigitalReceiptModal from './DigitalReceiptModal.jsx'
 
 function BiosecurityRadarSvg({ isBn, hasAlert }) {
   return (
@@ -186,71 +190,116 @@ export default function FarmBlueprint() {
     payment: 'bkash',
   })
   const [bookingConfirmation, setBookingConfirmation] = useState('')
+  const [workshopCheckoutOpen, setWorkshopCheckoutOpen] = useState(false)
+  const [workshopReceipt, setWorkshopReceipt] = useState(null)
+  const [workshopReceiptOpen, setWorkshopReceiptOpen] = useState(false)
 
   const activeWorkshop = useMemo(
     () => workshops.find((ws) => ws.id === activeWorkshopId) || null,
     [workshops, activeWorkshopId]
   )
 
-  function handleReserveWorkshop(event) {
-    event.preventDefault()
-    if (!activeWorkshop) return
-    const applicantName = bookingForm.name.trim() || (isBn ? 'নবীন উদ্যোক্তা' : 'New Entrepreneur')
-    const workshopTitle = isBn ? activeWorkshop.titleBn : activeWorkshop.titleEn
-    const paymentLabels = { bkash: 'bKash', nagad: 'Nagad', rocket: 'Rocket', 'bank-card': 'Card / Bank' }
-    const payLabel = paymentLabels[bookingForm.payment] || 'bKash'
-    const recordId = crypto.randomUUID()
-    const createdAt = new Date().toISOString()
+  function finalizeWorkshopBooking(receipt, workshopObj) {
+    if (!receipt || !workshopObj) return
+    const workshopTitle = isBn ? workshopObj.titleBn : workshopObj.titleEn
+    const recordId = receipt.id || crypto.randomUUID()
+
+    savePaymentLog({
+      ...receipt,
+      id: recordId,
+      concern: `[Workshop Seat] ${workshopTitle}`,
+      status: 'Completed',
+    })
 
     saveConsultationLog({
-      id: recordId,
-      vetName: activeWorkshop.vetName,
-      bvcRegNo: activeWorkshop.bvcRegNo,
-      clinicDetails: `${activeWorkshop.clinicDetails} — Pro Mentorship Workshop`,
-      farmerName: applicantName,
+      id: `consult-${recordId}`,
+      trxId: receipt.trxId,
+      roomCode: receipt.roomCode,
+      roomId: receipt.roomCode,
+      vetName: workshopObj.vetName,
+      doctorName: workshopObj.vetName,
+      bvcRegNo: workshopObj.bvcRegNo,
+      clinicDetails: `${workshopObj.clinicDetails} — Pro Mentorship Workshop`,
+      farmerName: receipt.farmerName,
       farmName: `${farmType} (${flockSize} ${isBn ? 'টি' : 'birds'})`,
-      district: bookingForm.district || selectedDistrict || 'Rajshahi',
-      bookingDate: activeWorkshop.scheduleDate,
-      bookingTime: activeWorkshop.scheduleTime,
-      concern: `[Workshop Seat] ${workshopTitle}${bookingForm.question.trim() ? ` — ${bookingForm.question.trim()}` : ''}`,
-      amount: activeWorkshop.feeBdt,
+      district: receipt.district || 'Rajshahi',
+      bookingDate: workshopObj.scheduleDate,
+      bookingTime: workshopObj.scheduleTime,
+      concern: receipt.concern,
+      amount: receipt.amount,
       currency: 'BDT',
-      paymentMethod: bookingForm.payment,
-      paymentMethodLabel: payLabel,
-      paymentStatus: 'Confirmed (Pro Workshop)',
+      paymentMethod: receipt.method,
+      paymentMethodLabel: receipt.paymentMethodLabel,
+      paymentStatus: 'Completed',
     })
 
     saveHistoryEntry('appointment', {
-      id: recordId,
-      createdAt,
-      date: activeWorkshop.scheduleDate,
-      time: activeWorkshop.scheduleTime,
-      vetName: activeWorkshop.vetName,
-      bvcRegNo: activeWorkshop.bvcRegNo,
-      clinicDetails: `${activeWorkshop.clinicDetails} — Pro Workshop`,
-      farmerName: applicantName,
+      id: `consult-${recordId}`,
+      trxId: receipt.trxId,
+      roomCode: receipt.roomCode,
+      createdAt: receipt.timestamp,
+      date: workshopObj.scheduleDate,
+      time: workshopObj.scheduleTime,
+      vetName: workshopObj.vetName,
+      bvcRegNo: workshopObj.bvcRegNo,
+      clinicDetails: `${workshopObj.clinicDetails} — Pro Workshop`,
+      farmerName: receipt.farmerName,
       farmName: `${farmType} (${flockSize} birds)`,
-      district: bookingForm.district || selectedDistrict || 'Rajshahi',
-      concern: `[Workshop Seat] ${workshopTitle}`,
-      amount: activeWorkshop.feeBdt,
+      district: receipt.district || 'Rajshahi',
+      concern: receipt.concern,
+      amount: receipt.amount,
       currency: 'BDT',
-      paymentMethod: bookingForm.payment,
-      paymentMethodLabel: payLabel,
+      paymentMethod: receipt.method,
+      paymentMethodLabel: receipt.paymentMethodLabel,
       paymentStatusKey: 'historyBookingConfirmed',
     })
 
-    setReservedWorkshopIds((prev) => new Set(prev).add(activeWorkshop.id))
+    setReservedWorkshopIds((prev) => new Set(prev).add(workshopObj.id))
     setWorkshops((prev) => prev.map((ws) => (
-      ws.id === activeWorkshop.id ? { ...ws, seatsLeft: Math.max(0, ws.seatsLeft - 1) } : ws
+      ws.id === workshopObj.id ? { ...ws, seatsLeft: Math.max(0, ws.seatsLeft - 1) } : ws
     )))
     setBookingConfirmation(
       isBn
-        ? `আসন সংরক্ষিত হয়েছে! ${activeWorkshop.vetName}-এর কর্মশালা (${activeWorkshop.displayTimeBn}) ক্লিনিক্যাল লগের Vet Consultations অংশে যুক্ত হয়েছে।`
-        : `Seat reserved! "${workshopTitle}" with ${activeWorkshop.vetName} (${activeWorkshop.displayTimeEn}) has been saved to Clinical Log → Vet Consultations.`
+        ? `পেমেন্ট যাচাই ও আসন নিশ্চিত (${receipt.trxId})! ${workshopObj.vetName}-এর কর্মশালা (${workshopObj.displayTimeBn}) ডিজিটাল স্লিপসহ সংরক্ষিত হয়েছে।`
+        : `Payment verified (${receipt.trxId}) & seat reserved for "${workshopTitle}" with ${workshopObj.vetName}. Digital payment slip issued.`
     )
+    setWorkshopCheckoutOpen(false)
     setActiveWorkshopId('')
     setBookingForm((prev) => ({ ...prev, question: '' }))
+    setWorkshopReceipt(receipt)
+    setWorkshopReceiptOpen(true)
   }
+
+  function handleReserveWorkshop(event) {
+    event.preventDefault()
+    if (!activeWorkshop) return
+    setWorkshopCheckoutOpen(true)
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    const returnedSessionId = url.searchParams.get('pmx_session')
+    if (!returnedSessionId) return
+    const pending = consumePendingCheckoutContext()
+    if (pending?.returnView !== 'blueprint') return
+    url.searchParams.delete('pmx_session')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+
+    pollGatewayPaymentSession({
+      sessionId: returnedSessionId,
+      isLocalFallback: Boolean(pending?.isLocalFallback),
+    }).then((poll) => {
+      if (poll.ok && poll.status === 'COMPLETED' && poll.receipt) {
+        const matchedWs = workshops.find((ws) => ws.id === pending.workshopId) || workshops[0]
+        if (matchedWs) {
+          savePaymentLog({ ...poll.receipt, status: 'Completed' })
+          setWorkshopReceipt(poll.receipt)
+          setWorkshopReceiptOpen(true)
+        }
+      }
+    })
+  }, [workshops])
 
   return (
     <main className="veterinary-page blueprint-page w-full min-w-0 max-w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white">
@@ -813,12 +862,45 @@ export default function FarmBlueprint() {
               </button>
               <button type="submit" className="ethical-care-btn ethical-care-btn--primary" style={{ flex: '1 1 220px' }}>
                 <CheckCircle2 size={15} aria-hidden="true" />
-                <span>{isBn ? `আসন নিশ্চিত করুন (৳ ${activeWorkshop.feeBdt})` : `Confirm Workshop Seat (৳ ${activeWorkshop.feeBdt})`}</span>
+                <span>{isBn ? `পেমেন্ট অ্যাপ দিয়ে আসন নিশ্চিত (৳ ${activeWorkshop.feeBdt})` : `Pay & Confirm Workshop Seat (৳ ${activeWorkshop.feeBdt})`}</span>
               </button>
             </div>
           </form>
         )}
       </section>
+
+      {workshopCheckoutOpen && activeWorkshop && (
+        <PaymentCheckoutModal
+          booking={{
+            farmer: bookingForm.name.trim() || (isBn ? 'নবীন উদ্যোক্তা' : 'New Entrepreneur'),
+            farm: `${farmType} (${flockSize} ${isBn ? 'টি' : 'birds'})`,
+            district: bookingForm.district || selectedDistrict || 'Rajshahi',
+            date: activeWorkshop.scheduleDate,
+            time: activeWorkshop.scheduleTime,
+            concern: `[Workshop Seat] ${isBn ? activeWorkshop.titleBn : activeWorkshop.titleEn}`,
+            payment: bookingForm.payment,
+            returnView: 'blueprint',
+            workshopId: activeWorkshop.id,
+          }}
+          doctor={{
+            id: activeWorkshop.id,
+            name: activeWorkshop.vetName,
+            regNo: activeWorkshop.bvcRegNo,
+            clinic: `${activeWorkshop.clinicDetails} — Pro Mentorship Workshop`,
+          }}
+          districtLabel={t(`districts.${bookingForm.district || selectedDistrict || 'Rajshahi'}`, bookingForm.district || selectedDistrict || 'Rajshahi')}
+          amountBdt={activeWorkshop.feeBdt}
+          onClose={() => setWorkshopCheckoutOpen(false)}
+          onSuccess={(receipt) => finalizeWorkshopBooking(receipt, activeWorkshop)}
+        />
+      )}
+
+      {workshopReceiptOpen && workshopReceipt && (
+        <DigitalReceiptModal
+          receipt={workshopReceipt}
+          onClose={() => setWorkshopReceiptOpen(false)}
+        />
+      )}
     </main>
   )
 }

@@ -666,6 +666,32 @@ export default function ShedBlueprintVisualizer({
 }) {
   const [shedMode, setShedMode] = useState('auto')
   const [viewMode, setViewMode] = useState('both') // 'both' | '2d' | '3d'
+  const [customFlockDraft, setCustomFlockDraft] = useState(() => String(flockSize))
+
+  function applyFlockSize(nextValue) {
+    const clamped = Math.max(10, Math.min(100000, Math.round(Number(nextValue)) || 1000))
+    setCustomFlockDraft(String(clamped))
+    onFlockSizeChange(clamped)
+  }
+
+  function handleCustomFlockChange(rawValue) {
+    const digits = String(rawValue).replace(/\D/g, '').slice(0, 6)
+    setCustomFlockDraft(digits)
+    if (!digits) return
+    const parsed = Number.parseInt(digits, 10)
+    if (Number.isFinite(parsed) && parsed >= 10) {
+      onFlockSizeChange(Math.min(100000, parsed))
+    }
+  }
+
+  function handleCustomFlockBlur() {
+    const parsed = Number.parseInt(customFlockDraft, 10)
+    if (!Number.isFinite(parsed) || parsed < 10) {
+      applyFlockSize(10)
+    } else {
+      applyFlockSize(parsed)
+    }
+  }
 
   const design = useMemo(
     () => calculateShedDesign({ flockSize, farmType, shedMode }),
@@ -721,10 +747,42 @@ export default function ShedBlueprintVisualizer({
       {/* Controls: Target Flock Size + Farm Type */}
       <div className="blueprint-controls-grid">
         <div>
-          <span className="blueprint-control-label">
-            {isBn ? 'লক্ষ্যমাত্রা পাখির সংখ্যা (Flock Size)' : 'Target Flock Size'}
-          </span>
-          <div className="blueprint-chip-row" role="radiogroup" aria-label="Target Flock Size">
+          <label className="blueprint-control-label" htmlFor="custom-flock-size-input">
+            {isBn ? 'লক্ষ্যমাত্রা পাখির সংখ্যা — কাস্টম লিখুন বা বাছুন (Flock Size)' : 'Target Flock Size — Enter Custom Count or Select Preset'}
+          </label>
+          <div className="blueprint-custom-flock-row">
+            <button
+              type="button"
+              className="blueprint-step-btn dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"
+              aria-label={isBn ? '১০০ পাখি কমান' : 'Decrease flock size by 100'}
+              onClick={() => applyFlockSize(Math.max(10, (Number(flockSize) || 1000) - 100))}
+            >
+              -100
+            </button>
+            <div className="blueprint-custom-input-wrap dark:bg-gray-900 dark:border-gray-700">
+              <input
+                id="custom-flock-size-input"
+                type="text"
+                inputMode="numeric"
+                className="blueprint-custom-flock-input dark:text-white"
+                value={customFlockDraft}
+                onChange={(e) => handleCustomFlockChange(e.target.value)}
+                onBlur={handleCustomFlockBlur}
+                placeholder="1000"
+                aria-label={isBn ? 'কাস্টম পাখির সংখ্যা লিখুন' : 'Enter custom bird count'}
+              />
+              <span className="blueprint-custom-unit">{isBn ? 'টি পাখি' : 'birds'}</span>
+            </div>
+            <button
+              type="button"
+              className="blueprint-step-btn dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200"
+              aria-label={isBn ? '১০০ পাখি বাড়ান' : 'Increase flock size by 100'}
+              onClick={() => applyFlockSize((Number(flockSize) || 1000) + 100)}
+            >
+              +100
+            </button>
+          </div>
+          <div className="blueprint-chip-row" role="radiogroup" aria-label={isBn ? 'দ্রুত পাখির সংখ্যা নির্বাচন' : 'Quick Flock Size Presets'}>
             {FLOCK_SIZE_PRESETS.map((size) => (
               <button
                 key={size}
@@ -732,12 +790,17 @@ export default function ShedBlueprintVisualizer({
                 role="radio"
                 aria-checked={flockSize === size}
                 className={`blueprint-chip${flockSize === size ? ' is-active' : ''}`}
-                onClick={() => onFlockSizeChange(size)}
+                onClick={() => applyFlockSize(size)}
               >
                 {size.toLocaleString()} {isBn ? 'টি' : 'birds'}
               </button>
             ))}
           </div>
+          <small className="blueprint-custom-hint dark:text-gray-400">
+            {isBn
+              ? '১০ থেকে ১,০০,০০০ পর্যন্ত যেকোনো সংখ্যা লিখলে মাপ, ফ্যান, ফিডার ও খরচ স্বয়ংক্রিয়ভাবে হিসাব হবে।'
+              : 'Enter any number from 10 to 100,000 birds — shed size, equipment & DAM costs recalculate live.'}
+          </small>
         </div>
 
         <div>

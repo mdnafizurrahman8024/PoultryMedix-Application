@@ -4744,6 +4744,73 @@ html[data-theme="dark"] .blueprint-control-label {
   gap: 7px;
 }
 
+.blueprint-custom-flock-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.blueprint-custom-input-wrap {
+  display: flex;
+  flex: 1 1 150px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1.5px solid #15803d;
+  border-radius: 10px;
+  background: #ffffff;
+  gap: 6px;
+}
+
+.blueprint-custom-flock-input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #0f172a;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  outline: none;
+}
+
+.blueprint-custom-unit {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.blueprint-step-btn {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #334155;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.blueprint-step-btn:hover {
+  border-color: #15803d;
+  color: #166534;
+}
+
+.blueprint-custom-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
 .blueprint-chip {
   min-height: 36px;
   padding: 6px 12px;

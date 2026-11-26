@@ -20,7 +20,9 @@ import {
   PAYMENT_MODE,
   QUICK_SELECT_MEDICATIONS,
   VETERINARY_DOCTORS,
+  consumePendingCheckoutContext,
   createCallRoomCode,
+  pollGatewayPaymentSession,
   processConsultationPayment,
   resolveBookingWithSandboxDefaults,
   sanitizePaymentInput,
@@ -254,6 +256,55 @@ export default function Telemedicine() {
       window.removeEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     }
   }, [])
+
+  // Auto-sync when returning to app from a same-tab external gateway / wallet redirect
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    const returnedSessionId = url.searchParams.get('pmx_session')
+    if (!returnedSessionId) return
+
+    const pending = consumePendingCheckoutContext()
+    if (pending?.returnView === 'blueprint') return
+
+    url.searchParams.delete('pmx_session')
+    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`)
+
+    let cancelled = false
+    pollGatewayPaymentSession({
+      sessionId: returnedSessionId,
+      isLocalFallback: Boolean(pending?.isLocalFallback),
+    }).then((poll) => {
+      if (cancelled) return
+      if (poll.ok && poll.status === 'COMPLETED' && poll.receipt) {
+        const roomCode = poll.receipt.roomCode || createCallRoomCode(poll.receipt.trxId)
+        const { shedSummary, aiDiagnosisSummary } = buildFlockContextSnapshot(language)
+        const enriched = {
+          ...poll.receipt,
+          roomCode,
+          roomId: roomCode,
+          shedSummary,
+          aiDiagnosisSummary,
+        }
+        setVerifiedReceipt(enriched)
+        setBookingConfirmed(true)
+        savePaymentLog({ ...enriched, status: 'Completed' })
+        saveConsultationLog({
+          id: `consult-${enriched.id}`,
+          ...enriched,
+          currency: 'BDT',
+          paymentStatus: 'Completed',
+        })
+        setBookingMessage(language === 'bn'
+          ? `${enriched.doctorName}-এর সাথে পেমেন্ট (${enriched.trxId}) সিঙ্ক ও সম্পন্ন হয়েছে!`
+          : `Payment synced & verified (${enriched.trxId}) with ${enriched.doctorName}!`)
+        setReceiptModalOpen(true)
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [language])
 
   function updateBooking(field, value) {
     setBooking((current) => ({ ...current, [field]: value }))
