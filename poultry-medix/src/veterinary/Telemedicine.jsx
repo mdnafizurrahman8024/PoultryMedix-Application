@@ -64,7 +64,19 @@ import {
   markRoomCallCompleted,
   openDoctorCallRoom,
 } from '../lib/telehealthNotifier.js'
-import { getSheds } from '../lib/shedManager.js'
+import { getSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from '../lib/shedManager.js'
+import {
+  BOOKING_TARGET_MODES,
+  MANUAL_BIRD_TYPES,
+  MAX_ATTACHMENT_COUNT,
+  buildBookingFlockPayload,
+  formatBytesReadable,
+  getShedLinkedDiagnoses,
+  getShedLinkedPrescriptions,
+  normalizeBirdSpecies,
+  readAttachmentAsDataUrl,
+  validateHistoryAttachmentFile,
+} from '../lib/bookingContextHelper.js'
 import { useUser } from '../context/user-context.js'
 import { useLanguage } from '../context/useLanguage.js'
 import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
@@ -88,7 +100,7 @@ const BANGLADESH_DISTRICTS = [
   'Barishal',
 ]
 
-const birdTypes = ['Broiler', 'Layer', 'Sonali', 'Breeder', 'Other']
+const birdTypes = ['Broiler', 'Layer', 'Sonali', 'Duck', 'Native', 'Breeder', 'Pigeon', 'Other']
 const formulations = ['Water soluble powder', 'Feed premix', 'Oral Liquid', 'Injection', 'Drops', 'Ointment']
 const frequencies = ['Once daily', 'Twice daily', 'Thrice daily', 'Continuous in water', 'As needed']
 
@@ -102,6 +114,7 @@ const emptyPrescription = {
   farmerName: '',
   farmName: '',
   district: 'Rajshahi',
+  upazila: '',
   age: '',
   flockSize: '',
   averageWeight: '',
@@ -149,11 +162,11 @@ function FormSection({ title, icon, children }) {
 function parseShedSnapshot(shedSummary = '') {
   const text = String(shedSummary || '')
   const countMatch = text.match(/([\d,]+)\s*(?:birds|পাখি)/i)
-  const speciesMatch = text.match(/\((Broiler|Layer|Sonali|Breeder|Other)\b/i)
+  const speciesMatch = text.match(/\((Broiler|Layer|Sonali|Duck|Native|Desi \/ Native|Breeder|Pigeon|Other)\b/i)
   const ageMatch = text.match(/(?:Day|Week|দিন|সপ্তাহ)\s*\d+|\d+\s*(?:days?|weeks?)/i)
   return {
     flockSize: countMatch ? countMatch[1].replace(/,/g, '') : '',
-    birdType: speciesMatch ? speciesMatch[1] : '',
+    birdType: speciesMatch ? normalizeBirdSpecies(speciesMatch[1]) : '',
     age: ageMatch ? ageMatch[0] : '',
   }
 }
@@ -169,31 +182,6 @@ function loadConsultationBookings() {
     seen.add(dedupeKey)
     return true
   })
-}
-
-function buildFlockContextSnapshot(language) {
-  const sheds = getSheds()
-  const isBn = language === 'bn'
-  const primary = sheds[0]
-  const totalBirds = sheds.reduce((s, item) => s + (Number(item.birdCount) || 0), 0)
-  const shedSummary = sheds.length
-    ? isBn
-      ? `${sheds.length}টি শেড · ${totalBirds} পাখি (${primary.species}, দিন ${primary.currentAgeDays})`
-      : `${sheds.length} Shed${sheds.length > 1 ? 's' : ''} · ${totalBirds} birds (${primary.species}, Day ${primary.currentAgeDays})`
-    : ''
-
-  const latestDiag = getClinicalLogs('diagnosis')[0]
-  const aiDiagnosisSummary = latestDiag?.primaryDisease
-    ? `${latestDiag.primaryDisease}${latestDiag.confidencePercent ? ` (${latestDiag.confidencePercent})` : ''}`
-    : ''
-
-  return {
-    shedSummary,
-    aiDiagnosisSummary,
-    birdType: primary?.species || 'Broiler',
-    flockSize: totalBirds > 0 ? String(totalBirds) : '',
-    age: primary?.currentAgeDays ? (isBn ? `দিন ${primary.currentAgeDays}` : `Day ${primary.currentAgeDays}`) : '',
-  }
 }
 
 function getOrCreateFarmerClientId() {
@@ -216,6 +204,20 @@ export default function Telemedicine() {
   const isRegisteredVet = role === 'REGISTERED_VET'
   const [initialPrefill] = useState(() => consumeTelemedicinePrefill())
   const [prefillNotice, setPrefillNotice] = useState(() => Boolean(initialPrefill?.concern))
+  const [registeredSheds, setRegisteredSheds] = useState(() => getSheds())
+  const [bookingMode, setBookingMode] = useState(() => (
+    getSheds().length > 0 ? BOOKING_TARGET_MODES.REGISTERED_SHED : BOOKING_TARGET_MODES.MANUAL_FARM
+  ))
+  const [selectedShedId, setSelectedShedId] = useState(() => getSheds()[0]?.id || '')
+  const [allDiagnosisLogs, setAllDiagnosisLogs] = useState(() => getClinicalLogs('diagnosis'))
+  const [allPrescriptionLogs, setAllPrescriptionLogs] = useState(() => getClinicalLogs('prescription'))
+  const [selectedHistoryRxIds, setSelectedHistoryRxIds] = useState(() => {
+    const firstShed = getSheds()[0]
+    if (!firstShed) return []
+    return getShedLinkedPrescriptions(firstShed, getClinicalLogs('prescription')).slice(0, 3).map((rx) => rx.id)
+  })
+  const [uploadedAttachments, setUploadedAttachments] = useState([])
+  const [attachmentError, setAttachmentError] = useState('')
   const [booking, setBooking] = useState(() => {
     const today = getLocalTodayDateStr()
     const firstOpen = getDoctorAvailabilitySummary(VETERINARY_DOCTORS[0].id, today).todaySlots.find((s) => s.status === 'AVAILABLE')
@@ -224,8 +226,12 @@ export default function Telemedicine() {
       district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
         ? initialPrefill.district
         : 'Rajshahi',
+      upazila: '',
       farmer: '',
       farm: '',
+      manualBirdType: 'Broiler',
+      manualTotalBirds: '',
+      manualAgeDays: '',
       concern: initialPrefill?.concern || '',
       date: today,
       time: firstOpen?.time || '10:00',
@@ -279,7 +285,60 @@ export default function Telemedicine() {
     [isRegisteredVet, recentBookings, doctorSession]
   )
 
-  const fallbackContext = useMemo(() => buildFlockContextSnapshot(language), [language])
+  const selectedShed = useMemo(
+    () => registeredSheds.find((s) => s.id === selectedShedId) || null,
+    [registeredSheds, selectedShedId]
+  )
+  const linkedShedDiagnoses = useMemo(
+    () => (bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED && selectedShed
+      ? getShedLinkedDiagnoses(selectedShed, allDiagnosisLogs)
+      : []),
+    [bookingMode, selectedShed, allDiagnosisLogs]
+  )
+  const shedMatchedRxIdSet = useMemo(() => {
+    if (!selectedShed) return new Set()
+    return new Set(getShedLinkedPrescriptions(selectedShed, allPrescriptionLogs).map((r) => String(r.id)))
+  }, [selectedShed, allPrescriptionLogs])
+  const sortedPrescriptionsForPicker = useMemo(() => {
+    const list = allPrescriptionLogs.slice(0, 15)
+    if (bookingMode !== BOOKING_TARGET_MODES.REGISTERED_SHED || !selectedShed) return list
+    return [...list].sort((a, b) => {
+      const aMatch = shedMatchedRxIdSet.has(String(a.id)) ? 0 : 1
+      const bMatch = shedMatchedRxIdSet.has(String(b.id)) ? 0 : 1
+      return aMatch - bMatch
+    })
+  }, [allPrescriptionLogs, bookingMode, selectedShed, shedMatchedRxIdSet])
+
+  const currentFlockPayload = useMemo(() => buildBookingFlockPayload({
+    mode: bookingMode,
+    selectedShed,
+    manualInput: {
+      upazila: booking.upazila,
+      farmName: booking.farm,
+      birdType: booking.manualBirdType,
+      totalBirds: booking.manualTotalBirds,
+      ageDays: booking.manualAgeDays,
+    },
+    attachedRxIds: selectedHistoryRxIds,
+    uploadedFiles: uploadedAttachments,
+    allDiagnoses: allDiagnosisLogs,
+    allPrescriptions: allPrescriptionLogs,
+    language,
+  }), [
+    bookingMode,
+    selectedShed,
+    booking.upazila,
+    booking.farm,
+    booking.manualBirdType,
+    booking.manualTotalBirds,
+    booking.manualAgeDays,
+    selectedHistoryRxIds,
+    uploadedAttachments,
+    allDiagnosisLogs,
+    allPrescriptionLogs,
+    language,
+  ])
+
   const medicineCategories = useMemo(() => getMedicineCategories(), [])
   const masterMedicineIndex = useMemo(() => {
     const map = new Map()
@@ -326,9 +385,17 @@ export default function Telemedicine() {
     function syncSlotsOnly() {
       setSlotVersion((v) => v + 1)
     }
+    function syncShedsOnly() {
+      const nextSheds = getSheds()
+      setRegisteredSheds(nextSheds)
+      setSelectedShedId((prev) => (prev && nextSheds.some((s) => s.id === prev) ? prev : (nextSheds[0]?.id || '')))
+    }
     function syncBookings() {
       setRecentBookings(loadConsultationBookings())
+      setAllDiagnosisLogs(getClinicalLogs('diagnosis'))
+      setAllPrescriptionLogs(getClinicalLogs('prescription'))
       setActiveRooms(getActiveRoomCalls())
+      syncShedsOnly()
       syncDoctorsOnly()
     }
     function syncRoomsOnly() {
@@ -376,6 +443,7 @@ export default function Telemedicine() {
     window.addEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncRoomsOnly)
     window.addEventListener(POULTRYMEDIX_DOCTORS_UPDATED_EVENT, syncDoctorsOnly)
     window.addEventListener(POULTRYMEDIX_SLOTS_UPDATED_EVENT, syncSlotsOnly)
+    window.addEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncShedsOnly)
     window.addEventListener('storage', syncBookings)
     window.addEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     return () => {
@@ -385,6 +453,7 @@ export default function Telemedicine() {
       window.removeEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncRoomsOnly)
       window.removeEventListener(POULTRYMEDIX_DOCTORS_UPDATED_EVENT, syncDoctorsOnly)
       window.removeEventListener(POULTRYMEDIX_SLOTS_UPDATED_EVENT, syncSlotsOnly)
+      window.removeEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncShedsOnly)
       window.removeEventListener('storage', syncBookings)
       window.removeEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     }
@@ -411,13 +480,35 @@ export default function Telemedicine() {
       if (cancelled) return
       if (poll.ok && poll.status === 'COMPLETED' && poll.receipt) {
         const roomCode = poll.receipt.roomCode || createCallRoomCode(poll.receipt.trxId)
-        const { shedSummary, aiDiagnosisSummary } = buildFlockContextSnapshot(language)
+        const shedsSnapshot = getSheds()
+        const returnedMode = pending?.bookingMode || (shedsSnapshot.length > 0 ? BOOKING_TARGET_MODES.REGISTERED_SHED : BOOKING_TARGET_MODES.MANUAL_FARM)
+        const returnedShed = shedsSnapshot.find((s) => s.id === pending?.shedId) || shedsSnapshot[0] || null
+        const flockSnap = buildBookingFlockPayload({
+          mode: returnedMode,
+          selectedShed: returnedMode === BOOKING_TARGET_MODES.REGISTERED_SHED ? returnedShed : null,
+          manualInput: pending?.manualInput || {},
+          attachedRxIds: pending?.attachedRxIds || [],
+          uploadedFiles: pending?.uploadedFiles || [],
+          allDiagnoses: getClinicalLogs('diagnosis'),
+          allPrescriptions: getClinicalLogs('prescription'),
+          language,
+        })
         const enriched = {
           ...poll.receipt,
           roomCode,
           roomId: roomCode,
-          shedSummary,
-          aiDiagnosisSummary,
+          bookingMode: flockSnap.bookingMode,
+          shedId: flockSnap.shedId,
+          shedName: flockSnap.shedName,
+          upazila: flockSnap.upazila,
+          birdType: flockSnap.birdType,
+          age: flockSnap.age,
+          flockSize: flockSnap.flockSize,
+          shedSummary: flockSnap.shedSummary,
+          aiDiagnosisSummary: flockSnap.aiDiagnosisSummary,
+          linkedDiagnoses: flockSnap.linkedDiagnoses,
+          attachedPrescriptions: flockSnap.attachedPrescriptions,
+          uploadedAttachments: flockSnap.uploadedAttachments,
         }
         setVerifiedReceipt(enriched)
         savePaymentLog({ ...enriched, status: 'Completed' })
@@ -493,6 +584,96 @@ export default function Telemedicine() {
     }, 80)
   }
 
+  function handleSwitchBookingMode(nextMode) {
+    setBookingMode(nextMode)
+    setSlotError('')
+    setBookingMessage('')
+    if (nextMode === BOOKING_TARGET_MODES.REGISTERED_SHED) {
+      const targetShed = registeredSheds.find((s) => s.id === selectedShedId) || registeredSheds[0] || null
+      if (targetShed) {
+        setSelectedShedId(targetShed.id)
+        setSelectedHistoryRxIds(
+          getShedLinkedPrescriptions(targetShed, allPrescriptionLogs).slice(0, 3).map((r) => r.id)
+        )
+      }
+    } else {
+      setSelectedHistoryRxIds([])
+    }
+  }
+
+  function handleSelectRegisteredShed(nextShedId) {
+    setSelectedShedId(nextShedId)
+    setSlotError('')
+    setBookingMessage('')
+    const targetShed = registeredSheds.find((s) => s.id === nextShedId) || null
+    if (targetShed) {
+      setSelectedHistoryRxIds(
+        getShedLinkedPrescriptions(targetShed, allPrescriptionLogs).slice(0, 3).map((r) => r.id)
+      )
+    } else {
+      setSelectedHistoryRxIds([])
+    }
+  }
+
+  function toggleHistoryRx(rxId) {
+    const key = String(rxId)
+    setSelectedHistoryRxIds((prev) => (
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key].slice(0, 5)
+    ))
+  }
+
+  async function handleHistoryAttachmentUpload(event) {
+    setAttachmentError('')
+    const files = Array.from(event.target.files || [])
+    event.target.value = ''
+    if (!files.length) return
+
+    let currentCount = uploadedAttachments.length
+    const accepted = []
+    for (const file of files) {
+      if (currentCount >= MAX_ATTACHMENT_COUNT) {
+        setAttachmentError(t('bookingAttachmentLimitError', { max: MAX_ATTACHMENT_COUNT }))
+        break
+      }
+      const validation = validateHistoryAttachmentFile(file, language)
+      if (!validation.ok) {
+        setAttachmentError(validation.error)
+        continue
+      }
+      try {
+        const dataUrl = await readAttachmentAsDataUrl(file)
+        accepted.push({
+          id: crypto.randomUUID(),
+          fileName: validation.cleanName,
+          mimeType: validation.mimeType,
+          sizeBytes: validation.sizeBytes,
+          dataUrl,
+        })
+        currentCount += 1
+      } catch {
+        setAttachmentError(t('bookingAttachmentReadError'))
+      }
+    }
+    if (accepted.length > 0) {
+      setUploadedAttachments((prev) => [...prev, ...accepted].slice(0, MAX_ATTACHMENT_COUNT))
+    }
+  }
+
+  function resolveBookingPayloadWithTarget(rawBooking) {
+    const farmOverride = bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED && selectedShed
+      ? sanitizePaymentInput(selectedShed.name, 120)
+      : sanitizePaymentInput(rawBooking.farm, 120) || (
+        sanitizePaymentInput(rawBooking.upazila, 80)
+          ? `${sanitizePaymentInput(rawBooking.upazila, 80)} Farm`
+          : (PAYMENT_MODE === 'sandbox' ? '' : (language === 'bn' ? 'অনিবন্ধিত খামার' : 'Unregistered Farm'))
+      )
+    const prepared = {
+      ...rawBooking,
+      farm: farmOverride,
+    }
+    return resolveBookingWithSandboxDefaults(prepared)
+  }
+
   function loadBookingIntoPrescription(appt, callTypeToStart = '') {
     if (!doctorSession.isAuthenticatedDoctor) return
     const matchedDoc = myDoctorProfile || findDoctorProfile(
@@ -502,15 +683,9 @@ export default function Telemedicine() {
     assertDoctorOwnership(doctorSession, matchedDoc.id)
 
     const parsedShed = parseShedSnapshot(appt.shedSummary)
-    const fallbackSnap = buildFlockContextSnapshot(language)
     const resolvedRoom = appt.roomCode || appt.roomId || createCallRoomCode(appt.trxId || appt.id)
-    const resolvedBirdType = birdTypes.includes(appt.birdType)
-      ? appt.birdType
-      : birdTypes.includes(parsedShed.birdType)
-        ? parsedShed.birdType
-        : birdTypes.includes(fallbackSnap.birdType)
-          ? fallbackSnap.birdType
-          : 'Broiler'
+    const candidateBird = normalizeBirdSpecies(appt.birdType || parsedShed.birdType || 'Broiler')
+    const resolvedBirdType = birdTypes.includes(candidateBird) ? candidateBird : 'Broiler'
 
     setVetRoomCode(resolvedRoom)
     setActiveVetPatient({ ...appt, roomCode: resolvedRoom })
@@ -523,16 +698,17 @@ export default function Telemedicine() {
       bvcRegNo: matchedDoc.regNo,
       clinicDetails: matchedDoc.clinic,
       farmerName: appt.farmerName || '',
-      farmName: appt.farmName || '',
+      farmName: appt.farmName || appt.shedName || '',
       district: appt.district || 'Rajshahi',
+      upazila: appt.upazila || '',
       birdType: resolvedBirdType,
-      age: appt.age || parsedShed.age || fallbackSnap.age || '',
-      flockSize: appt.flockSize || parsedShed.flockSize || fallbackSnap.flockSize || '',
+      age: appt.age || parsedShed.age || '',
+      flockSize: appt.flockSize || parsedShed.flockSize || '',
       averageWeight: appt.averageWeight || '',
       complaints: appt.concern ? [appt.concern] : [],
       historyNotes: appt.historyNotes || appt.concern || '',
       clinicalSigns: appt.clinicalSigns || appt.aiDiagnosisSummary || appt.concern || '',
-      diagnosis: appt.diagnosis || (appt.aiDiagnosisSummary ? appt.aiDiagnosisSummary.replace(/\s*\(\d+%\)$/, '') : ''),
+      diagnosis: appt.diagnosis || '',
     }))
     if (callTypeToStart) {
       markSlotSessionStarted({
@@ -554,10 +730,21 @@ export default function Telemedicine() {
       : `Loaded consultation & auto-filled Dx/Flock info: ${appt.farmerName || 'Farmer'} (${resolvedRoom})`)
   }
 
-  function validateBookingFormReady({ skipConsent = false } = {}) {
+  function validateBookingFormReady({ skipConsent = false, skipManualRequired = false } = {}) {
     if (!skipConsent && !consentAccepted) {
       setSlotError(t('telemedicineConsentRequiredError'))
       return false
+    }
+    if (bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED && !selectedShed) {
+      setSlotError(t('bookingNoRegisteredShedError'))
+      return false
+    }
+    if (!skipManualRequired && PAYMENT_MODE === 'live' && bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM) {
+      const birdCountNum = Number(booking.manualTotalBirds)
+      if (!sanitizePaymentInput(booking.farmer, 120) || !sanitizePaymentInput(booking.concern, 300) || !Number.isFinite(birdCountNum) || birdCountNum <= 0) {
+        setSlotError(t('bookingManualRequiredError'))
+        return false
+      }
     }
     const todayStr = getLocalTodayDateStr()
     if (!booking.date || booking.date < todayStr) {
@@ -577,7 +764,7 @@ export default function Telemedicine() {
   function openCheckoutModal(event) {
     event.preventDefault()
     if (!validateBookingFormReady()) return
-    const resolved = resolveBookingWithSandboxDefaults(booking)
+    const resolved = resolveBookingPayloadWithTarget(booking)
     const cleanFarmer = sanitizePaymentInput(resolved.farmer, 120)
     const cleanFarm = sanitizePaymentInput(resolved.farm, 120)
     const cleanConcern = sanitizePaymentInput(resolved.concern, 300)
@@ -589,11 +776,11 @@ export default function Telemedicine() {
 
   async function handleQuickDevVerifyAndOpen() {
     if (PAYMENT_MODE !== 'sandbox' || devVerifyBusy) return
-    if (!validateBookingFormReady({ skipConsent: true })) return
+    if (!validateBookingFormReady({ skipConsent: true, skipManualRequired: true })) return
     setSlotError('')
     setDevVerifyBusy(true)
     try {
-      const resolved = resolveBookingWithSandboxDefaults(booking)
+      const resolved = resolveBookingPayloadWithTarget(booking)
       const methodMeta = PAYMENT_METHODS.find((m) => m.id === resolved.payment) || PAYMENT_METHODS[0]
       const result = await processConsultationPayment({
         booking: resolved,
@@ -615,8 +802,21 @@ export default function Telemedicine() {
 
   async function handlePaymentVerified(receipt, options = { openReceiptModal: true }) {
     const roomCode = receipt.roomCode || createCallRoomCode(receipt.trxId)
-    const flockSnap = buildFlockContextSnapshot(language)
-    const { shedSummary, aiDiagnosisSummary } = flockSnap
+    const flockSnap = currentFlockPayload
+    const {
+      bookingMode: snapMode,
+      shedId,
+      shedName,
+      upazila,
+      birdType,
+      age,
+      flockSize,
+      shedSummary,
+      aiDiagnosisSummary,
+      linkedDiagnoses,
+      attachedPrescriptions,
+      uploadedAttachments: snapAttachments,
+    } = flockSnap
     const matchedDoc = findDoctorProfile({ id: selectedVet.id, name: receipt.doctorName, regNo: receipt.bvcRegNo }, doctorsList)
     const farmerClientId = getOrCreateFarmerClientId()
 
@@ -643,13 +843,21 @@ export default function Telemedicine() {
       vetDegrees: matchedDoc?.degrees || selectedVet.degrees,
       roomCode,
       roomId: roomCode,
-      birdType: flockSnap.birdType,
-      age: flockSnap.age,
-      flockSize: flockSnap.flockSize,
+      bookingMode: snapMode,
+      shedId,
+      shedName,
+      farmName: shedName || receipt.farmName || flockSnap.farmName,
+      upazila,
+      birdType,
+      age,
+      flockSize,
       historyNotes: receipt.concern,
       clinicalSigns: aiDiagnosisSummary || receipt.concern,
       shedSummary,
       aiDiagnosisSummary,
+      linkedDiagnoses,
+      attachedPrescriptions,
+      uploadedAttachments: snapAttachments,
     }
     setCheckoutOpen(false)
     setVerifiedReceipt(enrichedReceipt)
@@ -671,6 +879,7 @@ export default function Telemedicine() {
         farmerName: enrichedReceipt.farmerName,
         farmName: enrichedReceipt.farmName,
         district: enrichedReceipt.district,
+        upazila,
         bookingDate: enrichedReceipt.bookingDate,
         bookingTime: enrichedReceipt.bookingTime,
         concern: enrichedReceipt.concern,
@@ -691,12 +900,16 @@ export default function Telemedicine() {
         vetDegrees: matchedDoc?.degrees || selectedVet.degrees,
         bvcRegNo: enrichedReceipt.bvcRegNo,
         clinicDetails: enrichedReceipt.clinicDetails,
+        bookingMode: snapMode,
+        shedId,
+        shedName,
         farmerName: enrichedReceipt.farmerName,
         farmName: enrichedReceipt.farmName,
         district: enrichedReceipt.district,
-        birdType: flockSnap.birdType,
-        age: flockSnap.age,
-        flockSize: flockSnap.flockSize,
+        upazila,
+        birdType,
+        age,
+        flockSize,
         bookingDate: enrichedReceipt.bookingDate,
         bookingTime: enrichedReceipt.bookingTime,
         concern: enrichedReceipt.concern,
@@ -704,6 +917,9 @@ export default function Telemedicine() {
         clinicalSigns: aiDiagnosisSummary || enrichedReceipt.concern,
         shedSummary,
         aiDiagnosisSummary,
+        linkedDiagnoses,
+        attachedPrescriptions,
+        uploadedAttachments: snapAttachments,
         amount: enrichedReceipt.amount,
         currency: 'BDT',
         paymentMethod: enrichedReceipt.method,
@@ -725,6 +941,7 @@ export default function Telemedicine() {
         farmerName: enrichedReceipt.farmerName,
         farmName: enrichedReceipt.farmName,
         district: enrichedReceipt.district,
+        upazila,
         concern: enrichedReceipt.concern,
         shedSummary,
         aiDiagnosisSummary,
@@ -743,6 +960,7 @@ export default function Telemedicine() {
         aiDiagnosisSummary,
       })
 
+      setUploadedAttachments([])
       setBookingMessage(language === 'bn'
         ? `${enrichedReceipt.doctorName}-এর সাথে বুকিং ও পেমেন্ট (${enrichedReceipt.trxId}) নিশ্চিত হয়েছে! নির্ধারিত সময়ে (${enrichedReceipt.bookingDate} · ${enrichedReceipt.bookingTime}) চিকিৎসক রুম ${roomCode}-এ কল শুরু করবেন।`
         : `Payment verified (${enrichedReceipt.trxId}) with ${enrichedReceipt.doctorName}. Wait in Room ${roomCode} at your scheduled slot (${enrichedReceipt.bookingDate} · ${enrichedReceipt.bookingTime}); the veterinarian will initiate the call.`)
@@ -912,6 +1130,8 @@ export default function Telemedicine() {
         source: 'vet_issued',
         roomId: activeRoom,
         roomCode: activeRoom,
+        shedId: activeVetPatient?.shedId || '',
+        shedName: activeVetPatient?.shedName || prescription.farmName || '',
         timestamp: nowIso,
         formattedDate: new Date(nowIso).toLocaleString(),
         vetName: prescription.vetName || matchedDoc.name,
@@ -921,6 +1141,7 @@ export default function Telemedicine() {
         farmerName: prescription.farmerName || 'Registered Farmer',
         farmName: prescription.farmName || '',
         district: prescription.district || 'Rajshahi',
+        upazila: prescription.upazila || activeVetPatient?.upazila || '',
         flockType: prescription.flockType || prescription.birdType || 'Broiler',
         age: prescription.age || '',
         flockSize: prescription.flockSize || '',
@@ -1088,6 +1309,96 @@ export default function Telemedicine() {
             </button>
           </div>
 
+          <div className="pmx-target-mode-panel dark:border-gray-700 dark:bg-gray-900">
+            <div className="pmx-target-mode-head">
+              <strong>{t('bookingTargetTitle')}</strong>
+              <small>{t('bookingTargetSubtitle')}</small>
+            </div>
+            <div className="pmx-target-mode-toggle" role="radiogroup" aria-label={t('bookingTargetTitle')}>
+              <button
+                type="button"
+                className={`pmx-mode-choice-btn${bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED ? ' is-active' : ''}`}
+                aria-pressed={bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED}
+                onClick={() => handleSwitchBookingMode(BOOKING_TARGET_MODES.REGISTERED_SHED)}
+              >
+                <strong>{t('bookingModeRegisteredShed')}</strong>
+                <small>{t('bookingModeRegisteredHint')}</small>
+              </button>
+              <button
+                type="button"
+                className={`pmx-mode-choice-btn${bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM ? ' is-active' : ''}`}
+                aria-pressed={bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM}
+                onClick={() => handleSwitchBookingMode(BOOKING_TARGET_MODES.MANUAL_FARM)}
+              >
+                <strong>{t('bookingModeManualFarm')}</strong>
+                <small>{t('bookingModeManualHint')}</small>
+              </button>
+            </div>
+
+            {bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED ? (
+              registeredSheds.length > 0 ? (
+                <div className="pmx-shed-selector-body">
+                  <Field label={t('bookingSelectShedLabel')}>
+                    <select value={selectedShedId} onChange={(event) => handleSelectRegisteredShed(event.target.value)}>
+                      {registeredSheds.map((shed) => (
+                        <option key={shed.id} value={shed.id}>
+                          {shed.name} · {t(`birdTypes.${normalizeBirdSpecies(shed.species)}`, shed.species)} · {toLocaleDigits(shed.birdCount, language)} {t('birdsUnit')} ({language === 'bn' ? `দিন ${toLocaleDigits(shed.currentAgeDays, language)}` : `Day ${shed.currentAgeDays}`})
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  {selectedShed && (
+                    <div className="pmx-shed-autofill-strip">
+                      <div className="pmx-shed-autofill-metrics">
+                        <span><strong>{t('birdType')}:</strong> {t(`birdTypes.${currentFlockPayload.birdType}`, currentFlockPayload.birdType)}</span>
+                        <span><strong>{t('flockSize')}:</strong> {toLocaleDigits(currentFlockPayload.flockSize || '0', language)}</span>
+                        <span><strong>{t('age')}:</strong> {currentFlockPayload.age}</span>
+                      </div>
+                      {linkedShedDiagnoses.length > 0 ? (
+                        <div className="pmx-shed-linked-ai-pill">
+                          <Icon name="spark" size={14} />
+                          <span>
+                            {t('bookingLinkedAiScanSummary', {
+                              disease: linkedShedDiagnoses[0].primaryDisease,
+                              confidence: linkedShedDiagnoses[0].confidencePercent || '',
+                            })}
+                          </span>
+                        </div>
+                      ) : (
+                        <small className="pmx-shed-no-ai-note">{t('bookingNoShedAiScanNote')}</small>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="pmx-empty-shed-callout">
+                  <span>{t('bookingNoShedsFound')}</span>
+                  <button
+                    type="button"
+                    className="pmx-secondary-btn"
+                    style={{ minHeight: '30px', padding: '0 10px', fontSize: '11px' }}
+                    onClick={() => handleSwitchBookingMode(BOOKING_TARGET_MODES.MANUAL_FARM)}
+                  >
+                    {t('bookingSwitchToManualBtn')}
+                  </button>
+                </div>
+              )
+            ) : (
+              <div className="pmx-manual-clinical-banner">
+                <Icon name="stethoscope" size={15} />
+                <span>{t('bookingManualClinicalNote')}</span>
+              </div>
+            )}
+          </div>
+
+          <Field label={bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM ? t('farmerOwnerName') : t('farmerName')}>
+            <input required={PAYMENT_MODE === 'live'} maxLength={120} value={booking.farmer} onChange={(event) => updateBooking('farmer', event.target.value)} placeholder={t('namePlaceholder')} />
+          </Field>
+          {bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM && (
+            <Field label={t('bookingManualFarmOptional')}>
+              <input maxLength={120} value={booking.farm} onChange={(event) => updateBooking('farm', event.target.value)} placeholder={t('farmFlockPlaceholder')} />
+            </Field>
+          )}
           <Field label={t('rxDistrict')}>
             <select value={booking.district} onChange={(event) => updateBooking('district', event.target.value)}>
               {BANGLADESH_DISTRICTS.map((dist) => (
@@ -1095,9 +1406,126 @@ export default function Telemedicine() {
               ))}
             </select>
           </Field>
-          <Field label={t('farmerName')}><input required={PAYMENT_MODE === 'live'} maxLength={120} value={booking.farmer} onChange={(event) => updateBooking('farmer', event.target.value)} placeholder={t('namePlaceholder')} /></Field>
-          <Field label={t('farmName')}><input required={PAYMENT_MODE === 'live'} maxLength={120} value={booking.farm} onChange={(event) => updateBooking('farm', event.target.value)} placeholder={t('farmFlockPlaceholder')} /></Field>
-          <Field label={t('mainConcern')}><input required={PAYMENT_MODE === 'live'} maxLength={300} value={booking.concern} onChange={(event) => updateBooking('concern', event.target.value)} placeholder={t('concernPlaceholder')} /></Field>
+          <Field label={t('bookingUpazilaLabel')}>
+            <input maxLength={80} value={booking.upazila} onChange={(event) => updateBooking('upazila', event.target.value)} placeholder={t('bookingUpazilaPlaceholder')} />
+          </Field>
+
+          {bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM && (
+            <>
+              <Field label={t('birdType')}>
+                <select value={booking.manualBirdType} onChange={(event) => updateBooking('manualBirdType', event.target.value)}>
+                  {MANUAL_BIRD_TYPES.map((species) => (
+                    <option key={species} value={species}>{t(`birdTypes.${species}`, species)}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label={t('bookingTotalBirdsLabel')}>
+                <input
+                  type="number"
+                  min="1"
+                  max="1000000"
+                  required={PAYMENT_MODE === 'live'}
+                  value={booking.manualTotalBirds}
+                  onChange={(event) => updateBooking('manualTotalBirds', event.target.value)}
+                  placeholder="1000"
+                />
+              </Field>
+              <Field label={t('bookingBirdAgeDaysLabel')}>
+                <input
+                  type="number"
+                  min="0"
+                  max="2000"
+                  value={booking.manualAgeDays}
+                  onChange={(event) => updateBooking('manualAgeDays', event.target.value)}
+                  placeholder="21"
+                />
+              </Field>
+            </>
+          )}
+
+          <Field label={t('mainConcern')} className="pmx-booking-concern-field">
+            <input required={PAYMENT_MODE === 'live'} maxLength={300} value={booking.concern} onChange={(event) => updateBooking('concern', event.target.value)} placeholder={t('concernPlaceholder')} />
+          </Field>
+
+          <div className="pmx-history-attach-panel dark:border-gray-700 dark:bg-gray-900">
+            <div className="pmx-history-attach-head">
+              <strong>{t('bookingAttachHistoryTitle')}</strong>
+              <small>{t('bookingAttachHistorySubtitle')}</small>
+            </div>
+
+            {sortedPrescriptionsForPicker.length > 0 && (
+              <div className="pmx-history-rx-picker">
+                <span className="pmx-history-sublabel">{t('bookingPastRxPickerLabel')}</span>
+                <div className="pmx-history-rx-list">
+                  {sortedPrescriptionsForPicker.map((rx) => {
+                    const rxId = String(rx.id)
+                    const checked = selectedHistoryRxIds.includes(rxId)
+                    const isShedMatch = bookingMode === BOOKING_TARGET_MODES.REGISTERED_SHED && shedMatchedRxIdSet.has(rxId)
+                    return (
+                      <label key={rxId} className={`pmx-history-rx-option${checked ? ' is-checked' : ''}`}>
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleHistoryRx(rxId)}
+                        />
+                        <div className="pmx-history-rx-copy">
+                          <strong>
+                            {rx.diagnosis || t('clinicalHistoryDiagnosis')}
+                            {isShedMatch && <span className="pmx-shed-match-tag">{t('bookingMatchesShedTag')}</span>}
+                          </strong>
+                          <small>
+                            {[rx.formattedDate || (rx.timestamp ? rx.timestamp.slice(0, 10) : ''), rx.vetName, rx.flockType].filter(Boolean).join(' · ')}
+                          </small>
+                        </div>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="pmx-external-upload-zone">
+              <div className="pmx-external-upload-row">
+                <div>
+                  <span className="pmx-history-sublabel">{t('bookingExternalUploadLabel')}</span>
+                  <small className="pmx-upload-hint">{t('bookingExternalUploadHint')}</small>
+                </div>
+                <label className="pmx-upload-file-trigger">
+                  <Icon name="upload" size={14} />
+                  <span>{t('bookingUploadBtn')}</span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"
+                    multiple
+                    onChange={handleHistoryAttachmentUpload}
+                  />
+                </label>
+              </div>
+              {attachmentError && (
+                <div className="pmx-checkout-error" role="alert" style={{ marginTop: '6px' }}>
+                  <Icon name="alert" size={14} />
+                  <span>{attachmentError}</span>
+                </div>
+              )}
+              {uploadedAttachments.length > 0 && (
+                <ul className="pmx-uploaded-chips">
+                  {uploadedAttachments.map((file) => (
+                    <li key={file.id} className="pmx-uploaded-chip">
+                      <span>{file.fileName} ({formatBytesReadable(file.sizeBytes)})</span>
+                      <button
+                        type="button"
+                        aria-label={t('removeFile', { name: file.fileName })}
+                        onClick={() => setUploadedAttachments((prev) => prev.filter((item) => item.id !== file.id))}
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
           <Field label={t('preferredDate')}><input required type="date" min={getLocalTodayDateStr()} value={booking.date} onChange={(event) => updateBooking('date', event.target.value)} /></Field>
           <Field label={t('preferredTime')}><input required type="time" value={booking.time} onChange={(event) => updateBooking('time', event.target.value)} /></Field>
           <fieldset className="telemedicine-payment-options dark:border-gray-700 dark:text-gray-100">
@@ -1238,14 +1666,23 @@ export default function Telemedicine() {
             bookingContext={{
               trxId: activePaidBooking?.trxId || 'PMX-TRX-DEV',
               roomCode: activeRoomCode,
+              bookingMode: activePaidBooking?.bookingMode || currentFlockPayload.bookingMode,
+              shedName: activePaidBooking?.shedName || currentFlockPayload.shedName,
               farmerName: activePaidBooking?.farmerName || sanitizePaymentInput(booking.farmer, 120) || 'Registered Farmer',
-              farmName: activePaidBooking?.farmName || sanitizePaymentInput(booking.farm, 120),
+              farmName: activePaidBooking?.farmName || currentFlockPayload.farmName,
               district: t(`districts.${activePaidBooking?.district || booking.district}`, activePaidBooking?.district || booking.district),
+              upazila: activePaidBooking?.upazila ?? currentFlockPayload.upazila,
+              birdType: activePaidBooking?.birdType || currentFlockPayload.birdType,
+              flockSize: activePaidBooking?.flockSize || currentFlockPayload.flockSize,
+              age: activePaidBooking?.age || currentFlockPayload.age,
               bookingDate: activePaidBooking?.bookingDate || booking.date,
               bookingTime: activePaidBooking?.bookingTime || booking.time,
               concern: activePaidBooking?.concern || sanitizePaymentInput(booking.concern, 300),
-              shedSummary: activePaidBooking?.shedSummary || fallbackContext.shedSummary,
-              aiDiagnosisSummary: activePaidBooking?.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary,
+              shedSummary: activePaidBooking?.shedSummary ?? currentFlockPayload.shedSummary,
+              aiDiagnosisSummary: activePaidBooking?.aiDiagnosisSummary ?? currentFlockPayload.aiDiagnosisSummary,
+              linkedDiagnoses: activePaidBooking?.linkedDiagnoses ?? currentFlockPayload.linkedDiagnoses,
+              attachedPrescriptions: activePaidBooking?.attachedPrescriptions ?? currentFlockPayload.attachedPrescriptions,
+              uploadedAttachments: activePaidBooking?.uploadedAttachments ?? currentFlockPayload.uploadedAttachments,
               amount: CONSULTATION_FEE_BDT,
               paymentMethodLabel: activePaidBooking?.paymentMethodLabel || booking.payment,
             }}
@@ -1275,14 +1712,19 @@ export default function Telemedicine() {
                     </div>
                     <p className="mt-1.5 text-gray-600 dark:text-gray-300">
                       <strong>{item.farmerName || t('farmer')}</strong>
-                      {item.farmName ? ` · ${item.farmName}` : ''} ({t(`districts.${item.district || 'Rajshahi'}`, item.district || 'Rajshahi')}) — {item.concern}
+                      {item.farmName ? ` · ${item.farmName}` : ''} ({[item.upazila, t(`districts.${item.district || 'Rajshahi'}`, item.district || 'Rajshahi')].filter(Boolean).join(', ')}) — {item.concern}
                     </p>
                     <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {item.bookingMode && (
+                          <span className={`pmx-booking-mode-pill ${item.bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM ? 'is-manual' : 'is-shed'}`}>
+                            {item.bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM ? t('bookingModeManualShort') : t('bookingModeShedShort')}
+                          </span>
+                        )}
                         {item.roomCode && <span className="pmx-room-code-pill">{item.roomCode}</span>}
                         {item.flockSize && (
                           <small className="text-gray-500 dark:text-gray-400">
-                            {item.birdType || 'Broiler'} · {item.flockSize}
+                            {t(`birdTypes.${normalizeBirdSpecies(item.birdType || 'Broiler')}`, item.birdType || 'Broiler')} · {item.flockSize}{item.age ? ` · ${item.age}` : ''}
                           </small>
                         )}
                       </div>
@@ -1354,8 +1796,10 @@ export default function Telemedicine() {
           <div className="grid gap-3 sm:grid-cols-2 mb-4">
             {myPersonalBookings.slice(0, 8).map((appt) => {
               const roomBadge = appt.roomCode || appt.roomId || createCallRoomCode(appt.trxId || appt.id)
-              const shedLabel = appt.shedSummary || fallbackContext.shedSummary || t('callFlockSnapshotEmpty')
-              const aiLabel = appt.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary || t('queueNoAiScanYet')
+              const shedLabel = appt.shedSummary || [appt.birdType, appt.flockSize ? `${appt.flockSize}` : '', appt.age].filter(Boolean).join(' · ') || t('callFlockSnapshotEmpty')
+              const aiLabel = appt.aiDiagnosisSummary || t('queueNoAiScanYet')
+              const isManualAppt = appt.bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM
+              const attachedCount = (Array.isArray(appt.attachedPrescriptions) ? appt.attachedPrescriptions.length : 0) + (Array.isArray(appt.uploadedAttachments) ? appt.uploadedAttachments.length : 0)
               const slotEval = evaluateConsultationScheduleWindow(appt.bookingDate, appt.bookingTime, clockMs)
               const qRoomState = activeRooms[roomBadge]
               const isCompleted = qRoomState?.status === 'COMPLETED'
@@ -1364,11 +1808,16 @@ export default function Telemedicine() {
                   <div>
                     <div className="pmx-queue-card-top">
                       <strong>{appt.farmerName || t('farmer')}</strong>
-                      <span className="pmx-room-code-pill">{roomBadge}</span>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span className={`pmx-booking-mode-pill ${isManualAppt ? 'is-manual' : 'is-shed'}`}>
+                          {isManualAppt ? t('bookingModeManualShort') : t('bookingModeShedShort')}
+                        </span>
+                        <span className="pmx-room-code-pill">{roomBadge}</span>
+                      </div>
                     </div>
                     <div className="pmx-booking-header-row pmx-queue-doc-row">
                       <span className="pmx-booking-doc-name">
-                        {t(`districts.${appt.district || 'Rajshahi'}`, appt.district || 'Rajshahi')}
+                        {[appt.upazila, t(`districts.${appt.district || 'Rajshahi'}`, appt.district || 'Rajshahi')].filter(Boolean).join(', ')}
                         {appt.farmName ? ` · ${appt.farmName}` : ''}
                       </span>
                       <span className="pmx-booking-slot-pill">
@@ -1388,7 +1837,14 @@ export default function Telemedicine() {
                     </div>
                     <p className="pmx-queue-shed"><strong>{t('shedLabelShort')}:</strong> {shedLabel}</p>
                     <p className="pmx-queue-symptom"><strong>{t('symptomsShort')}:</strong> {appt.concern || t('historyNoDetails')}</p>
-                    <div className="pmx-queue-ai-chip">{t('aiDiagnosisBadgeLabel')}: {aiLabel}</div>
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <div className="pmx-queue-ai-chip">{t('aiDiagnosisBadgeLabel')}: {aiLabel}</div>
+                      {attachedCount > 0 && (
+                        <span className="pmx-queue-attach-chip">
+                          + {toLocaleDigits(attachedCount, language)} {t('queueAttachedFilesBadge')}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="pmx-queue-card-actions">
                     <button
@@ -1464,16 +1920,28 @@ export default function Telemedicine() {
                 regNo: prescription.bvcRegNo || prescription.registrationNumber || myDoctorProfile.regNo,
                 clinic: prescription.clinicDetails || myDoctorProfile.clinic,
               }}
-              bookingContext={{
-                trxId: activeVetPatient?.trxId || myPersonalBookings[0]?.trxId || 'VET-DIRECT',
-                roomCode: vetRoomCode || activeVetPatient?.roomCode || myPersonalBookings[0]?.roomCode || 'PMX-ROOM-LIVE',
-                farmerName: prescription.farmerName || activeVetPatient?.farmerName || myPersonalBookings[0]?.farmerName || t('farmer'),
-                farmName: prescription.farmName || activeVetPatient?.farmName || myPersonalBookings[0]?.farmName || '',
-                district: t(`districts.${prescription.district || 'Rajshahi'}`, prescription.district || 'Rajshahi'),
-                concern: prescription.historyNotes || prescription.diagnosis || activeVetPatient?.concern || myPersonalBookings[0]?.concern || 'Clinical Telemedicine Consultation',
-                shedSummary: activeVetPatient?.shedSummary || myPersonalBookings[0]?.shedSummary || fallbackContext.shedSummary,
-                aiDiagnosisSummary: activeVetPatient?.aiDiagnosisSummary || myPersonalBookings[0]?.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary,
-              }}
+              bookingContext={(() => {
+                const targetAppt = activeVetPatient || myPersonalBookings[0] || {}
+                return {
+                  trxId: targetAppt.trxId || 'VET-DIRECT',
+                  roomCode: vetRoomCode || targetAppt.roomCode || 'PMX-ROOM-LIVE',
+                  bookingMode: targetAppt.bookingMode || BOOKING_TARGET_MODES.REGISTERED_SHED,
+                  shedName: targetAppt.shedName || '',
+                  farmerName: prescription.farmerName || targetAppt.farmerName || t('farmer'),
+                  farmName: prescription.farmName || targetAppt.farmName || '',
+                  district: t(`districts.${prescription.district || targetAppt.district || 'Rajshahi'}`, prescription.district || targetAppt.district || 'Rajshahi'),
+                  upazila: prescription.upazila || targetAppt.upazila || '',
+                  birdType: prescription.birdType || targetAppt.birdType || '',
+                  flockSize: prescription.flockSize || targetAppt.flockSize || '',
+                  age: prescription.age || targetAppt.age || '',
+                  concern: prescription.historyNotes || prescription.diagnosis || targetAppt.concern || 'Clinical Telemedicine Consultation',
+                  shedSummary: targetAppt.shedSummary || '',
+                  aiDiagnosisSummary: targetAppt.aiDiagnosisSummary || '',
+                  linkedDiagnoses: targetAppt.linkedDiagnoses || [],
+                  attachedPrescriptions: targetAppt.attachedPrescriptions || [],
+                  uploadedAttachments: targetAppt.uploadedAttachments || [],
+                }
+              })()}
               onEndCall={handleEndCall}
             />
             <div className="pmx-unified-connection-banner">
@@ -1604,7 +2072,7 @@ export default function Telemedicine() {
               <div className="prescription-preview-title"><span>{t('rxTitleUpper')}</span><time>{new Date().toLocaleDateString(language === 'bn' ? 'bn-BD' : undefined)}</time></div>
               <div className="prescription-info-grid">
                 <div><span>{t('rxFarmerUpper')}</span><strong>{prescription.farmerName || '—'}</strong></div>
-                <div><span>{t('rxFarmDistrictUpper')}</span><strong>{[prescription.farmName, prescription.district ? t(`districts.${prescription.district}`, prescription.district) : ''].filter(Boolean).join(' · ') || '—'}</strong></div>
+                <div><span>{t('rxFarmDistrictUpper')}</span><strong>{[prescription.farmName, prescription.upazila, prescription.district ? t(`districts.${prescription.district}`, prescription.district) : ''].filter(Boolean).join(' · ') || '—'}</strong></div>
                 <div><span>{t('rxBirdTypeUpper')}</span><strong>{t(`birdTypes.${prescription.birdType}`, prescription.birdType)}</strong></div>
                 <div><span>{t('rxAgeUpper')}</span><strong>{prescription.age || '—'}</strong></div>
                 <div><span>{t('rxFlockSizeUpper')}</span><strong>{prescription.flockSize || '—'}</strong></div>
@@ -1664,7 +2132,7 @@ export default function Telemedicine() {
 
       {checkoutOpen && (
         <PaymentCheckoutModal
-          booking={checkoutBooking || resolveBookingWithSandboxDefaults(booking)}
+          booking={checkoutBooking || resolveBookingPayloadWithTarget(booking)}
           doctor={selectedVet}
           districtLabel={t(`districts.${booking.district}`, booking.district)}
           onClose={() => setCheckoutOpen(false)}

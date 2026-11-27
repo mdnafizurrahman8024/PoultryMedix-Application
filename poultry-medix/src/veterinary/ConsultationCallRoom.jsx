@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bird,
+  Download,
+  ExternalLink,
   FileCheck2,
+  FileText,
   Hourglass,
+  Image as ImageIcon,
   Phone,
   PhoneOff,
   ShieldCheck,
   Stethoscope,
   Video,
+  X,
 } from 'lucide-react'
 import LiveMediaStage from './LiveMediaStage.jsx'
 import LiveQaHandRaisePanel from './LiveQaHandRaisePanel.jsx'
@@ -15,7 +20,7 @@ import { TELEHEALTH_SIGNAL_CHANNEL } from '../lib/telehealthNotifier.js'
 import { CLINICAL_LOGS_UPDATED_EVENT, getClinicalLogs } from '../lib/clinicalLogsStore.js'
 import { formatVetHeaderDisplay } from '../lib/doctorsStore.js'
 import { getRoomRoleGrouping } from '../lib/liveRoomInteractionStore.js'
-import { getSheds } from '../lib/shedManager.js'
+import { BOOKING_TARGET_MODES, formatBytesReadable } from '../lib/bookingContextHelper.js'
 import { useLanguage } from '../context/useLanguage.js'
 
 function formatDurationMMSS(totalSeconds) {
@@ -46,6 +51,7 @@ export default function ConsultationCallRoom({
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [callStartedAt] = useState(() => Date.now())
   const [liveRxAlert, setLiveRxAlert] = useState(null)
+  const [previewAttachment, setPreviewAttachment] = useState(null)
 
   const endedRef = useRef(false)
   const roomCode = bookingContext?.roomCode || bookingContext?.roomId || bookingContext?.trxId || 'PMX-ROOM-LIVE'
@@ -54,21 +60,60 @@ export default function ConsultationCallRoom({
     ? `${doctor.name} (${doctor.regNo})`
     : bookingContext?.farmerName || t(roleGroup.roleLabelKey)
 
-  const sheds = useMemo(() => getSheds(), [])
-  const presetShedSummary = bookingContext?.shedSummary || ''
+  const bookingMode = bookingContext?.bookingMode || BOOKING_TARGET_MODES.REGISTERED_SHED
+  const isManualBooking = bookingMode === BOOKING_TARGET_MODES.MANUAL_FARM
   const flockSummaryText = useMemo(() => {
-    if (presetShedSummary) return presetShedSummary
-    if (!sheds.length) {
-      return isBn
-        ? 'সক্রিয় শেড নিবন্ধিত নেই (সাধারণ পরামর্শ)'
-        : 'No saved sheds (general consultation)'
-    }
-    const totalBirds = sheds.reduce((sum, s) => sum + (Number(s.birdCount) || 0), 0)
-    const primary = sheds[0]
+    if (bookingContext?.shedSummary) return bookingContext.shedSummary
+    const parts = [
+      bookingContext?.farmName || bookingContext?.shedName || '',
+      bookingContext?.flockSize ? `${bookingContext.flockSize}` : '',
+      bookingContext?.birdType || '',
+      bookingContext?.age || '',
+    ].filter(Boolean)
+    if (parts.length > 0) return parts.join(' · ')
     return isBn
-      ? `${sheds.length}টি শেড · ${totalBirds.toLocaleString('bn-BD')} পাখি (${primary.species}, দিন ${primary.currentAgeDays})`
-      : `${sheds.length} Shed${sheds.length > 1 ? 's' : ''} · ${totalBirds.toLocaleString('en-US')} birds (${primary.species}, Day ${primary.currentAgeDays})`
-  }, [presetShedSummary, sheds, isBn])
+      ? 'সাধারণ পোল্ট্রি পরামর্শ'
+      : 'General poultry consultation'
+  }, [bookingContext, isBn])
+
+  const genuineDiagnoses = useMemo(() => {
+    if (Array.isArray(bookingContext?.linkedDiagnoses) && bookingContext.linkedDiagnoses.length > 0) {
+      return bookingContext.linkedDiagnoses
+    }
+    if (bookingContext?.aiDiagnosisSummary) {
+      return [{ id: 'summary', primaryDisease: bookingContext.aiDiagnosisSummary, confidencePercent: '' }]
+    }
+    return []
+  }, [bookingContext])
+
+  const attachedPrescriptions = useMemo(
+    () => (Array.isArray(bookingContext?.attachedPrescriptions) ? bookingContext.attachedPrescriptions : []),
+    [bookingContext]
+  )
+
+  const uploadedAttachments = useMemo(
+    () => (Array.isArray(bookingContext?.uploadedAttachments) ? bookingContext.uploadedAttachments : []),
+    [bookingContext]
+  )
+
+  function handleOpenUploadedFile(att) {
+    if (!att?.dataUrl) return
+    if (att.mimeType === 'application/pdf') {
+      try {
+        const [, b64] = att.dataUrl.split(',')
+        const binary = window.atob(b64)
+        const bytes = new Uint8Array(binary.length)
+        for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+        const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }))
+        window.open(blobUrl, '_blank', 'noopener,noreferrer')
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60000)
+      } catch {
+        setPreviewAttachment(att)
+      }
+      return
+    }
+    setPreviewAttachment(att)
+  }
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -224,10 +269,23 @@ export default function ConsultationCallRoom({
               <dd>{roomCode}</dd>
             </div>
             <div>
+              <dt>{t('bookingTargetLabel')}</dt>
+              <dd>
+                <span className={`pmx-booking-mode-pill ${isManualBooking ? 'is-manual' : 'is-shed'}`}>
+                  {isManualBooking ? t('bookingModeManualShort') : t('bookingModeShedShort')}
+                </span>
+              </dd>
+            </div>
+            <div>
               <dt>{t('checkoutFarmerLabel')}</dt>
               <dd>
                 {bookingContext?.farmerName || t('farmer')}
                 {bookingContext?.farmName ? ` · ${bookingContext.farmName}` : ''}
+                {(bookingContext?.upazila || bookingContext?.district) && (
+                  <small className="pmx-call-subline">
+                    {[bookingContext?.upazila, bookingContext?.district].filter(Boolean).join(', ')}
+                  </small>
+                )}
               </dd>
             </div>
             <div>
@@ -238,10 +296,88 @@ export default function ConsultationCallRoom({
               <dt>{t('callFlockSnapshot')}</dt>
               <dd>{flockSummaryText}</dd>
             </div>
-            {bookingContext?.aiDiagnosisSummary && (
+            <div>
+              <dt>{t('aiDiagnosisBadgeLabel')}</dt>
+              <dd>
+                {genuineDiagnoses.length > 0 ? (
+                  <ul className="pmx-call-linked-list">
+                    {genuineDiagnoses.map((diag, idx) => (
+                      <li key={diag.id || idx}>
+                        <strong>{diag.primaryDisease}</strong>
+                        {diag.confidencePercent ? ` (${diag.confidencePercent})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className="pmx-call-muted-note">{t('callNoAiScanNote')}</span>
+                )}
+              </dd>
+            </div>
+            {(attachedPrescriptions.length > 0 || uploadedAttachments.length > 0) && (
               <div>
-                <dt>{t('aiDiagnosisBadgeLabel')}</dt>
-                <dd>{bookingContext.aiDiagnosisSummary}</dd>
+                <dt>{t('callAttachedHistoryLabel')}</dt>
+                <dd>
+                  {attachedPrescriptions.length > 0 && (
+                    <ul className="pmx-call-history-rx-list">
+                      {attachedPrescriptions.map((rx, idx) => (
+                        <li key={rx.id || idx}>
+                          <strong>{rx.diagnosis || t('clinicalHistoryDiagnosis')}</strong>
+                          <small>
+                            {[rx.dateLabel, rx.vetName, rx.medicationSummary].filter(Boolean).join(' · ')}
+                          </small>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {uploadedAttachments.length > 0 && (
+                    <div className="pmx-call-uploaded-grid">
+                      {uploadedAttachments.map((att) => {
+                        const isPdf = att.mimeType === 'application/pdf'
+                        return (
+                          <div key={att.id || att.fileName} className="pmx-call-uploaded-item">
+                            {isPdf || !att.dataUrl ? (
+                              <span className="pmx-call-file-icon">
+                                <FileText size={16} aria-hidden="true" />
+                              </span>
+                            ) : (
+                              <img
+                                src={att.dataUrl}
+                                alt={att.fileName}
+                                className="pmx-call-upload-thumb"
+                              />
+                            )}
+                            <div className="pmx-call-upload-meta">
+                              <strong>{att.fileName}</strong>
+                              <small>{formatBytesReadable(att.sizeBytes)}</small>
+                            </div>
+                            {att.dataUrl && (
+                              <div className="pmx-call-upload-actions">
+                                <button
+                                  type="button"
+                                  className="pmx-call-file-btn"
+                                  onClick={() => handleOpenUploadedFile(att)}
+                                  aria-label={t('callPreviewFileBtn')}
+                                  title={t('callPreviewFileBtn')}
+                                >
+                                  {isPdf ? <ExternalLink size={13} /> : <ImageIcon size={13} />}
+                                </button>
+                                <a
+                                  href={att.dataUrl}
+                                  download={att.fileName}
+                                  className="pmx-call-file-btn"
+                                  aria-label={t('receiptDownloadBtn')}
+                                  title={t('receiptDownloadBtn')}
+                                >
+                                  <Download size={13} />
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </dd>
               </div>
             )}
           </dl>
@@ -309,6 +445,53 @@ export default function ConsultationCallRoom({
           <span>{t('callEndAndLog')}</span>
         </button>
       </footer>
+
+      {previewAttachment && (
+        <div
+          className="pmx-modal-backdrop"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setPreviewAttachment(null)
+          }}
+        >
+          <section className="pmx-modal-card dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700" role="dialog" aria-modal="true">
+            <header className="pmx-modal-header dark:bg-gray-950 dark:border-gray-800">
+              <div>
+                <strong>{previewAttachment.fileName}</strong>
+                <small style={{ display: 'block', color: '#64748b' }}>{formatBytesReadable(previewAttachment.sizeBytes)}</small>
+              </div>
+              <button
+                type="button"
+                className="pmx-modal-close dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+                onClick={() => setPreviewAttachment(null)}
+                aria-label={t('close')}
+              >
+                <X size={18} />
+              </button>
+            </header>
+            <div className="pmx-modal-body" style={{ textAlign: 'center' }}>
+              {previewAttachment.mimeType === 'application/pdf' ? (
+                <p style={{ margin: '12px 0' }}>{t('callPdfDownloadFallback')}</p>
+              ) : (
+                <img
+                  src={previewAttachment.dataUrl}
+                  alt={previewAttachment.fileName}
+                  style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '10px', margin: '0 auto' }}
+                />
+              )}
+              <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+                <a href={previewAttachment.dataUrl} download={previewAttachment.fileName} className="pmx-primary-submit-btn">
+                  <Download size={15} />
+                  {t('receiptDownloadBtn')}
+                </a>
+                <button type="button" className="pmx-secondary-btn" onClick={() => setPreviewAttachment(null)}>
+                  {t('close')}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
     </section>
   )
 }

@@ -321,7 +321,24 @@ export function saveClinicalLog(entry) {
     // Avoid exact duplicate IDs
     const filtered = existing.filter((item) => String(item.id) !== String(id))
     const updated = [fullRecord, ...filtered].slice(0, 300)
-    localStorage.setItem(CLINICAL_LOGS_STORAGE_KEY, JSON.stringify(updated))
+    try {
+      localStorage.setItem(CLINICAL_LOGS_STORAGE_KEY, JSON.stringify(updated))
+    } catch {
+      // Fallback: omit heavy inline attachment dataUrls if storage quota is tight
+      const compactRecord = Array.isArray(fullRecord.uploadedAttachments)
+        ? {
+            ...fullRecord,
+            uploadedAttachments: fullRecord.uploadedAttachments.map((att) => ({
+              ...att,
+              dataUrl: '',
+            })),
+          }
+        : fullRecord
+      localStorage.setItem(
+        CLINICAL_LOGS_STORAGE_KEY,
+        JSON.stringify([compactRecord, ...filtered].slice(0, 200))
+      )
+    }
 
     // Broadcast update event so open tabs/components re-render instantly
     if (typeof window !== 'undefined') {
@@ -340,6 +357,8 @@ export function saveClinicalLog(entry) {
  */
 export function saveDiagnosisLog({
   id,
+  shedId = '',
+  shedName = '',
   primaryDisease = 'Undetermined',
   confidencePercent = '0%',
   inputModalities = ['text'],
@@ -352,6 +371,8 @@ export function saveDiagnosisLog({
   return saveClinicalLog({
     id: id || crypto.randomUUID(),
     type: 'diagnosis',
+    shedId: String(shedId || ''),
+    shedName: String(shedName || ''),
     source: normalizeReporterSource(source),
     reporterRole: normalizeReporterSource(source),
     district: district || 'Rajshahi',
@@ -419,6 +440,8 @@ export function savePrescriptionLog({
   source = 'image_scan',
   roomId = '',
   roomCode = '',
+  shedId = '',
+  shedName = '',
   vetName = '',
   vetDegrees = '',
   bvcRegNo = '',
@@ -426,6 +449,7 @@ export function savePrescriptionLog({
   farmerName = '',
   farmName = '',
   district = 'Rajshahi',
+  upazila = '',
   flockType = 'Broiler',
   age = '',
   flockSize = '',
@@ -447,6 +471,8 @@ export function savePrescriptionLog({
     source,
     roomId: roomId || roomCode || '',
     roomCode: roomCode || roomId || '',
+    shedId: String(shedId || ''),
+    shedName: String(shedName || ''),
     vetName: vetName || (source === 'vet_issued' ? 'Dr. Md Nafizur Rahman' : 'Veterinary Prescription'),
     vetDegrees,
     bvcRegNo: bvcRegNo || (source === 'vet_issued' ? 'BVC-REG-11842' : ''),
@@ -454,6 +480,7 @@ export function savePrescriptionLog({
     farmerName: farmerName || 'Flock Owner',
     farmName,
     district: district || 'Rajshahi',
+    upazila: String(upazila || ''),
     flockType: flockType || 'Broiler',
     age,
     flockSize,
@@ -487,9 +514,13 @@ export function saveConsultationLog({
   doctorName = '',
   bvcRegNo = 'BVC-REG-11842',
   clinicDetails = 'PoultryMedix National Avian Telehealth Hub',
+  bookingMode = 'registered_shed',
+  shedId = '',
+  shedName = '',
   farmerName = 'Registered Farmer',
   farmName = '',
   district = 'Rajshahi',
+  upazila = '',
   birdType = 'Broiler',
   age = '',
   flockSize = '',
@@ -501,6 +532,9 @@ export function saveConsultationLog({
   clinicalSigns = '',
   shedSummary = '',
   aiDiagnosisSummary = '',
+  linkedDiagnoses = [],
+  attachedPrescriptions = [],
+  uploadedAttachments = [],
   paymentMethod = 'bkash',
   paymentMethodLabel = 'bKash',
   amount = 500,
@@ -522,9 +556,13 @@ export function saveConsultationLog({
     vetDegrees,
     bvcRegNo,
     clinicDetails,
+    bookingMode: bookingMode === 'manual_farm' ? 'manual_farm' : 'registered_shed',
+    shedId: String(shedId || ''),
+    shedName: String(shedName || ''),
     farmerName: farmerName || 'Registered Farmer',
     farmName,
     district: district || 'Rajshahi',
+    upazila: String(upazila || ''),
     birdType,
     age,
     flockSize,
@@ -538,6 +576,9 @@ export function saveConsultationLog({
     clinicalSigns,
     shedSummary,
     aiDiagnosisSummary,
+    linkedDiagnoses: Array.isArray(linkedDiagnoses) ? linkedDiagnoses : [],
+    attachedPrescriptions: Array.isArray(attachedPrescriptions) ? attachedPrescriptions : [],
+    uploadedAttachments: Array.isArray(uploadedAttachments) ? uploadedAttachments : [],
     paymentMethod,
     paymentMethodLabel,
     amount: Number(amount) || 500,

@@ -4,6 +4,7 @@ import { supabase } from './lib/supabase.js'
 import { classifyPoultryImage, findLocalClinicalMatches, scanPrescription, canonicalDiseaseName } from './lib/ai.js'
 import { BANGLADESH_POULTRY_DRUG_DATABASE } from './lib/prescriptionRAG.js'
 import { saveDiagnosisLog, savePrescriptionLog } from './lib/clinicalLogsStore.js'
+import { getSheds, POULTRYMEDIX_SHEDS_UPDATED_EVENT } from './lib/shedManager.js'
 import { generateDiagnosticExplanation, getReportAiFallbackNote } from './lib/aiServiceAdapter.js'
 import { getVerifiedVeterinarySources } from './lib/veterinarySources.js'
 import { useLanguage } from './context/useLanguage.js'
@@ -112,13 +113,30 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
   const [prescriptionPreview, setPrescriptionPreview] = useState(null)
   const [showDrugFormulary, setShowDrugFormulary] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
+  const [shedsList, setShedsList] = useState(() => getSheds())
+  const [selectedShedId, setSelectedShedId] = useState(() => getSheds()[0]?.id || '')
   const speech = useSpeechToText({ language, value: symptoms, onChange: setSymptoms, onError: (key) => setError(t(key)) })
+
+  useEffect(() => {
+    function syncSheds() {
+      const next = getSheds()
+      setShedsList(next)
+      setSelectedShedId((prev) => (prev && next.some((s) => s.id === prev) ? prev : ''))
+    }
+    window.addEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncSheds)
+    window.addEventListener('storage', syncSheds)
+    return () => {
+      window.removeEventListener(POULTRYMEDIX_SHEDS_UPDATED_EVENT, syncSheds)
+      window.removeEventListener('storage', syncSheds)
+    }
+  }, [])
 
   async function savePrescriptionAnalysis(file, result) {
     const recordId = crypto.randomUUID()
     const medicines = Array.isArray(result.medicines) ? result.medicines : []
     const summary = medicines.map((medicine) => medicine.tradeName || medicine.genericNames?.join(', ')).filter(Boolean).join(', ') || 'Prescription scan: no medicine identified'
     let imageUrl = ''
+
     try {
       imageUrl = await saveLocalPrescriptionAttachment(file, recordId)
     } catch (attachmentError) {
@@ -126,6 +144,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
     }
 
     let databaseSaved = false
+
     try {
       const { data, error: sessionError } = await supabase.auth.getSession()
       if (sessionError) throw sessionError
@@ -219,6 +238,7 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
     if (!prescription) return
     setPrescriptionLoading(true)
     setPrescriptionError('')
+
     try {
       const result = await scanPrescription(prescription, language)
       setPrescriptionResult(result)
@@ -263,6 +283,8 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
     setModelWarning('')
     setAnswer(null)
     setLoading(true)
+
+    const taggedShed = shedsList.find((item) => item.id === selectedShedId) || null
 
     try {
       const { data, error: sessionError } = await supabase.auth.getSession()
@@ -350,6 +372,8 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
 
       saveDiagnosisLog({
         id: reportId,
+        shedId: taggedShed?.id || '',
+        shedName: taggedShed?.name || '',
         primaryDisease: topDisease,
         confidencePercent: topConfidence,
         inputModalities: [image && 'image', audio && 'audio', symptomText && 'text'].filter(Boolean),
@@ -426,6 +450,8 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
 
           saveDiagnosisLog({
             id: reportId,
+            shedId: taggedShed?.id || '',
+            shedName: taggedShed?.name || '',
             primaryDisease: topDisease,
             confidencePercent: topConfidence,
             inputModalities: [image && 'image', audio && 'audio', symptomText && 'text'].filter(Boolean),
@@ -562,6 +588,29 @@ export default function DiagnosisHub({ smartOpen, onToggleSmart, prescriptionOpe
 
           {isSmartOpen && (
             <div id="smart-diagnosis-panel" className="diagnosis-accordion-panel">
+              {shedsList.length > 0 && (
+                <div className="mb-3">
+                  <label className="diagnosis-symptom-label dark:text-gray-100 dark:font-semibold" htmlFor="diagnosis-shed-select">
+                    {language === 'bn' ? 'নিবন্ধিত শেড সংযুক্ত করুন (ঐচ্ছিক)' : 'Associate Registered Shed (Optional)'}
+                  </label>
+                  <select
+                    id="diagnosis-shed-select"
+                    className="diagnosis-symptom-input dark:bg-gray-900 dark:text-white dark:border-gray-600"
+                    style={{ padding: '8px 10px', fontSize: '12.5px' }}
+                    value={selectedShedId}
+                    onChange={(event) => setSelectedShedId(event.target.value)}
+                  >
+                    <option value="">
+                      {language === 'bn' ? '-- সাধারণ / অনির্ধারিত শেড --' : '-- General / Unassigned Flock --'}
+                    </option>
+                    {shedsList.map((shed) => (
+                      <option key={shed.id} value={shed.id}>
+                        {shed.name} · {shed.species} · {shed.birdCount} {language === 'bn' ? 'পাখি' : 'birds'} ({language === 'bn' ? `দিন ${shed.currentAgeDays}` : `Day ${shed.currentAgeDays}`})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <label className="diagnosis-symptom-label dark:text-gray-100 dark:font-semibold" htmlFor="diagnosis-symptoms">{t('symptomsLabel')}</label>
           <div className="diagnosis-textarea-wrap">
             <textarea

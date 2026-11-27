@@ -3861,7 +3861,449 @@ html[data-theme="dark"] .pmx-slot-status-badge.is-full {
 
 @media (max-width: 600px) {
   .pmx-specialist-grid,
-  .pmx-schedule-inputs-row {
+  .pmx-schedule-inputs-row,
+  .pmx-target-mode-toggle {
     grid-template-columns: 1fr;
   }
+}
+
+/* Prompt-20: Registered Shed vs Manual Farm Booking & History Attachments */
+.pmx-target-mode-panel,
+.pmx-history-attach-panel {
+  grid-column: 1 / -1;
+  padding: 12px 14px;
+  border: 1px solid #d5e5d8;
+  border-radius: 14px;
+  background: #f8fbf9;
+}
+
+.pmx-target-mode-head,
+.pmx-history-attach-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+
+.pmx-target-mode-head strong,
+.pmx-history-attach-head strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: #143624;
+}
+
+.pmx-target-mode-head small,
+.pmx-history-attach-head small {
+  font-size: 11.5px;
+  color: #5b7163;
+}
+
+.pmx-target-mode-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pmx-mode-choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1.5px solid #d5e2d8;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1b2e23;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.pmx-mode-choice-btn strong {
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+.pmx-mode-choice-btn small {
+  font-size: 11px;
+  color: #5b7163;
+}
+
+.pmx-mode-choice-btn.is-active {
+  border-color: #15803d;
+  background: #ecfdf3;
+  color: #14532d;
+}
+
+.pmx-shed-selector-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.pmx-shed-autofill-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid #cce7d4;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.pmx-shed-autofill-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: #1e3a2b;
+}
+
+.pmx-shed-linked-ai-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #86efac;
+  background: #ecfdf3;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pmx-shed-no-ai-note {
+  font-size: 11px;
+  color: #5b7163;
+}
+
+.pmx-manual-clinical-banner,
+.pmx-empty-shed-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 11px;
+  border: 1px solid #d5e2d8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #355040;
+  font-size: 11.5px;
+}
+
+.pmx-booking-concern-field {
+  grid-column: 1 / -1;
+}
+
+.pmx-history-rx-picker {
+  margin-bottom: 10px;
+}
+
+.pmx-history-sublabel {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #294936;
+  margin-bottom: 6px;
+}
+
+.pmx-history-rx-list {
+  display: grid;
+  gap: 6px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.pmx-history-rx-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid #dce6df;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.pmx-history-rx-option.is-checked {
+  border-color: #15803d;
+  background: #f0fdf4;
+}
+
+.pmx-history-rx-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+}
+
+.pmx-history-rx-copy small {
+  color: #5b7163;
+  font-size: 10.5px;
+}
+
+.pmx-shed-match-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.pmx-external-upload-zone {
+  padding-top: 8px;
+  border-top: 1px dashed #cbd9cd;
+}
+
+.pmx-external-upload-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pmx-upload-hint {
+  display: block;
+  font-size: 10.5px;
+  color: #5b7163;
+}
+
+.pmx-upload-file-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #15803d;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #15803d;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-upload-file-trigger input {
+  display: none;
+}
+
+.pmx-uploaded-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.pmx-uploaded-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pmx-uploaded-chip button {
+  background: none;
+  border: 0;
+  cursor: pointer;
+  color: #166534;
+  font-weight: 800;
+}
+
+.pmx-booking-mode-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.pmx-booking-mode-pill.is-shed {
+  border: 1px solid #bbf7d0;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.pmx-booking-mode-pill.is-manual {
+  border: 1px solid #cbd5e1;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.pmx-queue-attach-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #cbd9cd;
+  background: #f8fbf9;
+  color: #1f4b32;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.pmx-call-subline {
+  display: block;
+  font-size: 11px;
+  color: #5b7163;
+  margin-top: 2px;
+}
+
+.pmx-call-linked-list,
+.pmx-call-history-rx-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pmx-call-history-rx-list li {
+  padding: 5px 8px;
+  border: 1px solid #dce6df;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
+.pmx-call-history-rx-list small {
+  display: block;
+  font-size: 10.5px;
+  color: #5b7163;
+}
+
+.pmx-call-muted-note {
+  font-size: 11px;
+  color: #64748b;
+  font-style: italic;
+}
+
+.pmx-call-uploaded-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pmx-call-uploaded-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid #d5e2d8;
+  border-radius: 9px;
+  background: #ffffff;
+}
+
+.pmx-call-upload-thumb {
+  width: 34px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+}
+
+.pmx-call-file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  background: #ecfdf3;
+  color: #166534;
+}
+
+.pmx-call-upload-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+}
+
+.pmx-call-upload-meta strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pmx-call-upload-meta small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.pmx-call-upload-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.pmx-call-file-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+html[data-theme="dark"] .pmx-target-mode-panel,
+html[data-theme="dark"] .pmx-history-attach-panel {
+  border-color: #2f4334;
+  background: #141f18;
+}
+
+html[data-theme="dark"] .pmx-target-mode-head strong,
+html[data-theme="dark"] .pmx-history-attach-head strong,
+html[data-theme="dark"] .pmx-history-sublabel {
+  color: #e6f4ea;
+}
+
+html[data-theme="dark"] .pmx-mode-choice-btn,
+html[data-theme="dark"] .pmx-shed-autofill-strip,
+html[data-theme="dark"] .pmx-manual-clinical-banner,
+html[data-theme="dark"] .pmx-empty-shed-callout,
+html[data-theme="dark"] .pmx-history-rx-option,
+html[data-theme="dark"] .pmx-call-uploaded-item,
+html[data-theme="dark"] .pmx-call-history-rx-list li {
+  border-color: #2e4234;
+  background: #1a2820;
+  color: #e2eee5;
+}
+
+html[data-theme="dark"] .pmx-mode-choice-btn.is-active,
+html[data-theme="dark"] .pmx-history-rx-option.is-checked {
+  border-color: #22c55e;
+  background: rgba(20, 83, 45, 0.4);
+  color: #dcfce7;
+}
+
+html[data-theme="dark"] .pmx-booking-mode-pill.is-manual {
+  border-color: #475569;
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+html[data-theme="dark"] .pmx-upload-file-trigger {
+  background: #16241c;
+  border-color: #22c55e;
+  color: #86efac;
 }
