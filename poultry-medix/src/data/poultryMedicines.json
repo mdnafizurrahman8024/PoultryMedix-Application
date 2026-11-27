@@ -1,0 +1,979 @@
+{
+  "metadata": {
+    "databaseName": "PoultryMedix Bangladesh Veterinary Master Formulary",
+    "version": "2026.1",
+    "regulatoryFramework": "DGDA / DLS BDNVF Poultry Stewardship Compliant",
+    "formulationPolicy": "100% poultry-only oral solutions, suspensions, drops, and water-soluble powders",
+    "currency": "BDT",
+    "readOnlyClient": true
+  },
+  "categories": [
+    {
+      "id": "antibiotics",
+      "category": "Antibiotics (Registered Vet Prescription Required)",
+      "categoryBn": "অ্যান্টিবায়োটিক (নিবন্ধিত পশুচিকিৎসকের ব্যবস্থাপত্র আবশ্যক)",
+      "requiresRegisteredVetRx": true,
+      "generics": [
+        {
+          "genericName": "Florfenicol",
+          "whoAwareCategory": "Watch",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "CRD, Airsacculitis, E. coli septicaemia, Infectious Coryza",
+          "indicationBn": "সিআরডি, এয়ারস্যাকুলাইটিস, ই. কোলাই ও করাইজা",
+          "brands": [
+            {
+              "tradeName": "Novoflor™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 820 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Florin-Vet",
+              "company": "Square",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 780 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Flor-Ren",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 790 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Tilmicosin 25%",
+          "whoAwareCategory": "Watch",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "Mycoplasma gallisepticum, Mycoplasma synoviae, severe CRD",
+          "indicationBn": "মাইকোপ্লাজমোসিস ও জটিল শ্বাসতন্ত্রের সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "Qtill® S Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "240 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 1,250 (100 ml)",
+              "standardDose": "0.3–0.5 ml / 1 L D.W for 3 days",
+              "withdrawalPeriod": "12 days (Meat) · Not for layers"
+            },
+            {
+              "tradeName": "Tilmi-Vet",
+              "company": "Square",
+              "packSizes": ["100 ml", "250 ml"],
+              "approxMrpBdt": "~৳ 1,180 (100 ml)",
+              "standardDose": "0.3 ml / 1 L D.W for 3 days",
+              "withdrawalPeriod": "12 days (Meat) · Not for layers"
+            },
+            {
+              "tradeName": "Tilmoren",
+              "company": "Renata",
+              "packSizes": ["100 ml", "240 ml"],
+              "approxMrpBdt": "~৳ 1,200 (100 ml)",
+              "standardDose": "0.3 ml / 1 L D.W for 3 days",
+              "withdrawalPeriod": "12 days (Meat) · Not for layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Amoxicillin + Clavulanic Acid",
+          "whoAwareCategory": "Access",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Beta-lactamase resistant E. coli, Necrotic Enteritis, yolk sac infection",
+          "indicationBn": "নেক্রোটিক এন্টারাইটিস ও ই. কোলাই সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "Augment® Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["50 gm", "100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 680 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W for 4–5 days",
+              "withdrawalPeriod": "4 days (Meat) · 2 days (Eggs)"
+            }
+          ]
+        },
+        {
+          "genericName": "Amoxicillin Trihydrate",
+          "whoAwareCategory": "Access",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Necrotic enteritis, fowl cholera, salmonellosis, E. coli",
+          "indicationBn": "নেক্রোটিক এন্টারাইটিস, ফাউল কলেরা ও সালমোনেলোসিস",
+          "brands": [
+            {
+              "tradeName": "Moxacil Vet",
+              "company": "Square",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 340 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W twice daily for 3–5 days",
+              "withdrawalPeriod": "3 days (Meat) · 1–2 days (Check label)"
+            },
+            {
+              "tradeName": "Renamox",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 350 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "3 days (Meat) · 1–2 days (Check label)"
+            },
+            {
+              "tradeName": "Hicomox",
+              "company": "ACI",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 330 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "3 days (Meat) · 1–2 days (Check label)"
+            }
+          ]
+        },
+        {
+          "genericName": "Enrofloxacin 10%",
+          "whoAwareCategory": "Watch",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "Colibacillosis, Fowl Typhoid, Salmonellosis, Mycoplasmosis",
+          "indicationBn": "কলিব্যাসিলোসিস, ফাউল টাইফয়েড ও সালমোনেলোসিস",
+          "brands": [
+            {
+              "tradeName": "Enrocin",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 380 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Enroflox Vet",
+              "company": "ACME",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 360 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Pexacin",
+              "company": "Square",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 370 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Doxycycline Hyclate Plain",
+          "whoAwareCategory": "Watch",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "CRD, Infectious Coryza, Mycoplasmosis, Fowl Cholera",
+          "indicationBn": "সিআরডি, সংক্রামক করাইজা ও মাইকোপ্লাজমোসিস",
+          "brands": [
+            {
+              "tradeName": "Doxivet",
+              "company": "ACI",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 420 (100 gm)",
+              "standardDose": "1 gm / 2–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Doxy-A Vet",
+              "company": "ACME",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 400 (100 gm)",
+              "standardDose": "1 gm / 2–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Doxy-Ren",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 410 (100 gm)",
+              "standardDose": "1 gm / 2–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Tylvalosin Tartrate",
+          "whoAwareCategory": "Watch",
+          "formulation": "Water-Soluble Granules (WSG)",
+          "indicationEn": "Refractory Mycoplasma gallisepticum & necrotic enteritis",
+          "indicationBn": "তীব্র মাইকোপ্লাজমোসিস ও সিআরডি প্রতিরোধ",
+          "brands": [
+            {
+              "tradeName": "Valotil™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["40 gm", "100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 950 (40 gm)",
+              "standardDose": "1 gm / 2–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "2 days (Meat) · 0 days (Eggs per label)"
+            }
+          ]
+        },
+        {
+          "genericName": "Tylosin Tartrate",
+          "whoAwareCategory": "Watch",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "CRD, Mycoplasma airsacculitis, spirochetosis",
+          "indicationBn": "সিআরডি ও মাইকোপ্লাজমাজনিত শ্বাসকষ্ট",
+          "brands": [
+            {
+              "tradeName": "Tylovet",
+              "company": "ACME",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 590 (100 gm)",
+              "standardDose": "0.5–1 gm / 1 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · 0–2 days (Check label)"
+            },
+            {
+              "tradeName": "Tylosin-Vet",
+              "company": "Square",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 610 (100 gm)",
+              "standardDose": "0.5 gm / 1 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · 0–2 days (Check label)"
+            },
+            {
+              "tradeName": "Pharmatyl",
+              "company": "Opsonin",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 580 (100 gm)",
+              "standardDose": "0.5 gm / 1 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · 0–2 days (Check label)"
+            }
+          ]
+        },
+        {
+          "genericName": "Ciprofloxacin",
+          "whoAwareCategory": "Watch",
+          "formulation": "Oral Solution / WSP (D.W)",
+          "indicationEn": "Bacterial enteritis, E. coli peritonitis, Salmonellosis",
+          "indicationBn": "ব্যাকটেরিয়াল ডায়রিয়া, ই. কোলাই ও সালমোনেলোসিস",
+          "brands": [
+            {
+              "tradeName": "Ciprocin-Vet",
+              "company": "Square",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 410 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Renaflox",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 420 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Cidaflox",
+              "company": "Opsonin",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 390 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Danofloxacin",
+          "whoAwareCategory": "Watch",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "CRD complicated with E. coli, Mycoplasma respiratory disease",
+          "indicationBn": "জটিল সিআরডি ও ই. কোলাই শ্বাসতন্ত্র সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "DFN™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 560 (100 ml)",
+              "standardDose": "0.5–1 ml / 2 L D.W for 3 days",
+              "withdrawalPeriod": "5 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Neomycin Sulphate 70%",
+          "whoAwareCategory": "Access",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Bacterial enteritis, non-systemic E. coli & Salmonella gut infections",
+          "indicationBn": "অন্ত্রের ব্যাকটেরিয়াল সংক্রমণ ও পাতলা পায়খানা",
+          "brands": [
+            {
+              "tradeName": "Neoxel® 70 Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 450 (100 gm)",
+              "standardDose": "1 gm / 3–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat) · 0 days (Eggs per label)"
+            }
+          ]
+        },
+        {
+          "genericName": "Chlortetracycline 20%/45%",
+          "whoAwareCategory": "Access",
+          "formulation": "Water-Soluble / Oral Feed Premix",
+          "indicationEn": "Chronic bacterial respiratory stress, bluecomb, hexamitiasis",
+          "indicationBn": "শ্বাসতন্ত্রের জটিলতা ও ব্লুকম্ব সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "Eska CTC®",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 290 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W or 1–2 gm / Kg feed",
+              "withdrawalPeriod": "5 days (Meat) · 3 days (Check label)"
+            },
+            {
+              "tradeName": "Maxtor®",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 310 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W or 1–2 gm / Kg feed",
+              "withdrawalPeriod": "5 days (Meat) · 3 days (Check label)"
+            }
+          ]
+        },
+        {
+          "genericName": "Sulphadiazine + Trimethoprim",
+          "whoAwareCategory": "Access",
+          "formulation": "Oral Suspension / WSP (D.W)",
+          "indicationEn": "Infectious Coryza, Fowl Cholera, E. coli, secondary coccidiosis",
+          "indicationBn": "সংক্রামক করাইজা, ফাউল কলেরা ও কক্সিডিওসিস সহযোগী সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "Renatrim Vet",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 240 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Cotrim-Vet",
+              "company": "Square",
+              "packSizes": ["100 ml", "100 gm", "500 ml"],
+              "approxMrpBdt": "~৳ 235 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Atrizin",
+              "company": "ACME",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 230 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Oxytetracycline",
+          "whoAwareCategory": "Access",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Fowl cholera, infectious synovitis, stress-related secondary infections",
+          "indicationBn": "ফাউল কলেরা, সংক্রামক সাইনোভাইটিস ও ধকলজনিত সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "Renamycin",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 220 (100 gm)",
+              "standardDose": "1–2 gm / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · 3 days (Eggs)"
+            },
+            {
+              "tradeName": "Oxytetra-Vet",
+              "company": "Square",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 215 (100 gm)",
+              "standardDose": "1–2 gm / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "5 days (Meat) · 3 days (Eggs)"
+            }
+          ]
+        },
+        {
+          "genericName": "Gentamicin 2% WSP",
+          "whoAwareCategory": "Access",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Early chick bacterial enteritis and gram-negative enteric infections",
+          "indicationBn": "বাচ্চা মুরগির প্রাথমিক অন্ত্রীয় সংক্রমণ",
+          "brands": [
+            {
+              "tradeName": "Gentest™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 360 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W for 3–5 days",
+              "withdrawalPeriod": "7 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "antipyretic_antiinflammatory",
+      "category": "Antipyretic & Anti-inflammatory",
+      "categoryBn": "জ্বরনাশক ও প্রদাহরোধী (অ্যান্টি-ইনফ্ল্যামেটরি)",
+      "requiresRegisteredVetRx": false,
+      "generics": [
+        {
+          "genericName": "Paracetamol",
+          "formulation": "Oral Solution / WSP (D.W)",
+          "indicationEn": "Fever during viral/bacterial infection, post-vaccination pyrexia, heat stress",
+          "indicationBn": "জ্বর কমানো, টিকাদান পরবর্তী তাপমাত্রা ও হিট-স্ট্রেস নিয়ন্ত্রণ",
+          "brands": [
+            {
+              "tradeName": "Pyralgin-Vet",
+              "company": "ACI",
+              "packSizes": ["100 ml", "500 ml", "100 gm"],
+              "approxMrpBdt": "~৳ 160 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            },
+            {
+              "tradeName": "Napa Vet",
+              "company": "Beximco",
+              "packSizes": ["100 ml", "500 ml", "100 gm"],
+              "approxMrpBdt": "~৳ 155 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            },
+            {
+              "tradeName": "Fast-Vet",
+              "company": "ACME",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 150 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            }
+          ]
+        },
+        {
+          "genericName": "Ketoprofen",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "Airway inflammation, joint swelling, IBD pyrexia & pain relief",
+          "indicationBn": "শ্বাসনালীর প্রদাহ, গিঁট ফোলা ও তীব্র জ্বর প্রশমন",
+          "brands": [
+            {
+              "tradeName": "Keto-A Vet",
+              "company": "ACME",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 440 (100 ml)",
+              "standardDose": "0.5–1 ml / 2 L D.W for 3 days",
+              "withdrawalPeriod": "3 days (Meat)"
+            },
+            {
+              "tradeName": "Kop-Vet",
+              "company": "Popular",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 420 (100 ml)",
+              "standardDose": "0.5–1 ml / 2 L D.W for 3 days",
+              "withdrawalPeriod": "3 days (Meat)"
+            }
+          ]
+        },
+        {
+          "genericName": "Carbasalate Calcium + Vit C",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Pyrexia, heat prostration, IBD bursal inflammation recovery",
+          "indicationBn": "উচ্চ জ্বর, তাপ-পীড়ন ও প্রদাহজনিত ধকল উপশম",
+          "brands": [
+            {
+              "tradeName": "Renaspirin",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 260 (100 gm)",
+              "standardDose": "1 gm / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "respiratory_antihistamine",
+      "category": "Antihistamine, Expectorant & Respiratory Support",
+      "categoryBn": "অ্যান্টিহিস্টামিন, কফ-তরলকারক ও শ্বাসতন্ত্র সহায়ক",
+      "requiresRegisteredVetRx": false,
+      "generics": [
+        {
+          "genericName": "Menthol + Eucalyptus + Bromhexine",
+          "formulation": "Oral Liquid (D.W / Spray)",
+          "indicationEn": "Nasal congestion, sneezing, gasping, post-vaccine respiratory reaction",
+          "indicationBn": "নাক বন্ধ হওয়া, হাঁচি, ঘড়ঘড় শব্দ ও ভ্যাকসিন পরবর্তী শ্বাসকষ্ট",
+          "brands": [
+            {
+              "tradeName": "Broncholer Vet",
+              "company": "ACI",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 390 (100 ml)",
+              "standardDose": "1 ml / 4 L D.W or 20 ml / L shed mist spray",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Pulmonary Guard",
+          "formulation": "Oral Essential Respiratory Solution (D.W)",
+          "indicationEn": "Bronchial clearance, ammonia stress relief & oxygen uptake in CRD",
+          "indicationBn": "শ্বাসনালী পরিষ্কার রাখা ও অ্যামোনিয়াজনিত শ্বাসকষ্ট দূর করা",
+          "brands": [
+            {
+              "tradeName": "Pulmo GOLD™",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 460 (100 ml)",
+              "standardDose": "1 ml / 4–5 L D.W for 3–5 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Bromhexine HCl",
+          "formulation": "Oral Solution / WSP (D.W)",
+          "indicationEn": "Mucolytic clearance of tracheal exudate during CRD/IB",
+          "indicationBn": "শ্বাসনালীতে জমে থাকা কফ ও মিউকাস তরল করে বের করা",
+          "brands": [
+            {
+              "tradeName": "A-Cold Vet",
+              "company": "ACME",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 230 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            },
+            {
+              "tradeName": "Mucovet",
+              "company": "Square",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 240 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            }
+          ]
+        },
+        {
+          "genericName": "Chlorpheniramine Maleate",
+          "formulation": "Oral Syrup / WSP (D.W)",
+          "indicationEn": "Allergic rhinitis, Coryza facial swelling & respiratory irritation",
+          "indicationBn": "অ্যালার্জি, চোখ-মুখ ফোলা ও শ্বাসনালীর জ্বালাপোড়া কমানো",
+          "brands": [
+            {
+              "tradeName": "Histavet",
+              "company": "ACI",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 140 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            },
+            {
+              "tradeName": "Antihista-Vet",
+              "company": "Square",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 145 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 3–5 days",
+              "withdrawalPeriod": "1 day (Meat)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "anticoccidial",
+      "category": "Anticoccidial",
+      "categoryBn": "কক্সিডিওসিস প্রতিরোধ ও চিকিৎসা (রক্ত আমাশয়)",
+      "requiresRegisteredVetRx": true,
+      "generics": [
+        {
+          "genericName": "Toltrazuril 2.5%",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "Caecal & intestinal coccidiosis (all intracellular stages of Eimeria)",
+          "indicationBn": "তীব্র রক্ত আমাশয় ও সকল ধরণের কক্সিডিওসিস",
+          "brands": [
+            {
+              "tradeName": "Renazuril",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 520 (100 ml)",
+              "standardDose": "1 ml / 1 L D.W (continuous for 48 hours)",
+              "withdrawalPeriod": "14 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Coxikill",
+              "company": "ACI",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 490 (100 ml)",
+              "standardDose": "1 ml / 1 L D.W for 2 consecutive days",
+              "withdrawalPeriod": "14 days (Meat) · Not for table-egg layers"
+            },
+            {
+              "tradeName": "Zuril 2.5%",
+              "company": "Popular",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 480 (100 ml)",
+              "standardDose": "1 ml / 1 L D.W for 2 consecutive days",
+              "withdrawalPeriod": "14 days (Meat) · Not for table-egg layers"
+            }
+          ]
+        },
+        {
+          "genericName": "Amprolium HCl",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Caecal and small intestinal coccidiosis in broilers, layers & pullets",
+          "indicationBn": "ব্রয়লার ও লেয়ার খামারের রক্ত আমাশয় নিয়ন্ত্রণ",
+          "brands": [
+            {
+              "tradeName": "Amprol-Vet",
+              "company": "Square",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 310 (100 gm)",
+              "standardDose": "1 gm / 1–2 L D.W for 5–7 days",
+              "withdrawalPeriod": "3 days (Meat) · 0 days (Eggs per label)"
+            },
+            {
+              "tradeName": "Coccivet",
+              "company": "ACME",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 295 (100 gm)",
+              "standardDose": "1 gm / 1–2 L D.W for 5–7 days",
+              "withdrawalPeriod": "3 days (Meat) · 0 days (Eggs per label)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "immuno_boosters",
+      "category": "Antiviral Immuno-Boosters & Symptomatic Oils",
+      "categoryBn": "অ্যান্টিভাইরাল ইমিউনো-বুস্টার ও লক্ষণ-ভিত্তিক ওয়েল/ড্রপ",
+      "requiresRegisteredVetRx": false,
+      "generics": [
+        {
+          "genericName": "Avian Antiviral",
+          "formulation": "Oral Solution (D.W)",
+          "indicationEn": "Innate viral defense & post-vaccination antibody titer enhancement",
+          "indicationBn": "ভাইরাসজনিত রোগ প্রতিরোধ ক্ষমতা ও টিকার অ্যান্টিবডি বৃদ্ধি",
+          "brands": [
+            {
+              "tradeName": "AiB™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 750 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Dual Antiviral",
+          "formulation": "Oral Liquid Solution (D.W)",
+          "indicationEn": "Dual-pathway supportive immunity during ND, IB, IBD viral waves",
+          "indicationBn": "রানিক্ষেত, আইবি ও গামবোরো মৌসুমে দ্বৈত ভাইরাস সুরক্ষা",
+          "brands": [
+            {
+              "tradeName": "Duavis™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 790 (100 ml)",
+              "standardDose": "1 ml / 2–3 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Symptomatic Drop",
+          "formulation": "Oral / Intra-Nasal Essential Oil Drops",
+          "indicationEn": "Rapid symptomatic respiratory soothing and ocular/nasal relief",
+          "indicationBn": "শ্বাসকষ্ট, চোখের ফোলা ও সর্দির দ্রুত তাৎক্ষণিক উপশম",
+          "brands": [
+            {
+              "tradeName": "Lumix™",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["20 ml", "100 ml"],
+              "approxMrpBdt": "~৳ 280 (20 ml)",
+              "standardDose": "1–2 drops / bird orally or 1 ml / 4 L D.W",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vitamins_minerals_gut",
+      "category": "Vitamins, Minerals, Liver Tonic, Electrolytes & Gut Health",
+      "categoryBn": "ভিটামিন, মিনারেল, লিভার টনিক, ইলেক্ট্রোলাইট ও গাট হেলথ",
+      "requiresRegisteredVetRx": false,
+      "generics": [
+        {
+          "genericName": "Organic Trace Minerals",
+          "formulation": "Oral Solution / Premix (D.W)",
+          "indicationEn": "Eggshell strength, feathering, bone mineralization & FCR boost",
+          "indicationBn": "ডিমের খোসা মজবুত করা, পালক বৃদ্ধি ও এফসিআর উন্নতি",
+          "brands": [
+            {
+              "tradeName": "OMB™ Vet",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 ml", "500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 350 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W daily for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Liver Tonic",
+          "formulation": "Oral Liquid Hepato-Renal Solution (D.W)",
+          "indicationEn": "Mycotoxin liver recovery, post-antibiotic detox, fatty liver protection",
+          "indicationBn": "লিভার ও কিডনি সুস্থ রাখা, অ্যান্টিবায়োটিক পরবর্তী ধকল কমানো",
+          "brands": [
+            {
+              "tradeName": "Hepatonic® Plus",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 240 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "PB Liv Tone",
+              "company": "Popular",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 220 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Hepavet",
+              "company": "Square",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 230 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Ionic Calcium",
+          "formulation": "Oral Liquid Solution (D.W)",
+          "indicationEn": "Layer cage fatigue, thin-shelled eggs, broiler leg weakness",
+          "indicationBn": "পাতলা ডিমের খোসা, কেজ ফ্যাটিগ ও পায়ের দুর্বলতা রোধ",
+          "brands": [
+            {
+              "tradeName": "IonoCal D™",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 480 (500 ml)",
+              "standardDose": "1–2 ml / 1 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Calplex",
+              "company": "Renata",
+              "packSizes": ["500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 420 (500 ml)",
+              "standardDose": "1–2 ml / 1 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Phoscal DB",
+              "company": "ACI",
+              "packSizes": ["500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 430 (500 ml)",
+              "standardDose": "1–2 ml / 1 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Water Acidifier",
+          "formulation": "Oral Liquid Organic Acid Blend (D.W)",
+          "indicationEn": "Lowering drinking water pH & suppressing crop/gut E. coli and Salmonella",
+          "indicationBn": "পানির পিএইচ নিয়ন্ত্রণ ও অন্ত্রের ক্ষতিকর জীবাণু দমন",
+          "brands": [
+            {
+              "tradeName": "Turbo pH™",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["500 ml", "1 L"],
+              "approxMrpBdt": "~৳ 520 (500 ml)",
+              "standardDose": "0.5–1 ml / 1 L D.W continuously",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Multi-Enzyme",
+          "formulation": "Water-Soluble / Feed Premix Powder",
+          "indicationEn": "Nutrient digestibility, wet litter reduction & improved FCR",
+          "indicationBn": "খাদ্য হজমশক্তি বৃদ্ধি, লিটার শুষ্ক রাখা ও ওজন বৃদ্ধি",
+          "brands": [
+            {
+              "tradeName": "Six Plus™",
+              "company": "Eskayef/SK+F",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 340 (100 gm)",
+              "standardDose": "1 gm / 2–4 L D.W or 500 gm / Ton feed",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Probiozyme",
+              "company": "ACI",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 310 (100 gm)",
+              "standardDose": "1 gm / 2 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Probiotics",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Competitive exclusion after brooding or antibiotic therapy",
+          "indicationBn": "অন্ত্রের উপকারী ব্যাকটেরিয়া পুনরুদ্ধার ও অ্যান্টিবায়োটিক পরবর্তী সুরক্ষা",
+          "brands": [
+            {
+              "tradeName": "PoultryStar Sol",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 650 (100 gm)",
+              "standardDose": "20 gm / 1,000 birds daily in D.W",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Pro-Plus",
+              "company": "Square",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 420 (100 gm)",
+              "standardDose": "1 gm / 2–3 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Vitamin AD3E",
+          "formulation": "Oral Liquid Solution (D.W)",
+          "indicationEn": "Mucosal repair after respiratory/gut infection, chick brooding vitality",
+          "indicationBn": "শ্বাসনালী ও অন্ত্রের আবরণ পুনর্গঠন এবং বাচ্চার বৃদ্ধি",
+          "brands": [
+            {
+              "tradeName": "Renasol AD3E",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 230 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "PB-ADE",
+              "company": "Popular",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 210 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "A-Sol Vet",
+              "company": "ACME",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 215 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Multivitamin",
+          "formulation": "Water-Soluble Powder / Oral Solution (D.W)",
+          "indicationEn": "General immunity, vaccine stress prevention, egg production maintenance",
+          "indicationBn": "সার্বিক রোগ প্রতিরোধ ক্ষমতা, টিকা ধকল রোধ ও ডিম উৎপাদন বজায় রাখা",
+          "brands": [
+            {
+              "tradeName": "Rena-WS",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 190 (100 gm)",
+              "standardDose": "1 gm / 2–4 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Aminovit Plus",
+              "company": "ACI",
+              "packSizes": ["100 ml", "500 ml"],
+              "approxMrpBdt": "~৳ 260 (100 ml)",
+              "standardDose": "1 ml / 2–4 L D.W for 5 days",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Panavit",
+              "company": "Opsonin",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 180 (100 gm)",
+              "standardDose": "1 gm / 2–4 L D.W for 5–7 days",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Electrolytes",
+          "formulation": "Water-Soluble Powder (WSP)",
+          "indicationEn": "Heat stress rehydration, post-transport arrival, diarrhoeal electrolyte balance",
+          "indicationBn": "তাপ-পীড়ন, বাচ্চা পরিবহন পরবর্তী পানিশূন্যতা ও পাতলা পায়খানায় স্যালাইন",
+          "brands": [
+            {
+              "tradeName": "Renalyte",
+              "company": "Renata",
+              "packSizes": ["100 gm", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 135 (100 gm)",
+              "standardDose": "1–2 gm / 1 L D.W during heat or stress",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "PA-Lyte",
+              "company": "Popular",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 130 (100 gm)",
+              "standardDose": "1–2 gm / 1 L D.W during heat or stress",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Electromin",
+              "company": "ACME",
+              "packSizes": ["100 gm", "500 gm"],
+              "approxMrpBdt": "~৳ 135 (100 gm)",
+              "standardDose": "1–2 gm / 1 L D.W during heat or stress",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        },
+        {
+          "genericName": "Toxin Binder",
+          "formulation": "Water-Soluble / Feed Premix Powder",
+          "indicationEn": "Mycotoxin adsorption (Aflatoxin/Ochratoxin) from humid stored poultry feed",
+          "indicationBn": "খাদ্যের ছত্রাকজনিত বিষ (মাইকোটক্সিন) শোষণ ও লিভার সুরক্ষা",
+          "brands": [
+            {
+              "tradeName": "Ren A Tox",
+              "company": "Renata",
+              "packSizes": ["100 ml", "500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 270 (100 ml)",
+              "standardDose": "1 ml / 2 L D.W or 1 Kg / Ton feed",
+              "withdrawalPeriod": "0 days"
+            },
+            {
+              "tradeName": "Tox-5",
+              "company": "ACI",
+              "packSizes": ["500 gm", "1 Kg"],
+              "approxMrpBdt": "~৳ 390 (500 gm)",
+              "standardDose": "0.5–1 Kg / Ton feed continuously",
+              "withdrawalPeriod": "0 days"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

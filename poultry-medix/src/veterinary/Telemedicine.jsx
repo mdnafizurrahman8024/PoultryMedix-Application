@@ -25,6 +25,11 @@ import {
   incrementDoctorServiceCounter,
 } from '../lib/doctorsStore.js'
 import {
+  getAllMasterMedicineEntries,
+  getMedicineCategories,
+  mapFormulationToRxSelect,
+} from '../lib/poultryMedicinesStore.js'
+import {
   CONSULTATION_FEE_BDT,
   PAYMENT_METHODS,
   PAYMENT_MODE,
@@ -227,6 +232,12 @@ export default function Telemedicine() {
   const [saveError, setSaveError] = useState('')
   const selectedVet = findDoctorProfile({ id: booking.vetId }, doctorsList) || doctorsList[0]
   const fallbackContext = useMemo(() => buildFlockContextSnapshot(language), [language])
+  const medicineCategories = useMemo(() => getMedicineCategories(), [])
+  const masterMedicineIndex = useMemo(() => {
+    const map = new Map()
+    getAllMasterMedicineEntries().forEach((entry) => map.set(entry.key, entry))
+    return map
+  }, [])
 
   // Active paid booking (survives page refresh for waiting room countdown + doctor ring)
   const activePaidBooking = useMemo(() => {
@@ -389,6 +400,30 @@ export default function Telemedicine() {
   function updateMedication(id, field, value) {
     setMedications((current) => current.map((medication) => (
       medication.id === id ? { ...medication, [field]: value } : medication
+    )))
+  }
+
+  function applyMasterMedicineToRow(id, entryKey) {
+    const entry = masterMedicineIndex.get(entryKey)
+    if (!entry) return
+    setMedications((current) => current.map((medication) => (
+      medication.id === id
+        ? {
+            ...medication,
+            masterKey: entryKey,
+            name: entry.tradeName,
+            tradeName: entry.tradeName,
+            genericName: entry.genericName,
+            antibioticClass: entry.category,
+            whoAwareCategory: entry.whoAwareCategory,
+            formulation: mapFormulationToRxSelect(entry.formulation),
+            dosage: entry.standardDose,
+            withdrawal: entry.withdrawalPeriod || '0 days',
+            meatWithdrawalDays: entry.withdrawalPeriod || '0 days',
+            company: entry.company,
+            approxMrpBdt: entry.approxMrpBdt,
+          }
+        : medication
     )))
   }
 
@@ -1356,9 +1391,35 @@ export default function Telemedicine() {
               <div className="telemedicine-medication-list">
                 {medications.map((medication, index) => (
                   <fieldset className="telemedicine-medication-row dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" key={medication.id}>
-                    <legend>{t('medicineNumber', { number: index + 1 })}</legend>
+                    <legend>
+                      {t('medicineNumber', { number: index + 1 })}
+                      {medication.company ? ` · ${medication.company}` : ''}
+                      {medication.approxMrpBdt ? ` · ${medication.approxMrpBdt}` : ''}
+                    </legend>
                     {medications.length > 1 && <button className="telemedicine-remove-button" type="button" aria-label={`${t('remove')} ${index + 1}`} onClick={() => setMedications((current) => current.filter(({ id }) => id !== medication.id))}><Icon name="remove" size={16} />{t('remove')}</button>}
                     <div className="telemedicine-fields-grid">
+                      <Field label={t('rxSelectFromFormulary')} className="telemedicine-field--wide">
+                        <select
+                          value={medication.masterKey || ''}
+                          onChange={(event) => applyMasterMedicineToRow(medication.id, event.target.value)}
+                        >
+                          <option value="">{t('rxFormularyPlaceholder')}</option>
+                          {medicineCategories.map((cat) => (
+                            <optgroup key={cat.id} label={language === 'bn' ? cat.categoryBn : cat.category}>
+                              {cat.generics.flatMap((gen) =>
+                                gen.brands.map((brand) => {
+                                  const key = `${cat.id}::${gen.genericName}::${brand.tradeName}`
+                                  return (
+                                    <option key={key} value={key}>
+                                      {brand.tradeName} ({gen.genericName}) — {brand.company} · {brand.approxMrpBdt}
+                                    </option>
+                                  )
+                                })
+                              )}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </Field>
                       <Field label={t('drugMedicineName')}><input value={medication.name} onChange={(event) => updateMedication(medication.id, 'name', event.target.value)} placeholder={t('medicineName')} /></Field>
                       <Field label={t('rxGenericName')}><input value={medication.genericName} onChange={(event) => updateMedication(medication.id, 'genericName', event.target.value)} placeholder={t('rxGenericPlaceholder')} /></Field>
                       <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation} value={formulation}>{t(`formulations.${formulation}`, formulation)}</option>)}</select></Field>

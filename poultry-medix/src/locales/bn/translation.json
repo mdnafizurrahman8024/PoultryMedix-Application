@@ -1252,5 +1252,7 @@
   "rxClinicalSignsLabel": "পর্যবেক্ষিত ক্লিনিক্যাল লক্ষণ",
   "rxClinicalSignsPlaceholder": "লাইভ কলে দেখা শ্বাসকষ্ট, বিষ্ঠার রঙ ও আচরণগত লক্ষণ লিখুন...",
   "rxUnifiedWorkspaceBanner": "সমন্বিত কল রুম ও প্রেসক্রিপশন বিল্ডার — সব তথ্য সরাসরি A4 প্রিভিউ ও খামারির লগে যুক্ত হবে।",
-  "vetDirectoryWorkspaceLabel": "সক্রিয় ডাক্তার প্রোফাইল ও সেবা কাউন্টার"
+  "vetDirectoryWorkspaceLabel": "সক্রিয় ডাক্তার প্রোফাইল ও সেবা কাউন্টার",
+  "rxSelectFromFormulary": "যাচাইকৃত পোল্ট্রি ওষুধ ডাটাবেজ (DGDA / BDNVF অনুমোদিত)",
+  "rxFormularyPlaceholder": "-- জেনেরিক / ব্র্যান্ড বাছাই করুন (SK+F, রেনাটা, স্কয়ার, এসিআই...) --"
 }

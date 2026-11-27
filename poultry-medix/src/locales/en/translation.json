@@ -1252,5 +1252,7 @@
   "rxClinicalSignsLabel": "Observed Clinical Signs",
   "rxClinicalSignsPlaceholder": "Enter respiratory signs, lesions, droppings, posture observed during call...",
   "rxUnifiedWorkspaceBanner": "Unified Consultation Room & Prescription Builder — Live changes sync directly to A4 preview & Farmer Clinical Log.",
-  "vetDirectoryWorkspaceLabel": "Active Doctor Profile & Service Counter"
+  "vetDirectoryWorkspaceLabel": "Active Doctor Profile & Service Counter",
+  "rxSelectFromFormulary": "Verified BD Poultry Medicine Database (DGDA / BDNVF)",
+  "rxFormularyPlaceholder": "-- Choose generic / brand (SK+F, Renata, Square, ACI...) --"
 }

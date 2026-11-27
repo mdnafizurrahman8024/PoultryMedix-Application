@@ -411,6 +411,10 @@
   min-width: 0;
 }
 
+.telemedicine-field--wide {
+  grid-column: 1 / -1;
+}
+
 .telemedicine-tag-entry {
   display: flex;
   align-items: end;
