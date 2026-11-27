@@ -173,7 +173,7 @@ export function cancelConsultationBookingRecord(bookingIdOrTrx) {
 }
 
 function getInitialLogs() {
-  if (typeof window === 'undefined') return []
+  if (typeof localStorage === 'undefined') return []
   try {
     const raw = localStorage.getItem(CLINICAL_LOGS_STORAGE_KEY)
     if (raw) {
@@ -318,6 +318,10 @@ export function saveClinicalLog(entry) {
 
   try {
     const existing = getInitialLogs()
+    const existingSameId = existing.find((item) => String(item.id) === String(id))
+    if (existingSameId?.type === 'prescription' && existingSameId?.isImmutable === true) {
+      throw new Error('Unauthorized: locked prescriptions are immutable and cannot be modified after issue.')
+    }
     // Avoid exact duplicate IDs
     const filtered = existing.filter((item) => String(item.id) !== String(id))
     const updated = [fullRecord, ...filtered].slice(0, 300)
@@ -346,6 +350,9 @@ export function saveClinicalLog(entry) {
       window.dispatchEvent(new CustomEvent('poultrymedix-analytics-updated', { detail: fullRecord }))
     }
   } catch (err) {
+    if (String(err?.message || '').includes('immutable')) {
+      throw err
+    }
     console.error('[clinical-logs] Failed to write log entry:', err)
   }
 
@@ -464,6 +471,10 @@ export function savePrescriptionLog({
   tests = '',
   advice = '',
   followUpDate = '',
+  isImmutable = false,
+  lockedAt = '',
+  digitalSignature = '',
+  signatureDigest = '',
 }) {
   return saveClinicalLog({
     id: id || crypto.randomUUID(),
@@ -495,6 +506,10 @@ export function savePrescriptionLog({
     tests,
     advice,
     followUpDate,
+    isImmutable: Boolean(isImmutable || source === 'vet_issued'),
+    lockedAt: lockedAt || (source === 'vet_issued' ? new Date().toISOString() : ''),
+    digitalSignature,
+    signatureDigest,
     syncedToCloud: false,
   })
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { GripHorizontal, GripVertical, Maximize2, Minimize2 } from 'lucide-react'
+import { GripHorizontal, GripVertical, Lock, Maximize2, Minimize2 } from 'lucide-react'
 import Icon from '../components/Icon.jsx'
 import { saveHistoryEntry, saveUnifiedLog } from './historyStore.js'
 import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
@@ -83,6 +83,13 @@ import {
   clampPipPosition,
   clampSplitLeftPct,
 } from '../lib/consultMediaHelper.js'
+import {
+  RX_MANDATORY_REGULATORY_BN,
+  RX_MANDATORY_REGULATORY_EN,
+  assertDoctorPrescriptionAuthority,
+  buildImmutableRxLockFields,
+  isWithdrawalRequiredMedication,
+} from '../lib/rxSecurityHelper.js'
 import { useUser } from '../context/user-context.js'
 import { useLanguage } from '../context/useLanguage.js'
 import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
@@ -90,6 +97,8 @@ import DigitalReceiptModal from './DigitalReceiptModal.jsx'
 import ConsultationCallRoom from './ConsultationCallRoom.jsx'
 import DoctorDetailsModal from './DoctorDetailsModal.jsx'
 import DoctorScheduleManager from './DoctorScheduleManager.jsx'
+import HybridMedicationRow from './HybridMedicationRow.jsx'
+import RxReviewModal from './RxReviewModal.jsx'
 import './Telemedicine.css'
 
 const BANGLADESH_DISTRICTS = [
@@ -107,8 +116,6 @@ const BANGLADESH_DISTRICTS = [
 ]
 
 const birdTypes = ['Broiler', 'Layer', 'Sonali', 'Duck', 'Native', 'Breeder', 'Pigeon', 'Other']
-const formulations = ['Water soluble powder', 'Feed premix', 'Oral Liquid', 'Injection', 'Drops', 'Ointment']
-const frequencies = ['Once daily', 'Twice daily', 'Thrice daily', 'Continuous in water', 'As needed']
 
 const emptyPrescription = {
   vetId: VETERINARY_DOCTORS[0].id,
@@ -117,6 +124,7 @@ const emptyPrescription = {
   registrationNumber: VETERINARY_DOCTORS[0].regNo,
   bvcRegNo: VETERINARY_DOCTORS[0].regNo,
   clinicDetails: VETERINARY_DOCTORS[0].clinic,
+  digitalSignature: `${VETERINARY_DOCTORS[0].name} (${VETERINARY_DOCTORS[0].regNo})`,
   farmerName: '',
   farmName: '',
   district: 'Rajshahi',
@@ -136,14 +144,23 @@ const emptyPrescription = {
 
 const emptyMedication = () => ({
   id: crypto.randomUUID(),
+  categoryId: '',
+  masterKey: '',
   name: '',
   tradeName: '',
   genericName: '',
+  company: '',
+  packSize: '',
+  packSizesAvailable: [],
+  approxMrpBdt: '',
   antibioticClass: 'Veterinary Antimicrobial',
+  requiresRegisteredVetRx: false,
   generation: '2nd Gen',
   whoAwareCategory: 'Watch',
-  formulation: 'Water soluble powder',
+  route: 'Drinking Water',
+  formulation: 'Drinking Water',
   dosage: '',
+  suggestedDose: '',
   frequency: 'Once daily',
   duration: '',
   durationType: 'Days',
@@ -268,18 +285,34 @@ export default function Telemedicine() {
   const [pipPos, setPipPos] = useState(null)
   const splitWorkspaceRef = useRef(null)
   const pipPaneRef = useRef(null)
-  const [prescription, setPrescription] = useState(() => ({
-    ...emptyPrescription,
-    district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
-      ? initialPrefill.district
-      : emptyPrescription.district,
-    complaints: initialPrefill?.concern ? [initialPrefill.concern] : [],
-    historyNotes: initialPrefill?.concern || '',
-  }))
+  const [prescription, setPrescription] = useState(() => {
+    const authSess = getAuthenticatedDoctorSession(role)
+    const activeDoc = authSess.isAuthenticatedDoctor
+      ? findDoctorProfile({ id: authSess.doctorId, regNo: authSess.regNo })
+      : VETERINARY_DOCTORS[0]
+    return {
+      ...emptyPrescription,
+      vetId: activeDoc.id,
+      vetName: activeDoc.name,
+      vetDegrees: activeDoc.degrees,
+      registrationNumber: activeDoc.regNo,
+      bvcRegNo: activeDoc.regNo,
+      clinicDetails: activeDoc.clinic,
+      digitalSignature: `${activeDoc.name} (${activeDoc.regNo})`,
+      district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
+        ? initialPrefill.district
+        : emptyPrescription.district,
+      complaints: initialPrefill?.concern ? [initialPrefill.concern] : [],
+      historyNotes: initialPrefill?.concern || '',
+    }
+  })
   const [medications, setMedications] = useState([emptyMedication()])
   const [complaintDraft, setComplaintDraft] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+  const [rxReviewOpen, setRxReviewOpen] = useState(false)
+  const [rxDeliveredRecord, setRxDeliveredRecord] = useState(null)
+  const [rxSubmitting, setRxSubmitting] = useState(false)
 
   const selectedVet = findDoctorProfile({ id: booking.vetId }, doctorsList) || doctorsList[0]
   const detailsModalDoctor = detailsModalDoctorId
@@ -550,33 +583,43 @@ export default function Telemedicine() {
   }
 
   function updatePrescription(field, value) {
+    if (rxDeliveredRecord?.isImmutable) return
     setPrescription((current) => ({ ...current, [field]: value }))
   }
 
-  function updateMedication(id, field, value) {
+  function patchMedication(id, patchObj) {
+    if (rxDeliveredRecord?.isImmutable) return
     setMedications((current) => current.map((medication) => (
-      medication.id === id ? { ...medication, [field]: value } : medication
+      medication.id === id ? { ...medication, ...patchObj } : medication
     )))
   }
 
   function applyMasterMedicineToRow(id, entryKey) {
+    if (rxDeliveredRecord?.isImmutable) return
     const entry = masterMedicineIndex.get(entryKey)
     if (!entry) return
+    const mappedRoute = mapFormulationToRxSelect(entry.formulation)
     setMedications((current) => current.map((medication) => (
       medication.id === id
         ? {
             ...medication,
+            categoryId: entry.categoryId || medication.categoryId,
             masterKey: entryKey,
             name: entry.tradeName,
             tradeName: entry.tradeName,
             genericName: entry.genericName,
             antibioticClass: entry.category,
+            requiresRegisteredVetRx: Boolean(entry.requiresRegisteredVetRx),
             whoAwareCategory: entry.whoAwareCategory,
-            formulation: mapFormulationToRxSelect(entry.formulation),
+            route: mappedRoute === 'Drops' ? 'Oral Drop' : (mappedRoute === 'Feed premix' ? 'Feed Mix' : 'Drinking Water'),
+            formulation: entry.formulation || mappedRoute,
             dosage: entry.standardDose,
+            suggestedDose: entry.standardDose,
             withdrawal: entry.withdrawalPeriod || '0 days',
             meatWithdrawalDays: entry.withdrawalPeriod || '0 days',
             company: entry.company,
+            packSize: Array.isArray(entry.packSizes) ? (entry.packSizes[0] || '') : '',
+            packSizesAvailable: Array.isArray(entry.packSizes) ? entry.packSizes : [],
             approxMrpBdt: entry.approxMrpBdt,
           }
         : medication
@@ -701,6 +744,8 @@ export default function Telemedicine() {
 
     setVetRoomCode(resolvedRoom)
     setActiveVetPatient({ ...appt, roomCode: resolvedRoom })
+    setRxDeliveredRecord(null)
+    setSaveError('')
     setPrescription((current) => ({
       ...current,
       vetId: matchedDoc.id,
@@ -709,6 +754,7 @@ export default function Telemedicine() {
       registrationNumber: matchedDoc.regNo,
       bvcRegNo: matchedDoc.regNo,
       clinicDetails: matchedDoc.clinic,
+      digitalSignature: `${matchedDoc.name} (${matchedDoc.regNo})`,
       farmerName: appt.farmerName || '',
       farmName: appt.farmName || appt.shedName || '',
       district: appt.district || 'Rajshahi',
@@ -1195,35 +1241,97 @@ export default function Telemedicine() {
     window.setTimeout(cleanPrintState, 2000)
   }
 
-  function savePrescription() {
+  function handleOpenRxReview() {
     setSaveMessage('')
     setSaveError('')
     try {
-      const recordId = crypto.randomUUID()
+      assertDoctorPrescriptionAuthority({
+        role,
+        doctorSession,
+        bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber,
+      })
+    } catch (authErr) {
+      setSaveError(authErr.message)
+      return
+    }
+    const hasMedicineEntry = medications.some((m) => (
+      String(m.name || m.tradeName || m.genericName || '').trim().length > 0
+    ))
+    if (!hasMedicineEntry) {
+      setSaveError(t('rxNeedOneMedicationError'))
+      return
+    }
+    setRxReviewOpen(true)
+  }
+
+  function handleResetForNewRx() {
+    const activeDoc = myDoctorProfile || VETERINARY_DOCTORS[0]
+    setRxDeliveredRecord(null)
+    setRxReviewOpen(false)
+    setSaveMessage('')
+    setSaveError('')
+    setMedications([emptyMedication()])
+    setPrescription({
+      ...emptyPrescription,
+      vetId: activeDoc.id,
+      vetName: activeDoc.name,
+      vetDegrees: activeDoc.degrees,
+      registrationNumber: activeDoc.regNo,
+      bvcRegNo: activeDoc.regNo,
+      clinicDetails: activeDoc.clinic,
+      digitalSignature: `${activeDoc.name} (${activeDoc.regNo})`,
+    })
+  }
+
+  function savePrescription() {
+    if (rxDeliveredRecord?.isImmutable) {
+      setRxReviewOpen(true)
+      return
+    }
+    setSaveMessage('')
+    setSaveError('')
+    setRxSubmitting(true)
+    try {
+      assertDoctorPrescriptionAuthority({
+        role,
+        doctorSession,
+        bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber,
+      })
+
+      const recordId = `PMX-RX-${Date.now().toString(36).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`
       const nowIso = new Date().toISOString()
-      const formattedMeds = medications.map((medication) => ({
-        id: medication.id || crypto.randomUUID(),
-        name: medication.name || medication.tradeName || 'Prescribed Drug',
-        tradeName: medication.tradeName || medication.name || 'Prescribed Drug',
-        genericName: medication.genericName || medication.generic || medication.name || 'Veterinary Antimicrobial',
-        antibioticClass: medication.antibioticClass || medication.class || 'Veterinary Antimicrobial',
-        generation: medication.generation || '2nd Gen',
-        whoAwareCategory: medication.whoAwareCategory || 'Watch',
-        formulation: medication.formulation || 'Water soluble powder',
-        dosage: medication.dosage || 'As directed',
-        frequency: medication.frequency || 'Once daily',
-        duration: medication.duration ? `${medication.duration} ${medication.durationType || 'Days'}` : '5 Days',
-        withdrawal: medication.withdrawal || medication.meatWithdrawalDays || '7 days',
-        meatWithdrawalDays: medication.meatWithdrawalDays || medication.withdrawal || '7 days',
-        eggWithdrawalDays: medication.eggWithdrawalDays || 'Not for layers',
-      }))
+      const formattedMeds = medications.map((medication) => {
+        const requiresWithdrawal = isWithdrawalRequiredMedication(medication)
+        const resolvedWithdrawal = medication.withdrawal || medication.meatWithdrawalDays || (requiresWithdrawal ? '7 days' : '0 days')
+        return {
+          id: medication.id || crypto.randomUUID(),
+          name: medication.name || medication.tradeName || medication.genericName || 'Prescribed Drug',
+          tradeName: medication.tradeName || medication.name || medication.genericName || 'Prescribed Drug',
+          genericName: medication.genericName || medication.generic || medication.name || 'Veterinary Medicine',
+          company: medication.company || 'Registered Veterinary Pharmaceuticals',
+          packSize: medication.packSize || '',
+          approxMrpBdt: medication.approxMrpBdt || '',
+          antibioticClass: medication.antibioticClass || medication.class || 'Veterinary Care',
+          requiresRegisteredVetRx: requiresWithdrawal,
+          generation: medication.generation || '2nd Gen',
+          whoAwareCategory: medication.whoAwareCategory || 'Watch',
+          route: medication.route || medication.formulation || 'Drinking Water',
+          formulation: medication.route || medication.formulation || 'Drinking Water',
+          dosage: medication.dosage || 'As directed',
+          frequency: medication.frequency || 'Once daily',
+          duration: medication.duration ? `${medication.duration} ${medication.durationType || 'Days'}` : '5 Days',
+          withdrawal: resolvedWithdrawal,
+          meatWithdrawalDays: resolvedWithdrawal,
+          eggWithdrawalDays: requiresWithdrawal ? 'Check poultry label' : '0 days',
+        }
+      })
 
       const activeRoom = vetRoomCode || activeVetPatient?.roomCode || ''
       const matchedDoc = findDoctorProfile(
         { id: prescription.vetId, name: prescription.vetName, regNo: prescription.bvcRegNo || prescription.registrationNumber },
         doctorsList
       )
-      const structuredPrescription = {
+      const baseRecord = {
         id: recordId,
         type: 'prescription',
         source: 'vet_issued',
@@ -1237,6 +1345,7 @@ export default function Telemedicine() {
         vetDegrees: prescription.vetDegrees || matchedDoc.degrees,
         bvcRegNo: prescription.bvcRegNo || prescription.registrationNumber || matchedDoc.regNo,
         clinicDetails: prescription.clinicDetails || matchedDoc.clinic,
+        digitalSignature: prescription.digitalSignature || `${prescription.vetName || matchedDoc.name} (${prescription.bvcRegNo || matchedDoc.regNo})`,
         farmerName: prescription.farmerName || 'Registered Farmer',
         farmName: prescription.farmName || '',
         district: prescription.district || 'Rajshahi',
@@ -1254,6 +1363,11 @@ export default function Telemedicine() {
         advice: prescription.advice || '',
         followUpDate: prescription.followUpDate || '',
       }
+
+      const structuredPrescription = buildImmutableRxLockFields({
+        record: baseRecord,
+        doctorSession,
+      })
 
       savePrescriptionLog(structuredPrescription)
       broadcastLivePrescription({ roomCode: activeRoom, prescription: structuredPrescription })
@@ -1275,18 +1389,21 @@ export default function Telemedicine() {
           ...m,
           generic: m.genericName,
           tradeName: m.tradeName,
-          company: 'Registered Veterinary Pharmaceuticals',
+          company: m.company || 'Registered Veterinary Pharmaceuticals',
         })),
       }
       const analyticsRecords = JSON.parse(localStorage.getItem(prescriptionStorageKeys.consult) || '[]')
       localStorage.setItem(prescriptionStorageKeys.consult, JSON.stringify([analyticsRecord, ...(Array.isArray(analyticsRecords) ? analyticsRecords : [])].slice(0, 100)))
       notifyPrescriptionDataChanged()
 
+      setRxDeliveredRecord(structuredPrescription)
       setSaveMessage(language === 'bn'
-        ? 'ডিজিটাল প্রেসক্রিপশনটি সফলভাবে পাঠানো হয়েছে এবং ফার্মারের ক্লিনিক্যাল লগের Prescriptions ও Vet Consultations অংশে তারিখ ও সময়সহ সংরক্ষিত হয়েছে!'
-        : 'Digital Prescription successfully sent and saved to the Farmer’s Clinical Log (Prescriptions tab) with date & time!')
+        ? 'ডিজিটাল প্রেসক্রিপশনটি অপরিবর্তনীয় (Immutable) হিসেবে লক হয়ে ফার্মারের ক্লিনিক্যাল লগে পাঠানো হয়েছে!'
+        : 'Digital Prescription verified, locked as immutable, and delivered directly to the Farmer’s Clinical Log!')
     } catch (error) {
       setSaveError(t('prescriptionSaveError', { message: error.message }))
+    } finally {
+      setRxSubmitting(false)
     }
   }
 
@@ -2113,9 +2230,9 @@ export default function Telemedicine() {
                     <span>{isFullscreenRx ? t('rxRestoreSplitBtn') : t('rxExpandFullscreenBtn')}</span>
                   </button>
                 )}
-                <button className="telemedicine-save-button" type="button" onClick={savePrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
+                <button className="telemedicine-save-button" type="button" onClick={handleOpenRxReview} style={{ padding: '9px 15px', borderRadius: '10px' }}>
                   <Icon name="send" size={17} />
-                  {t('rxSendSaveToLog')}
+                  {rxDeliveredRecord?.isImmutable ? t('rxImmutableLockedBadge') : t('rxReviewAndSendBtn')}
                 </button>
                 <button className="telemedicine-print-button" type="button" onClick={printPrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
                   <Icon name="pdf" size={17} />
@@ -2124,14 +2241,28 @@ export default function Telemedicine() {
               </div>
             </div>
 
+        {rxDeliveredRecord?.isImmutable && (
+          <div className="pmx-rx-sent-banner" style={{ marginBottom: '12px' }} role="status">
+            <Lock size={15} aria-hidden="true" />
+            <div style={{ flex: 1 }}>
+              <strong>{t('rxDeliveredSyncedFarmer')} ({rxDeliveredRecord.signatureDigest})</strong>
+              <small>{t('rxImmutableFooterHint')}</small>
+            </div>
+            <button type="button" className="pmx-secondary-btn" onClick={handleResetForNewRx}>
+              {t('rxStartNewBtn')}
+            </button>
+          </div>
+        )}
+
         <div className="telemedicine-builder-grid dark:text-gray-100">
           <form className="telemedicine-entry-form dark:text-gray-100" onSubmit={(event) => event.preventDefault()}>
             <FormSection title={t('veterinarianInformation')} icon="user">
               <div className="telemedicine-fields-grid">
-                <Field label={t('vetName')}><input value={prescription.vetName} onChange={(event) => updatePrescription('vetName', event.target.value)} placeholder={t('veterinarianName')} /></Field>
-                <Field label={t('degrees')}><input value={prescription.vetDegrees} onChange={(event) => updatePrescription('vetDegrees', event.target.value)} placeholder={t('degreesPlaceholder')} /></Field>
-                <Field label={t('registrationNumber')}><input value={prescription.registrationNumber} onChange={(event) => { updatePrescription('registrationNumber', event.target.value); updatePrescription('bvcRegNo', event.target.value) }} placeholder={t('registrationId')} /></Field>
-                <Field label={t('clinicDetails')}><input value={prescription.clinicDetails} onChange={(event) => updatePrescription('clinicDetails', event.target.value)} placeholder={t('clinicDetailsPlaceholder')} /></Field>
+                <Field label={t('vetName')}><input disabled={Boolean(rxDeliveredRecord?.isImmutable)} value={prescription.vetName} onChange={(event) => updatePrescription('vetName', event.target.value)} placeholder={t('veterinarianName')} /></Field>
+                <Field label={t('degrees')}><input disabled={Boolean(rxDeliveredRecord?.isImmutable)} value={prescription.vetDegrees} onChange={(event) => updatePrescription('vetDegrees', event.target.value)} placeholder={t('degreesPlaceholder')} /></Field>
+                <Field label={t('registrationNumber')}><input disabled={Boolean(rxDeliveredRecord?.isImmutable)} value={prescription.registrationNumber} onChange={(event) => { updatePrescription('registrationNumber', event.target.value); updatePrescription('bvcRegNo', event.target.value) }} placeholder={t('registrationId')} /></Field>
+                <Field label={t('clinicDetails')}><input disabled={Boolean(rxDeliveredRecord?.isImmutable)} value={prescription.clinicDetails} onChange={(event) => updatePrescription('clinicDetails', event.target.value)} placeholder={t('clinicDetailsPlaceholder')} /></Field>
+                <Field label={t('rxDigitalSignatureLabel')} className="telemedicine-field--wide"><input disabled={Boolean(rxDeliveredRecord?.isImmutable)} value={prescription.digitalSignature} onChange={(event) => updatePrescription('digitalSignature', event.target.value)} placeholder={t('rxDigitalSignaturePlaceholder')} /></Field>
               </div>
             </FormSection>
 
@@ -2169,48 +2300,22 @@ export default function Telemedicine() {
             <FormSection title={t('medicationDetails')} icon="pill">
               <div className="telemedicine-medication-list">
                 {medications.map((medication, index) => (
-                  <fieldset className="telemedicine-medication-row dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700" key={medication.id}>
-                    <legend>
-                      {t('medicineNumber', { number: index + 1 })}
-                      {medication.company ? ` · ${medication.company}` : ''}
-                      {medication.approxMrpBdt ? ` · ${medication.approxMrpBdt}` : ''}
-                    </legend>
-                    {medications.length > 1 && <button className="telemedicine-remove-button" type="button" aria-label={`${t('remove')} ${index + 1}`} onClick={() => setMedications((current) => current.filter(({ id }) => id !== medication.id))}><Icon name="remove" size={16} />{t('remove')}</button>}
-                    <div className="telemedicine-fields-grid">
-                      <Field label={t('rxSelectFromFormulary')} className="telemedicine-field--wide">
-                        <select
-                          value={medication.masterKey || ''}
-                          onChange={(event) => applyMasterMedicineToRow(medication.id, event.target.value)}
-                        >
-                          <option value="">{t('rxFormularyPlaceholder')}</option>
-                          {medicineCategories.map((cat) => (
-                            <optgroup key={cat.id} label={language === 'bn' ? cat.categoryBn : cat.category}>
-                              {cat.generics.flatMap((gen) =>
-                                gen.brands.map((brand) => {
-                                  const key = `${cat.id}::${gen.genericName}::${brand.tradeName}`
-                                  return (
-                                    <option key={key} value={key}>
-                                      {brand.tradeName} ({gen.genericName}) — {brand.company} · {brand.approxMrpBdt}
-                                    </option>
-                                  )
-                                })
-                              )}
-                            </optgroup>
-                          ))}
-                        </select>
-                      </Field>
-                      <Field label={t('drugMedicineName')}><input value={medication.name} onChange={(event) => updateMedication(medication.id, 'name', event.target.value)} placeholder={t('medicineName')} /></Field>
-                      <Field label={t('rxGenericName')}><input value={medication.genericName} onChange={(event) => updateMedication(medication.id, 'genericName', event.target.value)} placeholder={t('rxGenericPlaceholder')} /></Field>
-                      <Field label={t('formulation')}><select value={medication.formulation} onChange={(event) => updateMedication(medication.id, 'formulation', event.target.value)}>{formulations.map((formulation) => <option key={formulation} value={formulation}>{t(`formulations.${formulation}`, formulation)}</option>)}</select></Field>
-                      <Field label={t('dosage')}><input value={medication.dosage} onChange={(event) => updateMedication(medication.id, 'dosage', event.target.value)} placeholder={t('dosagePlaceholder')} /></Field>
-                      <Field label={t('frequencyTiming')}><select value={medication.frequency} onChange={(event) => updateMedication(medication.id, 'frequency', event.target.value)}>{frequencies.map((frequency) => <option key={frequency} value={frequency}>{t(`frequencies.${frequency}`, frequency)}</option>)}</select></Field>
-                      <Field label={t('duration')}><span className="telemedicine-duration-inputs"><input type="number" min="1" value={medication.duration} onChange={(event) => updateMedication(medication.id, 'duration', event.target.value)} /><select aria-label={t('durationType')} value={medication.durationType} onChange={(event) => updateMedication(medication.id, 'durationType', event.target.value)}><option value="Days">{t('days')}</option><option value="Weeks">{t('weeks')}</option></select></span></Field>
-                      <Field label={t('withdrawalPeriod')}><input value={medication.withdrawal} onChange={(event) => updateMedication(medication.id, 'withdrawal', event.target.value)} placeholder={t('withdrawalPlaceholder')} /></Field>
-                    </div>
-                  </fieldset>
+                  <HybridMedicationRow
+                    key={medication.id}
+                    medication={medication}
+                    index={index}
+                    canRemove={medications.length > 1}
+                    medicineCategories={medicineCategories}
+                    onPatch={patchMedication}
+                    onRemove={(id) => setMedications((current) => current.filter((m) => m.id !== id))}
+                    onApplyPreset={applyMasterMedicineToRow}
+                    isLocked={Boolean(rxDeliveredRecord?.isImmutable)}
+                  />
                 ))}
               </div>
-              <button type="button" className="telemedicine-add-medication" onClick={() => setMedications((current) => [...current, emptyMedication()])}><Icon name="plus" size={16} />{t('addAnotherMedicine')}</button>
+              {!rxDeliveredRecord?.isImmutable && (
+                <button type="button" className="telemedicine-add-medication" onClick={() => setMedications((current) => [...current, emptyMedication()])}><Icon name="plus" size={16} />{t('addAnotherMedicine')}</button>
+              )}
             </FormSection>
 
             <FormSection title={t('rxInvestigationsAdvice')} icon="file">
@@ -2250,24 +2355,57 @@ export default function Telemedicine() {
               <section className="prescription-preview-block"><h3>{t('rxDiagnosisHeading')}</h3><p>{prescription.diagnosis || t('rxNotEntered')}</p></section>
               <section className="prescription-rx-block">
                 <div className="prescription-rx-mark">℞</div>
-                {medications.map((medication, index) => (
-                  <div className="prescription-preview-medication" key={medication.id}>
-                    <strong>{index + 1}. {medication.name || t('rxMedicineNameDefault')} {medication.genericName ? `(${medication.genericName})` : ''}</strong>
-                    <span>{[t(`formulations.${medication.formulation}`, medication.formulation), medication.dosage, t(`frequencies.${medication.frequency}`, medication.frequency), medication.duration && `${medication.duration} ${t(medication.durationType === 'Weeks' ? 'weeks' : 'days')}`].filter(Boolean).join(' · ')}</span>
-                    {medication.withdrawal && <small>{t('rxWithdrawalPrefix')}: {medication.withdrawal}</small>}
-                  </div>
-                ))}
+                {medications.map((medication, index) => {
+                  const showWithdrawalWarn = isWithdrawalRequiredMedication(medication)
+                  return (
+                    <div className="prescription-preview-medication" key={medication.id}>
+                      <strong>
+                        {index + 1}. {medication.name || medication.tradeName || t('rxMedicineNameDefault')}
+                        {medication.genericName ? ` (${medication.genericName})` : ''}
+                        {medication.company ? ` · ${medication.company}` : ''}
+                      </strong>
+                      <span>
+                        {[
+                          medication.packSize,
+                          medication.approxMrpBdt,
+                          medication.route || t(`formulations.${medication.formulation}`, medication.formulation),
+                          medication.dosage,
+                          medication.frequency,
+                          medication.duration && `${medication.duration} ${t(medication.durationType === 'Weeks' ? 'weeks' : 'days')}`,
+                        ].filter(Boolean).join(' · ')}
+                      </span>
+                      {(medication.withdrawal || showWithdrawalWarn) && (
+                        <small className={showWithdrawalWarn ? 'pmx-preview-withdrawal-warn' : ''}>
+                          {t('rxWithdrawalPrefix')}: {medication.withdrawal || (language === 'bn' ? 'কমপক্ষে ৫-৭ দিন যাচাই করুন' : 'Mandatory withdrawal period')}
+                        </small>
+                      )}
+                    </div>
+                  )
+                })}
               </section>
 
               {(prescription.tests || prescription.advice) && <section className="prescription-preview-block"><h3>{t('rxInvestigationsAdvice')}</h3>{prescription.tests && <p><strong>{t('rxRecommendedTests')}:</strong> {prescription.tests}</p>}{prescription.advice && <p>{prescription.advice}</p>}</section>}
               <div className="prescription-preview-followup"><span>{t('rxFollowUpUpper')}</span><strong>{prescription.followUpDate || t('historyAsAdvised')}</strong></div>
-              <footer className="prescription-pad-footer"><span>{t('rxDisclaimerFooter')}</span><div><span className="prescription-signature">{prescription.vetName || t('rxSignatureDefault')}</span><small>{t('rxSignatureSeal')}</small></div></footer>
+              <p className="pmx-preview-regulatory-footer">
+                {language === 'bn' ? RX_MANDATORY_REGULATORY_BN : RX_MANDATORY_REGULATORY_EN}
+              </p>
+              <footer className="prescription-pad-footer">
+                <span>
+                  {rxDeliveredRecord?.isImmutable
+                    ? `${t('rxImmutableLockedBadge')} · ${rxDeliveredRecord.signatureDigest}`
+                    : t('rxDisclaimerFooter')}
+                </span>
+                <div>
+                  <span className="prescription-signature">{prescription.digitalSignature || prescription.vetName || t('rxSignatureDefault')}</span>
+                  <small>{prescription.registrationNumber || t('rxSignatureSeal')}</small>
+                </div>
+              </footer>
             </article>
             {saveMessage && <p className="telemedicine-status telemedicine-save-status" role="status">{saveMessage}</p>}
             {saveError && <p className="telemedicine-error" role="alert">{saveError}</p>}
-            <button className="telemedicine-save-button" type="button" onClick={savePrescription}>
+            <button className="telemedicine-save-button" type="button" onClick={handleOpenRxReview}>
               <Icon name="send" size={17} />
-              {t('rxSendSaveToLog')}
+              {rxDeliveredRecord?.isImmutable ? t('rxImmutableLockedBadge') : t('rxReviewAndSendBtn')}
             </button>
             <p className="telemedicine-preview-note">{t('rxSyncNote')}</p>
           </aside>
@@ -2305,6 +2443,19 @@ export default function Telemedicine() {
         <DigitalReceiptModal
           receipt={verifiedReceipt}
           onClose={() => setReceiptModalOpen(false)}
+        />
+      )}
+
+      {rxReviewOpen && (
+        <RxReviewModal
+          prescription={prescription}
+          medications={medications}
+          deliveredRecord={rxDeliveredRecord}
+          isSubmitting={rxSubmitting}
+          errorText={saveError}
+          onConfirmSend={savePrescription}
+          onPrintPdf={printPrescription}
+          onClose={() => setRxReviewOpen(false)}
         />
       )}
     </main>

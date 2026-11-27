@@ -864,6 +864,11 @@
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
   body[data-print-prescription="true"] * {
     visibility: hidden !important;
   }
@@ -878,11 +883,13 @@
     top: 0;
     left: 0;
     width: 100%;
-    max-width: none;
+    max-width: 190mm;
     border: 0;
     border-top: 5px solid #79ad9c;
     border-radius: 0;
     box-shadow: none;
+    background: #ffffff !important;
+    color: #0f172a !important;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -4670,5 +4677,308 @@ html[data-theme="dark"] .pmx-fullscreen-rx-btn {
     width: min(304px, calc(100vw - 24px));
     right: 12px;
     bottom: 12px;
+  }
+}
+
+/* Prompt-22: Hybrid Rx Builder Steps, Quick-Select Chips, Withdrawal Alerts & Confirm Modal */
+.pmx-hybrid-med-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pmx-hybrid-step-box {
+  padding: 10px 12px;
+  border: 1px solid #d5e5d8;
+  border-radius: 12px;
+  background: #f8fbf9;
+}
+
+.pmx-hybrid-step-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #14432a;
+}
+
+.pmx-combo-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 1px solid #15803d;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #166534;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-combo-adder-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #cbd9cd;
+}
+
+.pmx-brand-preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  gap: 7px;
+}
+
+.pmx-brand-card-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1.5px solid #d5e2d8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #162b1f;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.pmx-brand-card-btn strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pmx-brand-card-btn span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.pmx-brand-card-btn small {
+  font-size: 10px;
+  color: #5b7163;
+}
+
+.pmx-brand-card-btn.is-selected {
+  border-color: #15803d;
+  background: #ecfdf3;
+}
+
+.pmx-regimen-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 9px;
+}
+
+.pmx-regimen-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #294936;
+}
+
+.pmx-chip-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.pmx-regimen-chip {
+  padding: 4px 10px;
+  border: 1px solid #cbd9cd;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #243b2c;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.pmx-regimen-chip.is-db-suggested {
+  border-color: #38bdf8;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
+.pmx-regimen-chip.is-selected {
+  border-color: #15803d;
+  background: #15803d;
+  color: #ffffff;
+}
+
+.pmx-rx-withdrawal-alert {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.pmx-preview-withdrawal-warn {
+  color: #b45309 !important;
+  font-weight: 700;
+}
+
+.pmx-preview-regulatory-footer {
+  margin: 0;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #d5e5d8;
+  background: #f8fbf9;
+  color: #3f5546;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.pmx-rx-review-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d5e2d8;
+  border-radius: 12px;
+  background: #f8fafc;
+  margin-bottom: 12px;
+}
+
+.pmx-rx-review-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pmx-rx-review-summary small {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.pmx-rx-review-summary strong {
+  font-size: 12.5px;
+}
+
+.pmx-rx-review-summary span {
+  font-size: 11px;
+  color: #475569;
+}
+
+.pmx-rx-review-meds {
+  margin-bottom: 12px;
+}
+
+.pmx-rx-review-meds > strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12.5px;
+}
+
+.pmx-rx-review-meds ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.pmx-rx-review-meds li {
+  padding: 7px 10px;
+  border: 1px solid #dce6df;
+  border-radius: 9px;
+  font-size: 11.5px;
+}
+
+.pmx-rx-review-meds li small {
+  display: block;
+  margin-top: 2px;
+  color: #5b7163;
+  font-size: 10.5px;
+}
+
+.pmx-rx-reg-mandatory-note {
+  margin: 10px 0;
+  padding: 8px 11px;
+  border-radius: 9px;
+  border: 1px solid #cbd9cd;
+  background: #f8fbf9;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e3a2b;
+}
+
+.pmx-rx-immutable-warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 12px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.pmx-rx-sent-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid #86efac;
+  background: #ecfdf3;
+  color: #166534;
+  font-size: 12px;
+}
+
+.pmx-rx-sent-banner small {
+  display: block;
+  font-size: 10.5px;
+  opacity: 0.9;
+}
+
+html[data-theme="dark"] .pmx-hybrid-step-box,
+html[data-theme="dark"] .pmx-rx-reg-mandatory-note {
+  border-color: #2f4334;
+  background: #141f18;
+  color: #e2eee5;
+}
+
+html[data-theme="dark"] .pmx-hybrid-step-title,
+html[data-theme="dark"] .pmx-regimen-label {
+  color: #bbf7d0;
+}
+
+html[data-theme="dark"] .pmx-brand-card-btn,
+html[data-theme="dark"] .pmx-regimen-chip {
+  border-color: #2f4334;
+  background: #1a2820;
+  color: #e2eee5;
+}
+
+html[data-theme="dark"] .pmx-brand-card-btn.is-selected {
+  border-color: #22c55e;
+  background: rgba(20, 83, 45, 0.45);
+}
+
+html[data-theme="dark"] .pmx-regimen-chip.is-selected {
+  background: #15803d;
+  color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .pmx-combo-adder-row,
+  .pmx-rx-review-summary {
+    grid-template-columns: 1fr;
   }
 }
