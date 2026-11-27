@@ -4307,3 +4307,368 @@ html[data-theme="dark"] .pmx-upload-file-trigger {
   border-color: #22c55e;
   color: #86efac;
 }
+
+/* Prompt-21: Native Branded 1-on-1 Stage, 50/50 Drag Split & Floating PiP Mode */
+.pmx-native-video-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pmx-native-stage-viewport {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 330px;
+  padding: 18px 18px 66px;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #1e3528;
+  background: #0d1913;
+  color: #f8fafc;
+}
+
+.pmx-native-video-shell.is-compact-pip .pmx-native-stage-viewport {
+  min-height: 196px;
+  padding: 10px 10px 54px;
+  border-radius: 0;
+  border: 0;
+}
+
+.pmx-native-brand-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.pmx-native-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  background: rgba(13, 25, 19, 0.78);
+  color: #bbf7d0;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.pmx-native-float-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 20, 0.84);
+  backdrop-filter: blur(8px);
+}
+
+.pmx-native-video-shell.is-compact-pip .pmx-native-float-controls {
+  bottom: 8px;
+  gap: 6px;
+  padding: 5px 8px;
+}
+
+.pmx-float-ctrl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  cursor: pointer;
+  transition: background 140ms ease, transform 120ms ease;
+}
+
+.pmx-float-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.pmx-float-ctrl-btn.is-off {
+  border-color: #f87171;
+  background: rgba(185, 28, 28, 0.85);
+  color: #ffffff;
+}
+
+.pmx-float-ctrl-btn.is-sharing {
+  border-color: #4ade80;
+  background: #15803d;
+  color: #ffffff;
+}
+
+.pmx-native-video-shell.is-compact-pip .pmx-float-ctrl-btn {
+  width: 31px;
+  height: 31px;
+}
+
+.pmx-float-end-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #ffffff;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: filter 140ms ease;
+}
+
+.pmx-float-end-btn:hover {
+  filter: brightness(1.08);
+}
+
+.pmx-native-video-shell.is-compact-pip .pmx-float-end-btn {
+  width: 34px;
+  height: 31px;
+  padding: 0;
+}
+
+.pmx-native-auth-denied {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.pmx-native-auth-denied p {
+  margin: 4px 0 0;
+}
+
+.pmx-inline-stage-grid.is-vet-column {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pmx-inline-stage-grid.is-pip-stage {
+  display: block;
+  padding: 0;
+}
+
+.pmx-inline-call-room.is-compact-pip {
+  margin-top: 0;
+  border-radius: 0 0 14px 14px;
+  box-shadow: none;
+  border: 0;
+}
+
+.pmx-inline-call-room.is-compact-pip .pmx-self-pip {
+  width: 82px;
+  height: 58px;
+  top: 8px;
+  right: 8px;
+  bottom: auto;
+}
+
+/* 50/50 Draggable Split Layout */
+.pmx-vet-split-layout {
+  display: block;
+}
+
+.pmx-vet-split-layout.has-active-call:not(.is-fullscreen-rx) {
+  display: grid;
+  grid-template-columns: minmax(280px, var(--pmx-split-left, 50%)) 12px minmax(0, 1fr);
+  align-items: start;
+  gap: 0;
+}
+
+.pmx-vet-split-layout.is-dragging {
+  user-select: none;
+}
+
+.pmx-split-left-pane,
+.pmx-split-right-pane {
+  min-width: 0;
+}
+
+.pmx-split-left-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pmx-split-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  min-height: 360px;
+  cursor: col-resize;
+  touch-action: none;
+  padding: 0 1px;
+}
+
+.pmx-split-grip-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 52px;
+  border-radius: 999px;
+  border: 1px solid #cbd9cd;
+  background: #ffffff;
+  color: #4b6352;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+  transition: background 130ms ease, border-color 130ms ease;
+}
+
+.pmx-split-drag-handle:hover .pmx-split-grip-pill,
+.pmx-split-drag-handle:focus-visible .pmx-split-grip-pill {
+  border-color: #15803d;
+  background: #ecfdf3;
+  color: #15803d;
+}
+
+.pmx-vet-split-layout.has-active-call:not(.is-fullscreen-rx) .pmx-split-right-pane {
+  padding-left: 4px;
+}
+
+.pmx-vet-split-layout.has-active-call:not(.is-fullscreen-rx) .pmx-split-right-pane .telemedicine-builder-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.pmx-vet-split-layout.has-active-call:not(.is-fullscreen-rx) .pmx-split-right-pane .telemedicine-preview-column {
+  position: static;
+}
+
+.pmx-fullscreen-rx-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 13px;
+  border: 1px solid #15803d;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #15803d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.pmx-fullscreen-rx-btn:hover,
+.pmx-fullscreen-rx-btn.is-active {
+  background: #ecfdf3;
+}
+
+/* Floating Draggable PiP Video Window */
+.pmx-split-left-pane.is-pip-floating {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 90;
+  width: 332px;
+  gap: 0;
+  border-radius: 14px;
+  border: 1px solid #1f4f32;
+  background: #0d1913;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.32);
+  overflow: hidden;
+}
+
+.pmx-pip-window-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  background: #13281d;
+  color: #dcfce7;
+  cursor: grab;
+  touch-action: none;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pmx-pip-window-bar:active {
+  cursor: grabbing;
+}
+
+.pmx-pip-drag-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pmx-pip-drag-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pmx-pip-restore-btn {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(134, 239, 172, 0.55);
+  background: rgba(21, 128, 61, 0.65);
+  color: #ffffff;
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+html[data-theme="dark"] .pmx-split-grip-pill {
+  border-color: #36503e;
+  background: #17231b;
+  color: #a7c2b0;
+}
+
+html[data-theme="dark"] .pmx-fullscreen-rx-btn {
+  border-color: #22c55e;
+  background: #16251c;
+  color: #86efac;
+}
+
+@media (max-width: 959px) {
+  .pmx-vet-split-layout.has-active-call:not(.is-fullscreen-rx) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .pmx-split-drag-handle {
+    display: none;
+  }
+
+  .pmx-vet-split-layout.has-active-call:not(.is-fullscreen-rx) .pmx-split-right-pane {
+    padding-left: 0;
+  }
+
+  .pmx-split-left-pane.is-pip-floating {
+    width: min(304px, calc(100vw - 24px));
+    right: 12px;
+    bottom: 12px;
+  }
+}

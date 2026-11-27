@@ -1322,5 +1322,18 @@
   "callAttachedHistoryLabel": "Attached Rx & History Reports",
   "callPreviewFileBtn": "View Report",
   "callPdfDownloadFallback": "Open or download this PDF report using the button below.",
-  "queueAttachedFilesBadge": "History Rx / Files"
+  "queueAttachedFilesBadge": "History Rx / Files",
+  "nativeBrandStageLabel": "PoultryMedix Secure HD",
+  "nativeStageLiveFeedHint": "Direct in-app camera & encrypted WebRTC channel active",
+  "nativeStageAudioReadyHint": "Encrypted voice channel ready — enable camera anytime below",
+  "nativeCallControlsLabel": "Consultation media controls",
+  "nativeSwitchCameraBtn": "Switch Camera",
+  "callEndShort": "End",
+  "consultMediaAuthDeniedTitle": "Session Authentication Required",
+  "consultMediaAuthDenied": "Camera and microphone streams require an active verified booking or authenticated veterinarian session.",
+  "rxExpandFullscreenBtn": "Expand / Fullscreen Rx",
+  "rxRestoreSplitBtn": "Restore 50/50 Split",
+  "rxExitPipShort": "Split View",
+  "consultSplitResizerLabel": "Resize consultation call and prescription workspace",
+  "consultSplitResizerHint": "Drag left or right to resize split panels (Double-click to reset 50/50)"
 }

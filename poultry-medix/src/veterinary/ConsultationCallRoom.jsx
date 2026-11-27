@@ -8,14 +8,12 @@ import {
   Hourglass,
   Image as ImageIcon,
   Phone,
-  PhoneOff,
   ShieldCheck,
   Stethoscope,
   Video,
   X,
 } from 'lucide-react'
-import LiveMediaStage from './LiveMediaStage.jsx'
-import LiveQaHandRaisePanel from './LiveQaHandRaisePanel.jsx'
+import NativeConsultVideoStage from './NativeConsultVideoStage.jsx'
 import { TELEHEALTH_SIGNAL_CHANNEL } from '../lib/telehealthNotifier.js'
 import { CLINICAL_LOGS_UPDATED_EVENT, getClinicalLogs } from '../lib/clinicalLogsStore.js'
 import { formatVetHeaderDisplay } from '../lib/doctorsStore.js'
@@ -36,6 +34,7 @@ export default function ConsultationCallRoom({
   bookingContext,
   participantRole = 'farmer',
   userRole = '',
+  compactPip = false,
   onEndCall,
   onToggleMobileRxSheet,
 }) {
@@ -48,7 +47,6 @@ export default function ConsultationCallRoom({
   const [activeCallType, setActiveCallType] = useState(
     initialCallType === 'video' ? 'video' : 'audio'
   )
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [callStartedAt] = useState(() => Date.now())
   const [liveRxAlert, setLiveRxAlert] = useState(null)
   const [previewAttachment, setPreviewAttachment] = useState(null)
@@ -115,13 +113,6 @@ export default function ConsultationCallRoom({
     setPreviewAttachment(att)
   }
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1)
-    }, 1000)
-    return () => window.clearInterval(interval)
-  }, [])
-
   // Listen for Live Prescription deliveries (real-time BroadcastChannel + clinicalLogsStore)
   useEffect(() => {
     if (participantRole !== 'farmer') return undefined
@@ -172,11 +163,11 @@ export default function ConsultationCallRoom({
   function handleEndSession(stageInfo) {
     if (endedRef.current) return
     endedRef.current = true
-    const finalSeconds = Math.max(1, stageInfo?.elapsedSeconds || elapsedSeconds)
+    const finalSeconds = Math.max(1, stageInfo?.elapsedSeconds || 1)
     onEndCall({
       roomId: roomCode,
       roomCode,
-      callType: activeCallType === 'video' ? 'Video' : 'Audio',
+      callType: stageInfo?.callType || (activeCallType === 'video' ? 'Video' : 'Audio'),
       durationSeconds: finalSeconds,
       duration: formatDurationMMSS(finalSeconds),
       doctorName: doctor.name,
@@ -187,78 +178,79 @@ export default function ConsultationCallRoom({
 
   return (
     <section
-      className="pmx-inline-call-room dark:bg-gray-900 dark:border-gray-700"
+      className={`pmx-inline-call-room${compactPip ? ' is-compact-pip' : ''} dark:bg-gray-900 dark:border-gray-700`}
       aria-label={isVideoMode ? t('callRoomVideoTitle') : t('callRoomAudioTitle')}
     >
-      <header className="pmx-inline-call-header dark:bg-gray-950 dark:border-gray-800">
-        <div className="pmx-call-doctor-meta">
-          <div className="pmx-doctor-avatar" aria-hidden="true">
-            <Stethoscope size={20} />
-          </div>
-          <div>
-            <div className="pmx-inline-room-badges">
-              <span className="pmx-privacy-shield-badge">
-                <ShieldCheck size={11} aria-hidden="true" />
-                {t('privacyProtectedCallBadge')}
-              </span>
-              <span className="pmx-room-code-pill">{roomCode}</span>
-              <span className={`pmx-live-role-badge ${roleGroup.isHost ? 'is-host' : 'is-participant'}`}>
-                {t(roleGroup.badgeKey)}
-              </span>
+      {!compactPip && (
+        <header className="pmx-inline-call-header dark:bg-gray-950 dark:border-gray-800">
+          <div className="pmx-call-doctor-meta">
+            <div className="pmx-doctor-avatar" aria-hidden="true">
+              <Stethoscope size={20} />
             </div>
-            <h4>{formatVetHeaderDisplay(doctor.name, doctor.degrees)}</h4>
-            <p>
-              {doctor.regNo}
-              {doctor.specialty ? ` · ${doctor.specialty}` : ''}
-              {doctor.location ? ` · ${doctor.location}` : ''}
-            </p>
-            <div className="pmx-ethical-audit-strip">
-              <span>{t('callEthicalAuditBanner', { regNo: doctor.regNo })}</span>
+            <div>
+              <div className="pmx-inline-room-badges">
+                <span className="pmx-privacy-shield-badge">
+                  <ShieldCheck size={11} aria-hidden="true" />
+                  {t('privacyProtectedCallBadge')}
+                </span>
+                <span className="pmx-room-code-pill">{roomCode}</span>
+              </div>
+              <h4>{formatVetHeaderDisplay(doctor.name, doctor.degrees)}</h4>
+              <p>
+                {doctor.regNo}
+                {doctor.specialty ? ` · ${doctor.specialty}` : ''}
+                {doctor.location ? ` · ${doctor.location}` : ''}
+              </p>
+              <div className="pmx-ethical-audit-strip">
+                <span>{t('callEthicalAuditBanner', { regNo: doctor.regNo })}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="pmx-inline-header-right">
-          <div className="pmx-mode-switch-group" role="group" aria-label={t('callSwitchMode')}>
-            <button
-              type="button"
-              className={`pmx-mode-tab${!isVideoMode ? ' is-active' : ''}`}
-              onClick={() => setActiveCallType('audio')}
-            >
-              <Phone size={12} aria-hidden="true" />
-              <span>{t('callModeAudioShort')}</span>
-            </button>
-            <button
-              type="button"
-              className={`pmx-mode-tab${isVideoMode ? ' is-active' : ''}`}
-              onClick={() => setActiveCallType('video')}
-            >
-              <Video size={12} aria-hidden="true" />
-              <span>{t('callModeVideoShort')}</span>
-            </button>
+          <div className="pmx-inline-header-right">
+            <div className="pmx-mode-switch-group" role="group" aria-label={t('callSwitchMode')}>
+              <button
+                type="button"
+                className={`pmx-mode-tab${!isVideoMode ? ' is-active' : ''}`}
+                onClick={() => setActiveCallType('audio')}
+              >
+                <Phone size={12} aria-hidden="true" />
+                <span>{t('callModeAudioShort')}</span>
+              </button>
+              <button
+                type="button"
+                className={`pmx-mode-tab${isVideoMode ? ' is-active' : ''}`}
+                onClick={() => setActiveCallType('video')}
+              >
+                <Video size={12} aria-hidden="true" />
+                <span>{t('callModeVideoShort')}</span>
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <div className="pmx-inline-stage-grid">
-        <LiveMediaStage
+      <div className={`pmx-inline-stage-grid${compactPip ? ' is-pip-stage' : ''}${participantRole === 'vet' && !compactPip ? ' is-vet-column' : ''}`}>
+        <NativeConsultVideoStage
           key={`${roomCode}-${roleGroup.side}-${activeCallType}`}
           roomId={roomCode}
+          trxId={bookingContext?.trxId || ''}
+          participantRole={participantRole}
           userRole={effectiveRole}
           displayName={participantDisplayName}
           remoteTitle={roleGroup.isHost ? (bookingContext?.farmerName || t('farmer')) : doctor.name}
           remoteSubtitle={
             roleGroup.isHost
-              ? `${bookingContext?.district || 'Rajshahi'} · ${roomCode}`
+              ? `${[bookingContext?.upazila, bookingContext?.district].filter(Boolean).join(', ') || 'Rajshahi'} · ${roomCode}`
               : `${doctor.regNo} · ${doctor.clinic}`
           }
           initialAudioOnly={!isVideoMode}
-          heightPx={340}
-          hideBottomLeaveButton
-          onLeaveOrEnd={handleEndSession}
+          compactPip={compactPip}
+          onEndCall={handleEndSession}
         />
 
-        <aside className="pmx-call-summary-panel dark:bg-gray-800 dark:border-gray-700">
+        {!compactPip && (
+          <aside className="pmx-call-summary-panel dark:bg-gray-800 dark:border-gray-700">
           <h3>
             <Bird size={15} aria-hidden="true" />
             {t('callFlockContextTitle')}
@@ -424,27 +416,9 @@ export default function ConsultationCallRoom({
               </button>
             )
           )}
-
-          <LiveQaHandRaisePanel
-            key={`tele-qa-${roomCode}-${roleGroup.side}`}
-            roomId={roomCode}
-            userRole={effectiveRole}
-            participantName={participantDisplayName}
-            compact
-          />
         </aside>
+        )}
       </div>
-
-      <footer className="pmx-call-controls dark:bg-gray-950 dark:border-gray-800">
-        <button
-          type="button"
-          className="pmx-call-end-btn"
-          onClick={() => handleEndSession({ elapsedSeconds })}
-        >
-          <PhoneOff size={16} aria-hidden="true" />
-          <span>{t('callEndAndLog')}</span>
-        </button>
-      </footer>
 
       {previewAttachment && (
         <div

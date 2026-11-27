@@ -1322,5 +1322,18 @@
   "callAttachedHistoryLabel": "সংযুক্ত প্রেসক্রিপশন ও রিপোর্ট",
   "callPreviewFileBtn": "রিপোর্ট দেখুন",
   "callPdfDownloadFallback": "নিচের বাটন ব্যবহার করে PDF রিপোর্ট খুলুন বা ডাউনলোড করুন।",
-  "queueAttachedFilesBadge": "হিস্টোরি ফাইল"
+  "queueAttachedFilesBadge": "হিস্টোরি ফাইল",
+  "nativeBrandStageLabel": "পোল্ট্রিমেডিক্স সিকিউর HD",
+  "nativeStageLiveFeedHint": "ইন-অ্যাপ ক্যামেরা ও এনক্রিপ্টেড WebRTC সংযোগ সক্রিয়",
+  "nativeStageAudioReadyHint": "এনক্রিপ্টেড অডিও কল চালু আছে — নিচে ক্যামেরা চালু করতে পারেন",
+  "nativeCallControlsLabel": "কল মিডিয়া কন্ট্রোল",
+  "nativeSwitchCameraBtn": "ক্যামেরা পরিবর্তন",
+  "callEndShort": "শেষ করুন",
+  "consultMediaAuthDeniedTitle": "অনুমোদিত সেশন প্রয়োজন",
+  "consultMediaAuthDenied": "ক্যামেরা ও মাইক্রোফোন স্ট্রিম চালু করতে বৈধ বুকিং রসিদ অথবা নিবন্ধিত ডাক্তার লগইন সেশন প্রয়োজন।",
+  "rxExpandFullscreenBtn": "বড় স্ক্রিন প্রেসক্রিপশন (PiP)",
+  "rxRestoreSplitBtn": "৫০/৫০ স্প্লিট ভিউ",
+  "rxExitPipShort": "স্প্লিট ভিউ",
+  "consultSplitResizerLabel": "কল ও প্রেসক্রিপশন প্যানেল প্রস্থ পরিবর্তন",
+  "consultSplitResizerHint": "দুই পাশের আকার বদলাতে টানুন (রিসেট করতে ডাবল-ক্লিক)"
 }

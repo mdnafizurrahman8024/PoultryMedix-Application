@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useLanguage } from '../context/useLanguage.js'
+import { useUser } from '../context/user-context.js'
 import {
   BIOSECURITY_DISTANCES,
   BIOSECURITY_ZONES,
@@ -40,6 +41,8 @@ import { consumePendingCheckoutContext, pollGatewayPaymentSession } from '../lib
 import ShedBlueprintVisualizer from './ShedBlueprintVisualizer.jsx'
 import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
 import DigitalReceiptModal from './DigitalReceiptModal.jsx'
+import LiveMediaStage from './LiveMediaStage.jsx'
+import LiveQaHandRaisePanel from './LiveQaHandRaisePanel.jsx'
 
 function BiosecurityRadarSvg({ isBn, hasAlert }) {
   return (
@@ -193,6 +196,13 @@ export default function FarmBlueprint() {
   const [workshopCheckoutOpen, setWorkshopCheckoutOpen] = useState(false)
   const [workshopReceipt, setWorkshopReceipt] = useState(null)
   const [workshopReceiptOpen, setWorkshopReceiptOpen] = useState(false)
+  const [liveWorkshopId, setLiveWorkshopId] = useState('')
+  const { role } = useUser()
+
+  const activeLiveWorkshop = useMemo(
+    () => workshops.find((ws) => ws.id === liveWorkshopId) || null,
+    [workshops, liveWorkshopId]
+  )
 
   const activeWorkshop = useMemo(
     () => workshops.find((ws) => ws.id === activeWorkshopId) || null,
@@ -759,8 +769,21 @@ export default function FarmBlueprint() {
                   <span className="blueprint-seats-left">
                     {isBn ? `খালি আসন: ${ws.seatsLeft}টি` : `${ws.seatsLeft} seats left`}
                   </span>
-                  {isReserved ? (
-                    <span className="blueprint-reserved-badge">✓ {isBn ? 'আসন নিশ্চিত' : 'Seat Reserved'}</span>
+                  {isReserved || role === 'REGISTERED_VET' ? (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {isReserved && (
+                        <span className="blueprint-reserved-badge">✓ {isBn ? 'আসন নিশ্চিত' : 'Seat Reserved'}</span>
+                      )}
+                      <button
+                        type="button"
+                        className="blueprint-reserve-btn"
+                        onClick={() => setLiveWorkshopId(liveWorkshopId === ws.id ? '' : ws.id)}
+                      >
+                        {liveWorkshopId === ws.id
+                          ? t('close')
+                          : (isBn ? 'লাইভ ক্লাস ও প্রশ্নোত্তর' : 'Live Room & Q&A')}
+                      </button>
+                    </div>
                   ) : (
                     <button
                       type="button"
@@ -780,6 +803,47 @@ export default function FarmBlueprint() {
             )
           })}
         </div>
+
+        {/* Paid Mentorship Live Seminar Room (Hand-Raise & Live Q&A) */}
+        {activeLiveWorkshop && (
+          <div className="seminar-live-auditorium dark:bg-gray-900 dark:border-gray-700" style={{ marginTop: '14px' }}>
+            <header className="seminar-auditorium-header">
+              <div>
+                <span className="seminar-live-pill">LIVE PAID WORKSHOP</span>
+                <h4>{isBn ? activeLiveWorkshop.titleBn : activeLiveWorkshop.titleEn}</h4>
+                <p>{activeLiveWorkshop.vetName} · {activeLiveWorkshop.bvcRegNo}</p>
+              </div>
+              <button
+                type="button"
+                className="ethical-care-btn"
+                style={{ flex: '0 0 auto' }}
+                onClick={() => setLiveWorkshopId('')}
+              >
+                {t('seminarLeaveRoomBtn')}
+              </button>
+            </header>
+            <div className="seminar-auditorium-grid">
+              <LiveMediaStage
+                key={`ws-stage-${activeLiveWorkshop.id}-${role}`}
+                roomId={`PMX-WS-${activeLiveWorkshop.id}`}
+                userRole={role || 'FARMER'}
+                displayName={bookingForm.name || (isBn ? 'নিবন্ধিত অংশগ্রহণকারী' : 'Workshop Participant')}
+                remoteTitle={activeLiveWorkshop.vetName}
+                remoteSubtitle={activeLiveWorkshop.clinicDetails}
+                heightPx={320}
+                onLeaveOrEnd={() => setLiveWorkshopId('')}
+              />
+              <aside className="seminar-auditorium-sidebar dark:bg-gray-900 dark:border-gray-700">
+                <LiveQaHandRaisePanel
+                  key={`ws-qa-${activeLiveWorkshop.id}-${role}`}
+                  roomId={`PMX-WS-${activeLiveWorkshop.id}`}
+                  userRole={role || 'FARMER'}
+                  participantName={bookingForm.name || (isBn ? 'অংশগ্রহণকারী' : 'Participant')}
+                />
+              </aside>
+            </div>
+          </div>
+        )}
 
         {/* Interactive Seat Reservation Form Drawer */}
         {activeWorkshop && (

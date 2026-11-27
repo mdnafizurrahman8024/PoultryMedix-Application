@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { GripHorizontal, GripVertical, Maximize2, Minimize2 } from 'lucide-react'
 import Icon from '../components/Icon.jsx'
 import { saveHistoryEntry, saveUnifiedLog } from './historyStore.js'
 import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
@@ -77,6 +78,11 @@ import {
   readAttachmentAsDataUrl,
   validateHistoryAttachmentFile,
 } from '../lib/bookingContextHelper.js'
+import {
+  DEFAULT_SPLIT_LEFT_PCT,
+  clampPipPosition,
+  clampSplitLeftPct,
+} from '../lib/consultMediaHelper.js'
 import { useUser } from '../context/user-context.js'
 import { useLanguage } from '../context/useLanguage.js'
 import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
@@ -256,6 +262,12 @@ export default function Telemedicine() {
   const [detailsModalDoctorId, setDetailsModalDoctorId] = useState('')
   const [recentBookings, setRecentBookings] = useState(() => loadConsultationBookings())
   const [callMode, setCallMode] = useState('')
+  const [splitLeftPct, setSplitLeftPct] = useState(DEFAULT_SPLIT_LEFT_PCT)
+  const [isResizingSplit, setIsResizingSplit] = useState(false)
+  const [isFullscreenRx, setIsFullscreenRx] = useState(false)
+  const [pipPos, setPipPos] = useState(null)
+  const splitWorkspaceRef = useRef(null)
+  const pipPaneRef = useRef(null)
   const [prescription, setPrescription] = useState(() => ({
     ...emptyPrescription,
     district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
@@ -1026,8 +1038,95 @@ export default function Telemedicine() {
     scrollToUnifiedWorkspace('pmx-unified-vet-workspace')
   }
 
+  useEffect(() => {
+    if (!isFullscreenRx || !pipPos) return undefined
+    function handleWindowResize() {
+      const rect = pipPaneRef.current?.getBoundingClientRect()
+      setPipPos((prev) => (prev
+        ? clampPipPosition({
+            x: prev.x,
+            y: prev.y,
+            width: rect?.width || 330,
+            height: rect?.height || 250,
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight,
+          })
+        : null))
+    }
+    window.addEventListener('resize', handleWindowResize)
+    return () => window.removeEventListener('resize', handleWindowResize)
+  }, [isFullscreenRx, pipPos])
+
+  function handleSplitDragStart(event) {
+    if (event.button && event.button !== 0) return
+    event.preventDefault()
+    const container = splitWorkspaceRef.current
+    if (!container) return
+    setIsResizingSplit(true)
+
+    function onPointerMove(moveEvent) {
+      const rect = container.getBoundingClientRect()
+      if (!rect.width) return
+      const pct = ((moveEvent.clientX - rect.left) / rect.width) * 100
+      setSplitLeftPct(clampSplitLeftPct(pct))
+    }
+
+    function onPointerUp() {
+      setIsResizingSplit(false)
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+  }
+
+  function handleSplitKeyDown(event) {
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault()
+      setSplitLeftPct((prev) => clampSplitLeftPct(prev - 2))
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault()
+      setSplitLeftPct((prev) => clampSplitLeftPct(prev + 2))
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setSplitLeftPct(DEFAULT_SPLIT_LEFT_PCT)
+    }
+  }
+
+  function handlePipDragStart(event) {
+    if (event.button && event.button !== 0) return
+    event.preventDefault()
+    const pane = pipPaneRef.current
+    if (!pane) return
+    const rect = pane.getBoundingClientRect()
+    const offsetX = event.clientX - rect.left
+    const offsetY = event.clientY - rect.top
+
+    function onPointerMove(moveEvent) {
+      setPipPos(clampPipPosition({
+        x: moveEvent.clientX - offsetX,
+        y: moveEvent.clientY - offsetY,
+        width: rect.width,
+        height: rect.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+      }))
+    }
+
+    function onPointerUp() {
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+    }
+
+    window.addEventListener('pointermove', onPointerMove)
+    window.addEventListener('pointerup', onPointerUp)
+  }
+
   function handleEndCall(sessionInfo) {
     setCallMode('')
+    setIsFullscreenRx(false)
+    setPipPos(null)
     const doctorForSession = isRegisteredVet
       ? findDoctorProfile(
           { id: prescription.vetId, name: prescription.vetName, regNo: prescription.bvcRegNo || prescription.registrationNumber },
@@ -1906,64 +2005,124 @@ export default function Telemedicine() {
       </section>}
 
       {isRegisteredVet && <section id="pmx-unified-vet-workspace" className={`telemedicine-prescription-section pmx-unified-vet-workspace${callMode ? ' has-active-call' : ''} bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white`} aria-labelledby="prescription-builder-heading">
-        {callMode && (
-          <div className="pmx-unified-call-container">
-            <ConsultationCallRoom
-              initialCallType={callMode}
-              participantRole="vet"
-              userRole={role}
-              onToggleMobileRxSheet={() => scrollToUnifiedWorkspace('prescription-builder-heading')}
-              doctor={{
-                ...myDoctorProfile,
-                name: prescription.vetName || myDoctorProfile.name,
-                degrees: prescription.vetDegrees || myDoctorProfile.degrees,
-                regNo: prescription.bvcRegNo || prescription.registrationNumber || myDoctorProfile.regNo,
-                clinic: prescription.clinicDetails || myDoctorProfile.clinic,
-              }}
-              bookingContext={(() => {
-                const targetAppt = activeVetPatient || myPersonalBookings[0] || {}
-                return {
-                  trxId: targetAppt.trxId || 'VET-DIRECT',
-                  roomCode: vetRoomCode || targetAppt.roomCode || 'PMX-ROOM-LIVE',
-                  bookingMode: targetAppt.bookingMode || BOOKING_TARGET_MODES.REGISTERED_SHED,
-                  shedName: targetAppt.shedName || '',
-                  farmerName: prescription.farmerName || targetAppt.farmerName || t('farmer'),
-                  farmName: prescription.farmName || targetAppt.farmName || '',
-                  district: t(`districts.${prescription.district || targetAppt.district || 'Rajshahi'}`, prescription.district || targetAppt.district || 'Rajshahi'),
-                  upazila: prescription.upazila || targetAppt.upazila || '',
-                  birdType: prescription.birdType || targetAppt.birdType || '',
-                  flockSize: prescription.flockSize || targetAppt.flockSize || '',
-                  age: prescription.age || targetAppt.age || '',
-                  concern: prescription.historyNotes || prescription.diagnosis || targetAppt.concern || 'Clinical Telemedicine Consultation',
-                  shedSummary: targetAppt.shedSummary || '',
-                  aiDiagnosisSummary: targetAppt.aiDiagnosisSummary || '',
-                  linkedDiagnoses: targetAppt.linkedDiagnoses || [],
-                  attachedPrescriptions: targetAppt.attachedPrescriptions || [],
-                  uploadedAttachments: targetAppt.uploadedAttachments || [],
-                }
-              })()}
-              onEndCall={handleEndCall}
-            />
-            <div className="pmx-unified-connection-banner">
-              <Icon name="stethoscope" size={14} />
-              <span>{t('rxUnifiedWorkspaceBanner')}</span>
+        <div
+          ref={splitWorkspaceRef}
+          className={`pmx-vet-split-layout${callMode ? ' has-active-call' : ''}${isFullscreenRx ? ' is-fullscreen-rx' : ''}${isResizingSplit ? ' is-dragging' : ''}`}
+          style={callMode && !isFullscreenRx ? { '--pmx-split-left': `${splitLeftPct}%` } : undefined}
+        >
+          {callMode && (
+            <div
+              ref={pipPaneRef}
+              className={`pmx-split-left-pane${isFullscreenRx ? ' is-pip-floating' : ''}`}
+              style={isFullscreenRx && pipPos ? { left: `${pipPos.x}px`, top: `${pipPos.y}px`, right: 'auto', bottom: 'auto' } : undefined}
+            >
+              {isFullscreenRx && (
+                <div className="pmx-pip-window-bar" onPointerDown={handlePipDragStart}>
+                  <span className="pmx-pip-drag-label">
+                    <GripHorizontal size={14} aria-hidden="true" />
+                    <span>{activeVetPatient?.farmerName || myPersonalBookings[0]?.farmerName || t('farmer')} · {vetRoomCode || activeVetPatient?.roomCode || 'LIVE'}</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="pmx-pip-restore-btn"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => setIsFullscreenRx(false)}
+                  >
+                    {t('rxExitPipShort')}
+                  </button>
+                </div>
+              )}
+              <ConsultationCallRoom
+                initialCallType={callMode}
+                participantRole="vet"
+                userRole={role}
+                compactPip={isFullscreenRx}
+                onToggleMobileRxSheet={() => scrollToUnifiedWorkspace('pmx-rx-right-pane')}
+                doctor={{
+                  ...myDoctorProfile,
+                  name: prescription.vetName || myDoctorProfile.name,
+                  degrees: prescription.vetDegrees || myDoctorProfile.degrees,
+                  regNo: prescription.bvcRegNo || prescription.registrationNumber || myDoctorProfile.regNo,
+                  clinic: prescription.clinicDetails || myDoctorProfile.clinic,
+                }}
+                bookingContext={(() => {
+                  const targetAppt = activeVetPatient || myPersonalBookings[0] || {}
+                  return {
+                    trxId: targetAppt.trxId || 'VET-DIRECT',
+                    roomCode: vetRoomCode || targetAppt.roomCode || 'PMX-ROOM-LIVE',
+                    bookingMode: targetAppt.bookingMode || BOOKING_TARGET_MODES.REGISTERED_SHED,
+                    shedName: targetAppt.shedName || '',
+                    farmerName: prescription.farmerName || targetAppt.farmerName || t('farmer'),
+                    farmName: prescription.farmName || targetAppt.farmName || '',
+                    district: t(`districts.${prescription.district || targetAppt.district || 'Rajshahi'}`, prescription.district || targetAppt.district || 'Rajshahi'),
+                    upazila: prescription.upazila || targetAppt.upazila || '',
+                    birdType: prescription.birdType || targetAppt.birdType || '',
+                    flockSize: prescription.flockSize || targetAppt.flockSize || '',
+                    age: prescription.age || targetAppt.age || '',
+                    concern: prescription.historyNotes || prescription.diagnosis || targetAppt.concern || 'Clinical Telemedicine Consultation',
+                    shedSummary: targetAppt.shedSummary || '',
+                    aiDiagnosisSummary: targetAppt.aiDiagnosisSummary || '',
+                    linkedDiagnoses: targetAppt.linkedDiagnoses || [],
+                    attachedPrescriptions: targetAppt.attachedPrescriptions || [],
+                    uploadedAttachments: targetAppt.uploadedAttachments || [],
+                  }
+                })()}
+                onEndCall={handleEndCall}
+              />
+              {!isFullscreenRx && (
+                <div className="pmx-unified-connection-banner">
+                  <Icon name="stethoscope" size={14} />
+                  <span>{t('rxUnifiedWorkspaceBanner')}</span>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="telemedicine-builder-heading">
-          <div><span className="telemedicine-eyebrow">{t('veterinarianWorkspace')}</span><h2 id="prescription-builder-heading">{t('digitalPrescriptionBuilder')}</h2><p>{t('prescriptionBuilderDescription')}</p></div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button className="telemedicine-save-button" type="button" onClick={savePrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
-              <Icon name="send" size={17} />
-              {t('rxSendSaveToLog')}
-            </button>
-            <button className="telemedicine-print-button" type="button" onClick={printPrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
-              <Icon name="pdf" size={17} />
-              {t('printSavePdf')}
-            </button>
-          </div>
-        </div>
+          {callMode && !isFullscreenRx && (
+            <div
+              role="separator"
+              tabIndex={0}
+              aria-orientation="vertical"
+              aria-label={t('consultSplitResizerLabel')}
+              aria-valuemin={25}
+              aria-valuemax={70}
+              aria-valuenow={Math.round(splitLeftPct)}
+              className="pmx-split-drag-handle"
+              onPointerDown={handleSplitDragStart}
+              onDoubleClick={() => setSplitLeftPct(DEFAULT_SPLIT_LEFT_PCT)}
+              onKeyDown={handleSplitKeyDown}
+              title={t('consultSplitResizerHint')}
+            >
+              <span className="pmx-split-grip-pill" aria-hidden="true">
+                <GripVertical size={13} />
+              </span>
+            </div>
+          )}
+
+          <div id="pmx-rx-right-pane" className={`pmx-split-right-pane${isFullscreenRx ? ' is-fullscreen' : ''}`}>
+            <div className="telemedicine-builder-heading">
+              <div><span className="telemedicine-eyebrow">{t('veterinarianWorkspace')}</span><h2 id="prescription-builder-heading">{t('digitalPrescriptionBuilder')}</h2><p>{t('prescriptionBuilderDescription')}</p></div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                {callMode && (
+                  <button
+                    type="button"
+                    className={`pmx-fullscreen-rx-btn${isFullscreenRx ? ' is-active' : ''}`}
+                    onClick={() => setIsFullscreenRx((prev) => !prev)}
+                  >
+                    {isFullscreenRx ? <Minimize2 size={15} aria-hidden="true" /> : <Maximize2 size={15} aria-hidden="true" />}
+                    <span>{isFullscreenRx ? t('rxRestoreSplitBtn') : t('rxExpandFullscreenBtn')}</span>
+                  </button>
+                )}
+                <button className="telemedicine-save-button" type="button" onClick={savePrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
+                  <Icon name="send" size={17} />
+                  {t('rxSendSaveToLog')}
+                </button>
+                <button className="telemedicine-print-button" type="button" onClick={printPrescription} style={{ padding: '9px 15px', borderRadius: '10px' }}>
+                  <Icon name="pdf" size={17} />
+                  {t('printSavePdf')}
+                </button>
+              </div>
+            </div>
 
         <div className="telemedicine-builder-grid dark:text-gray-100">
           <form className="telemedicine-entry-form dark:text-gray-100" onSubmit={(event) => event.preventDefault()}>
@@ -2112,6 +2271,8 @@ export default function Telemedicine() {
             </button>
             <p className="telemedicine-preview-note">{t('rxSyncNote')}</p>
           </aside>
+        </div>
+          </div>
         </div>
       </section>}
 
