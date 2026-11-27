@@ -42,6 +42,14 @@ export function getSuggestedSlotTime(offsetMinutes = 5, date = new Date()) {
   return `${hh}:${mm}`
 }
 
+export function getLocalSlotDateAndTime(offsetMinutes = 5, date = new Date()) {
+  const target = new Date(date.getTime() + offsetMinutes * 60 * 1000)
+  return {
+    date: getLocalTodayDateStr(target),
+    time: getSuggestedSlotTime(0, target),
+  }
+}
+
 export function parseSlotTimestamp(bookingDate, bookingTime) {
   const dateMatch = String(bookingDate || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
   const timeMatch = String(bookingTime || '').trim().match(/^(\d{2}):(\d{2})/)

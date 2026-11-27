@@ -6,9 +6,152 @@
  */
 
 import { getZoonoticInfo, normalizeReporterSource } from './oneHealthSurveillance.js'
+import { BASELINE_DOCTORS } from './doctorsStore.js'
+import { getLocalSlotDateAndTime } from './telehealthNotifier.js'
 
 export const CLINICAL_LOGS_STORAGE_KEY = 'poultrymedix_clinical_logs'
 export const CLINICAL_LOGS_UPDATED_EVENT = 'poultrymedix-clinical-logs-updated'
+const CLEAN_DEMO_BOOKINGS_MARKER_KEY = 'poultrymedix_clean_demo_bookings_v2'
+
+export function buildCleanDemoConsultationBookings(now = new Date()) {
+  const drNafizur = BASELINE_DOCTORS[0]
+  const drSarah = BASELINE_DOCTORS[1]
+  const slot1 = getLocalSlotDateAndTime(0, now)
+  const slot2 = getLocalSlotDateAndTime(5, now)
+
+  return [
+    {
+      id: 'demo-consult-nafizur',
+      trxId: 'PMX-TRX-DEMO101',
+      roomId: 'PMX-ROOM-DEMO101',
+      roomCode: 'PMX-ROOM-DEMO101',
+      type: 'consultation',
+      isDemoSeed: true,
+      doctorId: drNafizur.id,
+      doctorName: drNafizur.name,
+      vetName: drNafizur.name,
+      vetDegrees: drNafizur.degrees,
+      bvcRegNo: drNafizur.regNo,
+      clinicDetails: drNafizur.clinic,
+      farmerName: 'Md. Rafiqul Islam',
+      farmName: 'Green Valley Poultry Shed',
+      district: 'Rajshahi',
+      birdType: 'Broiler',
+      age: '24 days',
+      flockSize: '1500',
+      averageWeight: '1.35',
+      bookingDate: slot1.date,
+      bookingTime: slot1.time,
+      date: slot1.date,
+      time: slot1.time,
+      concern: 'Mild gasping, wet litter in East bay & reduced feed intake for 24h',
+      historyNotes: 'Flock vaccinated with BCRDV on Day 5 and IBD on Day 14. Humid afternoon temperatures inside shed yesterday; 4 birds isolated.',
+      clinicalSigns: 'Nasal discharge, mild rales on auscultation, huddled near drinker line',
+      shedSummary: '1 Shed · 1,500 birds (Broiler, Day 24)',
+      aiDiagnosisSummary: 'Chronic Respiratory Disease (CRD) (84%)',
+      paymentMethod: 'bkash',
+      paymentMethodLabel: 'bKash',
+      amount: 500,
+      currency: 'BDT',
+      paymentStatus: 'Completed',
+      timestamp: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
+      syncedToCloud: false,
+    },
+    {
+      id: 'demo-consult-sarah',
+      trxId: 'PMX-TRX-DEMO202',
+      roomId: 'PMX-ROOM-DEMO202',
+      roomCode: 'PMX-ROOM-DEMO202',
+      type: 'consultation',
+      isDemoSeed: true,
+      doctorId: drSarah.id,
+      doctorName: drSarah.name,
+      vetName: drSarah.name,
+      vetDegrees: drSarah.degrees,
+      bvcRegNo: drSarah.regNo,
+      clinicDetails: drSarah.clinic,
+      farmerName: 'Mst. Nasrin Akter',
+      farmName: 'Padma Layer Eco Farm',
+      district: 'Mymensingh',
+      birdType: 'Layer',
+      age: '18 weeks',
+      flockSize: '1200',
+      averageWeight: '1.45',
+      bookingDate: slot2.date,
+      bookingTime: slot2.time,
+      date: slot2.date,
+      time: slot2.time,
+      concern: 'Bloody droppings in 8 cages & sudden 6% feed drop',
+      historyNotes: 'No anticoccidial given in grower mash last week; birds housed on slatted floor transitioning to laying cages.',
+      clinicalSigns: 'Ruffled feathers, brownish-red mucoid feces, pale comb on 5% of birds',
+      shedSummary: '1 Shed · 1,200 birds (Layer, Week 18)',
+      aiDiagnosisSummary: 'Avian Coccidiosis (88%)',
+      paymentMethod: 'nagad',
+      paymentMethodLabel: 'Nagad',
+      amount: 500,
+      currency: 'BDT',
+      paymentStatus: 'Completed',
+      timestamp: new Date(now.getTime() - 25 * 60 * 1000).toISOString(),
+      syncedToCloud: false,
+    },
+  ]
+}
+
+let memoryDemoConsultations = null
+
+export function ensureCleanConsultationBookings() {
+  if (typeof window === 'undefined') {
+    if (!memoryDemoConsultations) {
+      memoryDemoConsultations = buildCleanDemoConsultationBookings()
+    }
+    return memoryDemoConsultations
+  }
+  try {
+    const marker = localStorage.getItem(CLEAN_DEMO_BOOKINGS_MARKER_KEY)
+    const rawLogs = localStorage.getItem(CLINICAL_LOGS_STORAGE_KEY)
+    const parsed = rawLogs ? JSON.parse(rawLogs) : []
+    const existingList = Array.isArray(parsed) ? parsed : []
+
+    if (marker === 'done') {
+      const consultations = existingList.filter((item) => item?.type === 'consultation')
+      if (consultations.length > 0) return consultations
+    }
+
+    // One-time cleanup: purge cluttered/expired consultation clutter & seed exactly 2 active bookings
+    const nonConsultationLogs = existingList.filter(
+      (item) => item?.type !== 'consultation' && item?.type !== 'appointment'
+    )
+    const cleanSeeds = buildCleanDemoConsultationBookings()
+    const merged = [...cleanSeeds, ...nonConsultationLogs].slice(0, 300)
+    localStorage.setItem(CLINICAL_LOGS_STORAGE_KEY, JSON.stringify(merged))
+    // Also clear legacy appointment clutter so loadConsultationBookings never resurrects duplicates
+    localStorage.setItem('poultry-telemedicine-appointments', JSON.stringify([]))
+    localStorage.setItem(CLEAN_DEMO_BOOKINGS_MARKER_KEY, 'done')
+    return cleanSeeds
+  } catch {
+    return buildCleanDemoConsultationBookings()
+  }
+}
+
+export function resetToCleanDemoBookings() {
+  const cleanSeeds = buildCleanDemoConsultationBookings()
+  if (typeof window === 'undefined') {
+    memoryDemoConsultations = cleanSeeds
+    return cleanSeeds
+  }
+  try {
+    const existing = getClinicalLogs('all').filter(
+      (item) => item?.type !== 'consultation' && item?.type !== 'appointment'
+    )
+    localStorage.setItem(CLINICAL_LOGS_STORAGE_KEY, JSON.stringify([...cleanSeeds, ...existing].slice(0, 300)))
+    localStorage.setItem('poultry-telemedicine-appointments', JSON.stringify([]))
+    localStorage.setItem(CLEAN_DEMO_BOOKINGS_MARKER_KEY, 'done')
+    window.dispatchEvent(new CustomEvent(CLINICAL_LOGS_UPDATED_EVENT, { detail: cleanSeeds[0] }))
+  } catch {
+    // ignore storage errors
+  }
+  return cleanSeeds
+}
 
 function getInitialLogs() {
   if (typeof window === 'undefined') return []
@@ -122,6 +265,15 @@ function getInitialLogs() {
  * Reads all clinical logs from storage.
  */
 export function getClinicalLogs(filterType = 'all') {
+  if (typeof window !== 'undefined') {
+    try {
+      if (localStorage.getItem(CLEAN_DEMO_BOOKINGS_MARKER_KEY) !== 'done') {
+        ensureCleanConsultationBookings()
+      }
+    } catch {
+      // ignore marker check failure
+    }
+  }
   const all = getInitialLogs()
   if (filterType === 'all' || !filterType) return all
   return all.filter((log) => log.type === filterType)
@@ -249,15 +401,24 @@ export function savePrescriptionLog({
   roomId = '',
   roomCode = '',
   vetName = '',
+  vetDegrees = '',
   bvcRegNo = '',
   clinicDetails = '',
   farmerName = '',
+  farmName = '',
   district = 'Rajshahi',
   flockType = 'Broiler',
+  age = '',
+  flockSize = '',
+  averageWeight = '',
+  complaints = [],
+  historyNotes = '',
+  clinicalSigns = '',
   diagnosis = '',
   fileName = '',
   transcription = '',
   medications = [],
+  tests = '',
   advice = '',
   followUpDate = '',
 }) {
@@ -268,15 +429,24 @@ export function savePrescriptionLog({
     roomId: roomId || roomCode || '',
     roomCode: roomCode || roomId || '',
     vetName: vetName || (source === 'vet_issued' ? 'Dr. Md Nafizur Rahman' : 'Veterinary Prescription'),
+    vetDegrees,
     bvcRegNo: bvcRegNo || (source === 'vet_issued' ? 'BVC-REG-11842' : ''),
     clinicDetails: clinicDetails || 'PoultryMedix National Avian Telehealth Hub',
     farmerName: farmerName || 'Flock Owner',
+    farmName,
     district: district || 'Rajshahi',
     flockType: flockType || 'Broiler',
+    age,
+    flockSize,
+    averageWeight,
+    complaints: Array.isArray(complaints) ? complaints : [],
+    historyNotes,
+    clinicalSigns,
     diagnosis: diagnosis || (medications[0]?.tradeName ? `Prescription: ${medications[0].tradeName}` : 'Prescription Scan'),
     fileName,
     transcription,
     medications: Array.isArray(medications) ? medications : [],
+    tests,
     advice,
     followUpDate,
     syncedToCloud: false,
@@ -291,16 +461,24 @@ export function saveConsultationLog({
   trxId = '',
   roomId = '',
   roomCode = '',
+  doctorId = '',
   vetName = 'Dr. Md Nafizur Rahman',
+  vetDegrees = '',
   doctorName = '',
   bvcRegNo = 'BVC-REG-11842',
   clinicDetails = 'PoultryMedix National Avian Telehealth Hub',
   farmerName = 'Registered Farmer',
   farmName = '',
   district = 'Rajshahi',
+  birdType = 'Broiler',
+  age = '',
+  flockSize = '',
+  averageWeight = '',
   bookingDate = '',
   bookingTime = '',
   concern = '',
+  historyNotes = '',
+  clinicalSigns = '',
   shedSummary = '',
   aiDiagnosisSummary = '',
   paymentMethod = 'bkash',
@@ -317,18 +495,26 @@ export function saveConsultationLog({
     roomId: resolvedRoom,
     roomCode: resolvedRoom,
     type: 'consultation',
+    doctorId,
     doctorName: resolvedDoctor,
     vetName: resolvedDoctor,
+    vetDegrees,
     bvcRegNo,
     clinicDetails,
     farmerName: farmerName || 'Registered Farmer',
     farmName,
     district: district || 'Rajshahi',
+    birdType,
+    age,
+    flockSize,
+    averageWeight,
     bookingDate,
     bookingTime,
     date: bookingDate,
     time: bookingTime,
     concern: concern || 'Flock Consultation',
+    historyNotes,
+    clinicalSigns,
     shedSummary,
     aiDiagnosisSummary,
     paymentMethod,

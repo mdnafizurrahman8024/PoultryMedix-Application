@@ -1240,5 +1240,17 @@
   "liveNoHandsRaised": "No raised hands right now",
   "liveClearHandsBtn": "Clear",
   "liveAcknowledgeHandBtn": "Lower",
-  "liveHostMessagePlaceholder": "Post live note or reply to participants..."
+  "liveHostMessagePlaceholder": "Post live note or reply to participants...",
+  "doctorDirectoryTitle": "Select Specialist Veterinarian",
+  "doctorDirectorySubtitle": "Verified BVC doctors · Live consultation counts update automatically",
+  "doctorServedLabel": "Served",
+  "doctorExpYearsLabel": "Yrs Exp.",
+  "resetDemoBookingsBtn": "Reset 2 Demo Bookings",
+  "jumpToFullRxBuilder": "Jump to Full Rx Builder",
+  "rxHistoryLabel": "Flock History / Chief Complaints",
+  "rxHistoryPlaceholder": "Edit vaccination history, feed/water changes, or onset notes...",
+  "rxClinicalSignsLabel": "Observed Clinical Signs",
+  "rxClinicalSignsPlaceholder": "Enter respiratory signs, lesions, droppings, posture observed during call...",
+  "rxUnifiedWorkspaceBanner": "Unified Consultation Room & Prescription Builder — Live changes sync directly to A4 preview & Farmer Clinical Log.",
+  "vetDirectoryWorkspaceLabel": "Active Doctor Profile & Service Counter"
 }

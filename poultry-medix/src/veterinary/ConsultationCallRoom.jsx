@@ -13,6 +13,7 @@ import LiveMediaStage from './LiveMediaStage.jsx'
 import LiveQaHandRaisePanel from './LiveQaHandRaisePanel.jsx'
 import { TELEHEALTH_SIGNAL_CHANNEL } from '../lib/telehealthNotifier.js'
 import { CLINICAL_LOGS_UPDATED_EVENT, getClinicalLogs } from '../lib/clinicalLogsStore.js'
+import { formatVetHeaderDisplay } from '../lib/doctorsStore.js'
 import { getRoomRoleGrouping } from '../lib/liveRoomInteractionStore.js'
 import { getSheds } from '../lib/shedManager.js'
 import { useLanguage } from '../context/useLanguage.js'
@@ -32,7 +33,6 @@ export default function ConsultationCallRoom({
   userRole = '',
   onEndCall,
   onToggleMobileRxSheet,
-  mobileRxOpen = false,
 }) {
   const { t, language } = useLanguage()
   const isBn = language === 'bn'
@@ -161,10 +161,11 @@ export default function ConsultationCallRoom({
                 {t(roleGroup.badgeKey)}
               </span>
             </div>
-            <h4>{doctor.name}</h4>
+            <h4>{formatVetHeaderDisplay(doctor.name, doctor.degrees)}</h4>
             <p>
-              {doctor.degrees} · {doctor.regNo}
+              {doctor.regNo}
               {doctor.specialty ? ` · ${doctor.specialty}` : ''}
+              {doctor.location ? ` · ${doctor.location}` : ''}
             </p>
             <div className="pmx-ethical-audit-strip">
               <span>{t('callEthicalAuditBanner', { regNo: doctor.regNo })}</span>
@@ -283,7 +284,7 @@ export default function ConsultationCallRoom({
                 onClick={onToggleMobileRxSheet}
               >
                 <FileCheck2 size={15} aria-hidden="true" />
-                <span>{mobileRxOpen ? t('hideMobileRxPad') : t('openMobileRxPad')}</span>
+                <span>{t('jumpToFullRxBuilder')}</span>
               </button>
             )
           )}

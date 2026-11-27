@@ -6,6 +6,8 @@
  * real merchant credentials in browser code or accepting unverified/fake TrxIDs.
  */
 
+import { BASELINE_DOCTORS, formatVetHeaderDisplay } from './doctorsStore.js'
+
 export const CONSULTATION_FEE_BDT = 500
 export const PAYMENT_SYNC_CHANNEL = 'poultrymedix_payment_sync'
 export const PENDING_BOOKING_STORAGE_KEY = 'poultrymedix_pending_booking_v1'
@@ -20,46 +22,9 @@ export const PAYMENT_API_BASE_URL = String(
   import.meta.env?.VITE_PAYMENT_API_BASE_URL || ''
 ).trim()
 
-export const DEMO_VETERINARIAN = {
-  id: 'dr-nafizur',
-  name: 'Dr. Md Nafizur Rahman',
-  degrees: 'DVM, Avian Health & Telemedicine Specialist',
-  regNo: 'BVC-REG-11842',
-  clinic: 'PoultryMedix National Avian Telehealth Hub',
-  specialty: 'Poultry Disease Triage, Outbreak Control & Biosecurity',
-  privacyProtected: true,
-}
-
-export const VETERINARY_DOCTORS = [
-  DEMO_VETERINARIAN,
-  {
-    id: 'dr-sarah',
-    name: 'Dr. Sarah Ahmed, DVM',
-    degrees: 'DVM, MS in Avian Pathology (BAU)',
-    regNo: 'BVC-REG-10492',
-    clinic: 'Rajshahi Avian Diagnostic & Research Hospital',
-    specialty: 'Avian Pathology & Respiratory Care',
-    privacyProtected: true,
-  },
-  {
-    id: 'dr-tariqul',
-    name: 'Dr. Tariqul Islam, DVM',
-    degrees: 'DVM, MSc in Veterinary Microbiology',
-    regNo: 'BVC-REG-11284',
-    clinic: 'Bogura Poultry Health & Biosecurity Center',
-    specialty: 'AMR Stewardship & Hatchery Biosecurity',
-    privacyProtected: true,
-  },
-  {
-    id: 'dr-farhana',
-    name: 'Dr. Farhana Rahman, DVM',
-    degrees: 'DVM, MS in Poultry Medicine',
-    regNo: 'BVC-REG-09871',
-    clinic: 'Gazipur Central Avian Clinic',
-    specialty: 'Broiler & Layer Flock Management',
-    privacyProtected: true,
-  },
-]
+export const DEMO_VETERINARIAN = BASELINE_DOCTORS[0]
+export const VETERINARY_DOCTORS = BASELINE_DOCTORS
+export { formatVetHeaderDisplay }
 
 export const QUICK_SELECT_MEDICATIONS = [
   {

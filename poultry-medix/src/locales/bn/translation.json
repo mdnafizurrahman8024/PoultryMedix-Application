@@ -1240,5 +1240,17 @@
   "liveNoHandsRaised": "এখনো কেউ হাত তোলেননি",
   "liveClearHandsBtn": "সব মুছুন",
   "liveAcknowledgeHandBtn": "নামিয়ে দিন",
-  "liveHostMessagePlaceholder": "অংশগ্রহণকারীদের উদ্দেশ্যে উত্তর বা ঘোষণা লিখুন..."
+  "liveHostMessagePlaceholder": "অংশগ্রহণকারীদের উদ্দেশ্যে উত্তর বা ঘোষণা লিখুন...",
+  "doctorDirectoryTitle": "বিশেষজ্ঞ পশুচিকিৎসক নির্বাচন করুন",
+  "doctorDirectorySubtitle": "নিবন্ধিত বি.ভি.সি. চিকিৎসক · সম্পন্ন পরামর্শের সংখ্যা স্বয়ংক্রিয়ভাবে হালনাগাদ হয়",
+  "doctorServedLabel": "টি পরামর্শ",
+  "doctorExpYearsLabel": "বছর অভিজ্ঞতা",
+  "resetDemoBookingsBtn": "২টি ডেমো বুকিং রিসেট",
+  "jumpToFullRxBuilder": "পূর্ণ প্রেসক্রিপশন ফর্মে যান",
+  "rxHistoryLabel": "খামারের ইতিহাস ও মূল সমস্যা",
+  "rxHistoryPlaceholder": "টিকার ইতিহাস, খাদ্য-পানির পরিবর্তন ও রোগ শুরুর বিবরণ সম্পাদনা করুন...",
+  "rxClinicalSignsLabel": "পর্যবেক্ষিত ক্লিনিক্যাল লক্ষণ",
+  "rxClinicalSignsPlaceholder": "লাইভ কলে দেখা শ্বাসকষ্ট, বিষ্ঠার রঙ ও আচরণগত লক্ষণ লিখুন...",
+  "rxUnifiedWorkspaceBanner": "সমন্বিত কল রুম ও প্রেসক্রিপশন বিল্ডার — সব তথ্য সরাসরি A4 প্রিভিউ ও খামারির লগে যুক্ত হবে।",
+  "vetDirectoryWorkspaceLabel": "সক্রিয় ডাক্তার প্রোফাইল ও সেবা কাউন্টার"
 }

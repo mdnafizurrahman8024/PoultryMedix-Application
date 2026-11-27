@@ -3039,3 +3039,261 @@ html[data-theme="dark"] .pmx-raised-hands-list li {
     min-height: 290px;
   }
 }
+
+/* Rich Doctor Directory Cards, Properly Spaced Bookings & Unified Vet Workspace */
+.pmx-doctor-directory-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pmx-directory-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.pmx-directory-heading-row strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1c3621;
+}
+
+.pmx-directory-heading-row small {
+  color: #5b6e5e;
+  font-size: 11.5px;
+}
+
+.pmx-doctor-directory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.pmx-directory-doc-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 13px;
+  border: 1px solid #d7e2d6;
+  border-radius: 13px;
+  color: #1f3322;
+  background: #f9fbf8;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.pmx-directory-doc-card.is-selected {
+  border-color: #245c31;
+  background: #eef8ed;
+  box-shadow: 0 0 0 2px rgba(36, 92, 49, 0.12);
+}
+
+.pmx-directory-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-directory-card-top strong {
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.pmx-served-counter-pill {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 10.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.pmx-directory-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: #49604d;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.pmx-directory-meta span {
+  padding: 2px 7px;
+  border: 1px solid #e1e8df;
+  border-radius: 7px;
+  background: #ffffff;
+}
+
+.pmx-directory-clinic {
+  color: #5c7060;
+  font-size: 11px;
+}
+
+.pmx-bookings-bar-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pmx-reset-demo-btn {
+  padding: 5px 10px;
+  border: 1px solid #d5e0d4;
+  border-radius: 9px;
+  color: #364d3a;
+  background: #f6faf5;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-reset-demo-btn:hover {
+  background: #eaf3e8;
+}
+
+.pmx-booking-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-queue-doc-row {
+  margin: 5px 0 3px;
+}
+
+.pmx-booking-doc-name {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.pmx-booking-slot-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #166534;
+  background: #dcfce7;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pmx-vet-directory-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 14px;
+  padding: 11px 13px;
+  border: 1px solid #dce6db;
+  border-radius: 13px;
+  background: #f8fbf7;
+}
+
+.pmx-vet-directory-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #46614c;
+}
+
+.pmx-vet-directory-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.pmx-vet-dir-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 11px;
+  border: 1px solid #d5e0d4;
+  border-radius: 10px;
+  color: #1f3322;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pmx-vet-dir-chip strong {
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.pmx-vet-dir-chip span {
+  font-size: 10.5px;
+  color: #5a6f5e;
+  font-weight: 600;
+}
+
+.pmx-vet-dir-chip.is-active {
+  border-color: #245c31;
+  background: #ecfdf3;
+}
+
+.pmx-unified-call-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.pmx-unified-connection-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid #bbf7d0;
+  border-radius: 11px;
+  color: #166534;
+  background: #ecfdf3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+html[data-theme="dark"] .pmx-directory-heading-row strong {
+  color: #edf5ef;
+}
+
+html[data-theme="dark"] .pmx-directory-heading-row small,
+html[data-theme="dark"] .pmx-directory-clinic,
+html[data-theme="dark"] .pmx-vet-dir-chip span {
+  color: #a9bdb0;
+}
+
+html[data-theme="dark"] .pmx-directory-doc-card.is-selected,
+html[data-theme="dark"] .pmx-vet-dir-chip.is-active {
+  border-color: #34d399;
+  background: rgba(20, 83, 45, 0.35);
+}
+
+html[data-theme="dark"] .pmx-directory-meta span {
+  border-color: #334155;
+  color: #cbd5e1;
+  background: #1e293b;
+}
+
+html[data-theme="dark"] .pmx-vet-directory-bar {
+  border-color: #334155;
+  background: #0f172a;
+}
+
+html[data-theme="dark"] .pmx-unified-connection-banner {
+  border-color: #166534;
+  color: #86efac;
+  background: rgba(20, 83, 45, 0.35);
+}

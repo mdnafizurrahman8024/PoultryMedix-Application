@@ -37,6 +37,7 @@ import {
   normalizeReporterSource,
 } from '../lib/oneHealthSurveillance.js'
 import { buildDigitalReceiptMarkup } from '../lib/paymentAdapter.js'
+import { formatVetHeaderDisplay } from '../lib/doctorsStore.js'
 
 const historyTabs = [
   { id: 'unified', labelKey: 'historyAllClinicalLogsTab' },
@@ -131,7 +132,7 @@ function prescriptionMarkup(prescription) {
         <div class="doc-subtitle">Bangladesh DLS &amp; DGDA Antimicrobial Stewardship Compliant</div>
       </div>
       <div class="doc-meta-right">
-        <div style="font-size:15px;font-weight:800;color:#0f172a;">${escapeHtml(prescription.vetName || 'Dr. Md Nafizur Rahman')}</div>
+        <div style="font-size:15px;font-weight:800;color:#0f172a;">${escapeHtml(formatVetHeaderDisplay(prescription.vetName || 'Dr. Md Nafizur Rahman', prescription.vetDegrees))}</div>
         <div style="font-size:11px;color:#047857;font-weight:700;">${escapeHtml(prescription.bvcRegNo || prescription.registrationNumber || 'BVC-REG-11842')}</div>
         <div style="font-size:11px;color:#64748b;">${escapeHtml(prescription.clinicDetails || 'PoultryMedix National Avian Telehealth Hub')}</div>
       </div>
@@ -140,13 +141,14 @@ function prescriptionMarkup(prescription) {
     <div class="doc-grid doc-grid-4">
       <div class="doc-cell"><span>Farmer Name</span><strong>${escapeHtml(prescription.farmerName || 'Registered Farmer')}</strong></div>
       <div class="doc-cell"><span>District</span><strong>${escapeHtml(prescription.district || 'Rajshahi')}</strong></div>
-      <div class="doc-cell"><span>Flock Type</span><strong>${escapeHtml(prescription.flockType || prescription.birdType || 'Broiler')} (${escapeHtml(prescription.flockSize || '—')} birds)</strong></div>
+      <div class="doc-cell"><span>Flock Type</span><strong>${escapeHtml(prescription.flockType || prescription.birdType || 'Broiler')} (${escapeHtml(prescription.flockSize || '—')} birds${prescription.age ? ` · ${escapeHtml(prescription.age)}` : ''})</strong></div>
       <div class="doc-cell"><span>Date &amp; Time</span><strong>${escapeHtml(dateStr)}</strong></div>
     </div>
 
     <div class="doc-box">
       <h3>Rx &amp; Diagnosis: ${escapeHtml(prescription.diagnosis || 'Flock Consultation')}</h3>
-      ${prescription.complaints?.length ? `<p style="margin:0;font-size:11px;color:#475569;">Reported Signs: ${escapeHtml(Array.isArray(prescription.complaints) ? prescription.complaints.join(', ') : prescription.complaints)}</p>` : ''}
+      ${(prescription.historyNotes || prescription.complaints?.length) ? `<p style="margin:0 0 3px;font-size:11px;color:#475569;"><strong>History / Complaints:</strong> ${escapeHtml([prescription.historyNotes, ...(Array.isArray(prescription.complaints) ? prescription.complaints : [prescription.complaints])].filter(Boolean).join(' · '))}</p>` : ''}
+      ${prescription.clinicalSigns ? `<p style="margin:0;font-size:11px;color:#475569;"><strong>Clinical Signs:</strong> ${escapeHtml(prescription.clinicalSigns)}</p>` : ''}
     </div>
 
     <table class="doc-table">
@@ -1177,15 +1179,22 @@ function RecordDetailModal({ record, locale, language, labels, t, onClose, onSta
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', background: '#f8fafc', padding: '10px 14px', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
                 <div>
                   <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyVeterinarianUpper')}</small>
-                  <strong className="dark:text-white">{record.vetName || t('historyVeterinarian')}</strong>
+                  <strong className="dark:text-white">{formatVetHeaderDisplay(record.vetName || t('historyVeterinarian'), record.vetDegrees)}</strong>
                   <div style={{ fontSize: '11px', color: '#15803d', fontWeight: 600 }}>{record.bvcRegNo || 'BVC-REG-10492'}</div>
                 </div>
                 <div>
                   <small style={{ color: '#64748b', display: 'block', fontSize: '10px', fontWeight: 700 }}>{t('historyFarmerFlockUpper')}</small>
                   <strong className="dark:text-white">{record.farmerName || t('farmer')}</strong>
-                  <div style={{ fontSize: '11px', color: '#64748b' }}>📍 {t(`districts.${record.district || 'Rajshahi'}`, record.district || 'Rajshahi')} · {t(`birdTypes.${record.flockType || 'Broiler'}`, record.flockType || 'Broiler')}</div>
+                  <div style={{ fontSize: '11px', color: '#64748b' }}>📍 {t(`districts.${record.district || 'Rajshahi'}`, record.district || 'Rajshahi')} · {t(`birdTypes.${record.flockType || 'Broiler'}`, record.flockType || 'Broiler')}{record.flockSize ? ` (${record.flockSize})` : ''}</div>
                 </div>
               </div>
+
+              {(record.historyNotes || record.clinicalSigns) && (
+                <div style={{ padding: '10px 14px', background: '#fafafa', borderRadius: '10px', border: '1px solid #e2e8f0' }} className="dark:bg-gray-800 dark:border-gray-700">
+                  {record.historyNotes && <p style={{ margin: '0 0 4px', fontSize: '12px' }}><strong>{t('rxHistoryLabel')}:</strong> {record.historyNotes}</p>}
+                  {record.clinicalSigns && <p style={{ margin: 0, fontSize: '12px' }}><strong>{t('rxClinicalSignsLabel')}:</strong> {record.clinicalSigns}</p>}
+                </div>
+              )}
 
               <h3>{t('historyMedications')}</h3>
               {(Array.isArray(record.medications) ? record.medications : []).map((item, idx) => (
