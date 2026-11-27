@@ -153,6 +153,25 @@ export function resetToCleanDemoBookings() {
   return cleanSeeds
 }
 
+export function cancelConsultationBookingRecord(bookingIdOrTrx) {
+  if (!bookingIdOrTrx || typeof window === 'undefined') return false
+  try {
+    const existing = getClinicalLogs('all')
+    const target = String(bookingIdOrTrx)
+    const filtered = existing.filter((item) => (
+      !(
+        (item?.type === 'consultation' || item?.type === 'appointment') &&
+        (String(item.id) === target || String(item.trxId) === target || String(item.roomCode) === target)
+      )
+    ))
+    localStorage.setItem(CLINICAL_LOGS_STORAGE_KEY, JSON.stringify(filtered))
+    window.dispatchEvent(new CustomEvent(CLINICAL_LOGS_UPDATED_EVENT, { detail: { cancelledId: target } }))
+    return true
+  } catch {
+    return false
+  }
+}
+
 function getInitialLogs() {
   if (typeof window === 'undefined') return []
   try {
@@ -462,6 +481,7 @@ export function saveConsultationLog({
   roomId = '',
   roomCode = '',
   doctorId = '',
+  farmerId = '',
   vetName = 'Dr. Md Nafizur Rahman',
   vetDegrees = '',
   doctorName = '',
@@ -496,6 +516,7 @@ export function saveConsultationLog({
     roomCode: resolvedRoom,
     type: 'consultation',
     doctorId,
+    farmerId,
     doctorName: resolvedDoctor,
     vetName: resolvedDoctor,
     vetDegrees,

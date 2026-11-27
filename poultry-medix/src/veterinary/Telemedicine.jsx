@@ -3,9 +3,9 @@ import Icon from '../components/Icon.jsx'
 import { saveHistoryEntry, saveUnifiedLog } from './historyStore.js'
 import { notifyPrescriptionDataChanged, prescriptionStorageKeys } from './prescriptionAnalytics.js'
 import {
+  cancelConsultationBookingRecord,
   ensureCleanConsultationBookings,
   getClinicalLogs,
-  resetToCleanDemoBookings,
   saveCallSessionLog,
   saveConsultationLog,
   savePaymentLog,
@@ -19,10 +19,22 @@ import {
 import {
   POULTRYMEDIX_DOCTORS_CHANNEL,
   POULTRYMEDIX_DOCTORS_UPDATED_EVENT,
+  POULTRYMEDIX_SLOTS_UPDATED_EVENT,
+  assertDoctorOwnership,
+  filterBookingsForDoctorSession,
   findDoctorProfile,
+  formatSlotTimeDisplay,
   formatVetHeaderDisplay,
+  getAuthenticatedDoctorSession,
+  getDoctorAvailabilitySummary,
+  getDoctorLocalizedFields,
   getDoctorsDirectory,
+  getSlotsForDoctorDate,
   incrementDoctorServiceCounter,
+  lockDoctorTimeSlot,
+  markSlotSessionStarted,
+  releaseDoctorTimeSlot,
+  toLocaleDigits,
 } from '../lib/doctorsStore.js'
 import {
   getAllMasterMedicineEntries,
@@ -49,10 +61,8 @@ import {
   evaluateConsultationScheduleWindow,
   getActiveRoomCalls,
   getLocalTodayDateStr,
-  getSuggestedSlotTime,
   markRoomCallCompleted,
   openDoctorCallRoom,
-  parseSlotTimestamp,
 } from '../lib/telehealthNotifier.js'
 import { getSheds } from '../lib/shedManager.js'
 import { useUser } from '../context/user-context.js'
@@ -60,6 +70,8 @@ import { useLanguage } from '../context/useLanguage.js'
 import PaymentCheckoutModal from './PaymentCheckoutModal.jsx'
 import DigitalReceiptModal from './DigitalReceiptModal.jsx'
 import ConsultationCallRoom from './ConsultationCallRoom.jsx'
+import DoctorDetailsModal from './DoctorDetailsModal.jsx'
+import DoctorScheduleManager from './DoctorScheduleManager.jsx'
 import './Telemedicine.css'
 
 const BANGLADESH_DISTRICTS = [
@@ -184,24 +196,42 @@ function buildFlockContextSnapshot(language) {
   }
 }
 
+function getOrCreateFarmerClientId() {
+  if (typeof window === 'undefined') return 'farmer-client'
+  try {
+    const key = 'poultrymedix_farmer_client_id_v1'
+    const existing = localStorage.getItem(key)
+    if (existing) return existing
+    const fresh = `farmer-${crypto.randomUUID().slice(0, 8)}`
+    localStorage.setItem(key, fresh)
+    return fresh
+  } catch {
+    return 'farmer-client'
+  }
+}
+
 export default function Telemedicine() {
   const { role } = useUser()
   const { t, language } = useLanguage()
   const isRegisteredVet = role === 'REGISTERED_VET'
   const [initialPrefill] = useState(() => consumeTelemedicinePrefill())
   const [prefillNotice, setPrefillNotice] = useState(() => Boolean(initialPrefill?.concern))
-  const [booking, setBooking] = useState(() => ({
-    vetId: VETERINARY_DOCTORS[0].id,
-    district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
-      ? initialPrefill.district
-      : 'Rajshahi',
-    farmer: '',
-    farm: '',
-    concern: initialPrefill?.concern || '',
-    date: getLocalTodayDateStr(),
-    time: getSuggestedSlotTime(5),
-    payment: 'bkash',
-  }))
+  const [booking, setBooking] = useState(() => {
+    const today = getLocalTodayDateStr()
+    const firstOpen = getDoctorAvailabilitySummary(VETERINARY_DOCTORS[0].id, today).todaySlots.find((s) => s.status === 'AVAILABLE')
+    return {
+      vetId: VETERINARY_DOCTORS[0].id,
+      district: initialPrefill?.district && BANGLADESH_DISTRICTS.includes(initialPrefill.district)
+        ? initialPrefill.district
+        : 'Rajshahi',
+      farmer: '',
+      farm: '',
+      concern: initialPrefill?.concern || '',
+      date: today,
+      time: firstOpen?.time || '10:00',
+      payment: 'bkash',
+    }
+  })
   const [consentAccepted, setConsentAccepted] = useState(false)
   const [slotError, setSlotError] = useState('')
   const [clockMs, setClockMs] = useState(() => Date.now())
@@ -216,6 +246,8 @@ export default function Telemedicine() {
   const [vetRoomCode, setVetRoomCode] = useState('')
   const [activeVetPatient, setActiveVetPatient] = useState(null)
   const [doctorsList, setDoctorsList] = useState(() => getDoctorsDirectory())
+  const [slotVersion, setSlotVersion] = useState(0)
+  const [detailsModalDoctorId, setDetailsModalDoctorId] = useState('')
   const [recentBookings, setRecentBookings] = useState(() => loadConsultationBookings())
   const [callMode, setCallMode] = useState('')
   const [prescription, setPrescription] = useState(() => ({
@@ -230,7 +262,23 @@ export default function Telemedicine() {
   const [complaintDraft, setComplaintDraft] = useState('')
   const [saveMessage, setSaveMessage] = useState('')
   const [saveError, setSaveError] = useState('')
+
   const selectedVet = findDoctorProfile({ id: booking.vetId }, doctorsList) || doctorsList[0]
+  const detailsModalDoctor = detailsModalDoctorId
+    ? findDoctorProfile({ id: detailsModalDoctorId }, doctorsList)
+    : null
+
+  // RBAC: Logged-in doctor strictly scoped to their own identity, schedule & queue
+  const doctorSession = useMemo(() => getAuthenticatedDoctorSession(role), [role])
+  const myDoctorProfile = useMemo(
+    () => (isRegisteredVet ? findDoctorProfile({ id: doctorSession.doctorId, regNo: doctorSession.regNo }, doctorsList) : null),
+    [isRegisteredVet, doctorSession, doctorsList]
+  )
+  const myPersonalBookings = useMemo(
+    () => (isRegisteredVet ? filterBookingsForDoctorSession(recentBookings, doctorSession) : []),
+    [isRegisteredVet, recentBookings, doctorSession]
+  )
+
   const fallbackContext = useMemo(() => buildFlockContextSnapshot(language), [language])
   const medicineCategories = useMemo(() => getMedicineCategories(), [])
   const masterMedicineIndex = useMemo(() => {
@@ -239,7 +287,6 @@ export default function Telemedicine() {
     return map
   }, [])
 
-  // Active paid booking (survives page refresh for waiting room countdown + doctor ring)
   const activePaidBooking = useMemo(() => {
     if (verifiedReceipt) return verifiedReceipt
     return recentBookings.find((item) => item?.trxId && item?.roomCode && item?.paymentStatus === 'Completed') || null
@@ -264,7 +311,7 @@ export default function Telemedicine() {
     isDoctorCallingFarmer &&
     !isRoomCompleted
   )
-  const canStartCall = isRegisteredVet ? Boolean(vetRoomCode || recentBookings[0]?.roomCode) : farmerCanJoinCall
+  const canStartCall = isRegisteredVet ? Boolean(vetRoomCode || myPersonalBookings[0]?.roomCode) : farmerCanJoinCall
 
   useEffect(() => {
     const timer = window.setInterval(() => setClockMs(Date.now()), 10000)
@@ -274,6 +321,10 @@ export default function Telemedicine() {
   useEffect(() => {
     function syncDoctorsOnly() {
       setDoctorsList(getDoctorsDirectory())
+      setSlotVersion((v) => v + 1)
+    }
+    function syncSlotsOnly() {
+      setSlotVersion((v) => v + 1)
     }
     function syncBookings() {
       setRecentBookings(loadConsultationBookings())
@@ -324,6 +375,7 @@ export default function Telemedicine() {
     window.addEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
     window.addEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncRoomsOnly)
     window.addEventListener(POULTRYMEDIX_DOCTORS_UPDATED_EVENT, syncDoctorsOnly)
+    window.addEventListener(POULTRYMEDIX_SLOTS_UPDATED_EVENT, syncSlotsOnly)
     window.addEventListener('storage', syncBookings)
     window.addEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     return () => {
@@ -332,6 +384,7 @@ export default function Telemedicine() {
       window.removeEventListener(CLINICAL_LOGS_UPDATED_EVENT, syncBookings)
       window.removeEventListener(POULTRYMEDIX_ROOMS_UPDATED_EVENT, syncRoomsOnly)
       window.removeEventListener(POULTRYMEDIX_DOCTORS_UPDATED_EVENT, syncDoctorsOnly)
+      window.removeEventListener(POULTRYMEDIX_SLOTS_UPDATED_EVENT, syncSlotsOnly)
       window.removeEventListener('storage', syncBookings)
       window.removeEventListener(POULTRYMEDIX_OPEN_TELEMEDICINE_EVENT, handlePrefillReferral)
     }
@@ -434,19 +487,6 @@ export default function Telemedicine() {
     setComplaintDraft('')
   }
 
-  function applyDoctorProfileToPrescription(doc) {
-    if (!doc) return
-    setPrescription((current) => ({
-      ...current,
-      vetId: doc.id,
-      vetName: doc.name,
-      vetDegrees: doc.degrees,
-      registrationNumber: doc.regNo,
-      bvcRegNo: doc.regNo,
-      clinicDetails: doc.clinic,
-    }))
-  }
-
   function scrollToUnifiedWorkspace(targetId = 'pmx-unified-vet-workspace') {
     window.setTimeout(() => {
       document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -454,10 +494,13 @@ export default function Telemedicine() {
   }
 
   function loadBookingIntoPrescription(appt, callTypeToStart = '') {
-    const matchedDoc = findDoctorProfile(
-      { id: appt.doctorId, name: appt.doctorName || appt.vetName, regNo: appt.bvcRegNo },
+    if (!doctorSession.isAuthenticatedDoctor) return
+    const matchedDoc = myDoctorProfile || findDoctorProfile(
+      { id: doctorSession.doctorId, regNo: doctorSession.regNo },
       doctorsList
     )
+    assertDoctorOwnership(doctorSession, matchedDoc.id)
+
     const parsedShed = parseShedSnapshot(appt.shedSummary)
     const fallbackSnap = buildFlockContextSnapshot(language)
     const resolvedRoom = appt.roomCode || appt.roomId || createCallRoomCode(appt.trxId || appt.id)
@@ -473,12 +516,12 @@ export default function Telemedicine() {
     setActiveVetPatient({ ...appt, roomCode: resolvedRoom })
     setPrescription((current) => ({
       ...current,
-      vetId: matchedDoc?.id || current.vetId,
-      vetName: matchedDoc?.name || appt.doctorName || appt.vetName || current.vetName,
-      vetDegrees: matchedDoc?.degrees || appt.vetDegrees || current.vetDegrees,
-      registrationNumber: matchedDoc?.regNo || appt.bvcRegNo || current.registrationNumber,
-      bvcRegNo: matchedDoc?.regNo || appt.bvcRegNo || current.bvcRegNo,
-      clinicDetails: matchedDoc?.clinic || appt.clinicDetails || current.clinicDetails,
+      vetId: matchedDoc.id,
+      vetName: matchedDoc.name,
+      vetDegrees: matchedDoc.degrees,
+      registrationNumber: matchedDoc.regNo,
+      bvcRegNo: matchedDoc.regNo,
+      clinicDetails: matchedDoc.clinic,
       farmerName: appt.farmerName || '',
       farmName: appt.farmName || '',
       district: appt.district || 'Rajshahi',
@@ -492,6 +535,12 @@ export default function Telemedicine() {
       diagnosis: appt.diagnosis || (appt.aiDiagnosisSummary ? appt.aiDiagnosisSummary.replace(/\s*\(\d+%\)$/, '') : ''),
     }))
     if (callTypeToStart) {
+      markSlotSessionStarted({
+        doctorId: matchedDoc.id,
+        date: appt.bookingDate,
+        time: appt.bookingTime,
+        doctorSession,
+      })
       const normalizedType = callTypeToStart === 'audio' ? 'audio' : 'video'
       openDoctorCallRoom({ roomCode: resolvedRoom, doctor: matchedDoc, callType: normalizedType })
       setActiveRooms(getActiveRoomCalls())
@@ -505,14 +554,20 @@ export default function Telemedicine() {
       : `Loaded consultation & auto-filled Dx/Flock info: ${appt.farmerName || 'Farmer'} (${resolvedRoom})`)
   }
 
-  function validateBookingFormReady() {
-    if (!consentAccepted) {
+  function validateBookingFormReady({ skipConsent = false } = {}) {
+    if (!skipConsent && !consentAccepted) {
       setSlotError(t('telemedicineConsentRequiredError'))
       return false
     }
-    const slotMs = parseSlotTimestamp(booking.date, booking.time)
-    if (!slotMs || slotMs < Date.now() - 5 * 60 * 1000) {
+    const todayStr = getLocalTodayDateStr()
+    if (!booking.date || booking.date < todayStr) {
       setSlotError(t('bookingPastSlotError'))
+      return false
+    }
+    const slots = getSlotsForDoctorDate(booking.vetId, booking.date, todayStr)
+    const targetSlot = slots.find((s) => s.time === booking.time)
+    if (!targetSlot || targetSlot.status !== 'AVAILABLE') {
+      setSlotError(t('slotAlreadyLockedError'))
       return false
     }
     setSlotError('')
@@ -534,11 +589,7 @@ export default function Telemedicine() {
 
   async function handleQuickDevVerifyAndOpen() {
     if (PAYMENT_MODE !== 'sandbox' || devVerifyBusy) return
-    const slotMs = parseSlotTimestamp(booking.date, booking.time)
-    if (!slotMs || slotMs < Date.now() - 5 * 60 * 1000) {
-      setSlotError(t('bookingPastSlotError'))
-      return
-    }
+    if (!validateBookingFormReady({ skipConsent: true })) return
     setSlotError('')
     setDevVerifyBusy(true)
     try {
@@ -567,9 +618,28 @@ export default function Telemedicine() {
     const flockSnap = buildFlockContextSnapshot(language)
     const { shedSummary, aiDiagnosisSummary } = flockSnap
     const matchedDoc = findDoctorProfile({ id: selectedVet.id, name: receipt.doctorName, regNo: receipt.bvcRegNo }, doctorsList)
+    const farmerClientId = getOrCreateFarmerClientId()
+
+    const lockResult = lockDoctorTimeSlot({
+      doctorId: matchedDoc.id,
+      date: receipt.bookingDate || booking.date,
+      time: receipt.bookingTime || booking.time,
+      farmerId: farmerClientId,
+      farmerName: receipt.farmerName,
+      bookingId: receipt.trxId,
+    })
+
+    if (!lockResult.ok) {
+      setCheckoutOpen(false)
+      setSlotError(lockResult.error || t('slotAlreadyLockedError'))
+      return
+    }
+    setSlotVersion((v) => v + 1)
+
     const enrichedReceipt = {
       ...receipt,
       doctorId: matchedDoc?.id || selectedVet.id,
+      farmerId: farmerClientId,
       vetDegrees: matchedDoc?.degrees || selectedVet.degrees,
       roomCode,
       roomId: roomCode,
@@ -615,6 +685,7 @@ export default function Telemedicine() {
         roomId: roomCode,
         roomCode,
         doctorId: matchedDoc?.id || selectedVet.id,
+        farmerId: farmerClientId,
         doctorName: enrichedReceipt.doctorName,
         vetName: enrichedReceipt.doctorName,
         vetDegrees: matchedDoc?.degrees || selectedVet.degrees,
@@ -684,21 +755,54 @@ export default function Telemedicine() {
     }
   }
 
+  function handleFarmerCancelBooking(item) {
+    const roomSignal = activeRooms[item.roomCode]
+    const sessionStarted = Boolean(roomSignal?.status === 'DOCTOR_CALLING' || roomSignal?.status === 'COMPLETED')
+    const docMatch = findDoctorProfile({ id: item.doctorId, name: item.doctorName || item.vetName, regNo: item.bvcRegNo }, doctorsList)
+    const release = releaseDoctorTimeSlot({
+      doctorId: docMatch.id,
+      date: item.bookingDate,
+      time: item.bookingTime,
+      actorId: item.farmerId || getOrCreateFarmerClientId(),
+      actorRole: 'FARMER',
+      sessionStartedOverride: sessionStarted,
+    })
+    if (!release.ok && release.code === 'SESSION_ALREADY_STARTED') {
+      setSlotError(release.error)
+      return
+    }
+    cancelConsultationBookingRecord(item.id)
+    setRecentBookings(loadConsultationBookings())
+    setSlotVersion((v) => v + 1)
+    if (verifiedReceipt?.id === item.id || verifiedReceipt?.trxId === item.trxId) {
+      setVerifiedReceipt(null)
+    }
+    setBookingMessage(
+      language === 'bn'
+        ? `বুকিং বাতিল করা হয়েছে এবং স্লট (${item.bookingDate} • ${item.bookingTime}) পুনরায় উন্মুক্ত হয়েছে।`
+        : `Booking cancelled and time slot (${item.bookingDate} • ${item.bookingTime}) released for other farmers.`
+    )
+  }
+
   function handleVetInitiateDirectCall(mode) {
-    const targetAppt = activeVetPatient || recentBookings[0]
-    const targetRoom = vetRoomCode || targetAppt?.roomCode || 'PMX-ROOM-LIVE'
-    const matchedDoc = findDoctorProfile(
-      { id: prescription.vetId || targetAppt?.doctorId, name: prescription.vetName || targetAppt?.doctorName, regNo: prescription.bvcRegNo || prescription.registrationNumber },
+    if (!doctorSession.isAuthenticatedDoctor) return
+    const targetAppt = activeVetPatient || myPersonalBookings[0]
+    if (!targetAppt) return
+    const matchedDoc = myDoctorProfile || findDoctorProfile(
+      { id: doctorSession.doctorId, regNo: doctorSession.regNo },
       doctorsList
     )
-    const docForCall = {
-      ...matchedDoc,
-      name: prescription.vetName || matchedDoc.name,
-      degrees: prescription.vetDegrees || matchedDoc.degrees,
-      regNo: prescription.bvcRegNo || prescription.registrationNumber || matchedDoc.regNo,
-    }
+    assertDoctorOwnership(doctorSession, matchedDoc.id)
+
+    const targetRoom = vetRoomCode || targetAppt.roomCode || 'PMX-ROOM-LIVE'
+    markSlotSessionStarted({
+      doctorId: matchedDoc.id,
+      date: targetAppt.bookingDate,
+      time: targetAppt.bookingTime,
+      doctorSession,
+    })
     setVetRoomCode(targetRoom)
-    openDoctorCallRoom({ roomCode: targetRoom, doctor: docForCall, callType: mode })
+    openDoctorCallRoom({ roomCode: targetRoom, doctor: matchedDoc, callType: mode })
     setActiveRooms(getActiveRoomCalls())
     setCallMode(mode)
     scrollToUnifiedWorkspace('pmx-unified-vet-workspace')
@@ -901,48 +1005,89 @@ export default function Telemedicine() {
           <div><span className="telemedicine-eyebrow">{t('remoteVeterinarySupport')}</span><h2 id="consult-booking-heading">{t('bookVetConsultation')}</h2></div>
         </div>
         <form className="telemedicine-booking-form dark:text-gray-100" onSubmit={openCheckoutModal}>
-          <div className="pmx-doctor-directory-block" style={{ gridColumn: '1 / -1' }}>
-            <div className="pmx-directory-heading-row">
-              <strong>{t('doctorDirectoryTitle')}</strong>
-              <small>{t('doctorDirectorySubtitle')}</small>
-            </div>
-            <div className="pmx-doctor-directory-grid">
-              {doctorsList.map((doc) => {
-                const isSelectedDoc = doc.id === selectedVet.id
-                return (
-                  <button
-                    key={doc.id}
-                    type="button"
-                    className={`pmx-directory-doc-card${isSelectedDoc ? ' is-selected' : ''} dark:bg-gray-900 dark:border-gray-700`}
-                    onClick={() => updateBooking('vetId', doc.id)}
-                  >
-                    <div className="pmx-directory-card-top">
-                      <strong>{formatVetHeaderDisplay(doc.name, doc.degrees)}</strong>
-                      <span className="pmx-served-counter-pill">
-                        {doc.consultationsServed} {t('doctorServedLabel')}
+          <div className="pmx-specialist-section-head">
+            <strong>{t('doctorDirectoryTitle')}</strong>
+            <small>{t('doctorDirectorySubtitle')}</small>
+          </div>
+          <div className="pmx-specialist-grid">
+            {doctorsList.map((doc) => {
+              const isSelectedDoc = doc.id === selectedVet.id
+              const locDoc = getDoctorLocalizedFields(doc, language)
+              const availSummary = getDoctorAvailabilitySummary(doc.id, getLocalTodayDateStr())
+              return (
+                <button
+                  key={`${doc.id}-${slotVersion}`}
+                  type="button"
+                  className={`pmx-specialist-card${isSelectedDoc ? ' is-selected' : ''}`}
+                  onClick={() => {
+                    updateBooking('vetId', doc.id)
+                    setDetailsModalDoctorId(doc.id)
+                  }}
+                >
+                  <div className="pmx-specialist-card-top">
+                    <span className={`pmx-doc-avatar-badge is-${doc.avatarTone || 'emerald'}`} aria-hidden="true">
+                      {doc.avatarInitials || 'DR'}
+                    </span>
+                    <div className="pmx-specialist-card-info">
+                      <strong>{locDoc.displayName}</strong>
+                      <span>{locDoc.displayDegrees}</span>
+                      <small>{locDoc.displayClinic}</small>
+                    </div>
+                  </div>
+                  <div className="pmx-specialist-stats">
+                    <span>
+                      {toLocaleDigits(doc.experienceYears, language)} {t('doctorExpYearsLabel')}
+                    </span>
+                    <span>•</span>
+                    <span>
+                      {toLocaleDigits(doc.consultationsServed, language)} {t('doctorServedLabel')}
+                    </span>
+                    <span>•</span>
+                    <span>{locDoc.displayLocation}</span>
+                  </div>
+                  <div className="pmx-specialist-card-footer">
+                    {availSummary.badgeStatus === 'available' ? (
+                      <span className="pmx-slot-status-badge is-available">
+                        ● {t('doctorAvailableTodayBadge', { count: toLocaleDigits(availSummary.availableSlots, language) })}
                       </span>
-                    </div>
-                    <div className="pmx-directory-meta">
-                      <span>{doc.regNo}</span>
-                      <span>{language === 'bn' ? doc.locationBn : doc.location}</span>
-                      <span>{doc.experienceYears} {t('doctorExpYearsLabel')}</span>
-                    </div>
-                    <small className="pmx-directory-clinic">{doc.clinic}</small>
-                  </button>
-                )
-              })}
-            </div>
+                    ) : (
+                      <div className="pmx-fully-booked-stack">
+                        <span className="pmx-slot-status-badge is-full">
+                          {t('doctorFullyBookedBadge')}
+                        </span>
+                        {availSummary.nextAvailableDate && (
+                          <small className="pmx-next-available-note">
+                            {t('doctorNextAvailableLabel', { date: toLocaleDigits(availSummary.nextAvailableDate, language) })}
+                          </small>
+                        )}
+                      </div>
+                    )}
+                    <span className="pmx-card-action-hint">{t('docViewProfileAndSlots')} →</span>
+                  </div>
+                </button>
+              )
+            })}
           </div>
 
-          <Field label={t('rxSelectVet')}>
-            <select value={booking.vetId} onChange={(event) => updateBooking('vetId', event.target.value)}>
-              {doctorsList.map((doc) => (
-                <option key={doc.id} value={doc.id}>
-                  {formatVetHeaderDisplay(doc.name, doc.degrees)} — {language === 'bn' ? doc.locationBn : doc.location} ({doc.consultationsServed} {t('doctorServedLabel')})
-                </option>
-              ))}
-            </select>
-          </Field>
+          <div className="pmx-selected-slot-banner">
+            <div>
+              <strong>{t('docSelectedSlotBannerLabel')}:</strong>{' '}
+              <span>
+                {getDoctorLocalizedFields(selectedVet, language).displayName} •{' '}
+                {toLocaleDigits(booking.date, language)} •{' '}
+                {formatSlotTimeDisplay(booking.time, language)}
+              </span>
+            </div>
+            <button
+              type="button"
+              className="pmx-secondary-btn dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700"
+              style={{ minHeight: '30px', padding: '0 10px', fontSize: '11px' }}
+              onClick={() => setDetailsModalDoctorId(selectedVet.id)}
+            >
+              {t('docOpenModalBtn')}
+            </button>
+          </div>
+
           <Field label={t('rxDistrict')}>
             <select value={booking.district} onChange={(event) => updateBooking('district', event.target.value)}>
               {BANGLADESH_DISTRICTS.map((dist) => (
@@ -1110,45 +1255,50 @@ export default function Telemedicine() {
 
         {recentBookings.length > 0 && (
           <div className="mt-5 border-t border-gray-200 pt-4 dark:border-gray-700">
-            <div className="pmx-bookings-bar-head">
-              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100">
-                {t('rxScheduledBookings')}
-              </h3>
-              <button
-                type="button"
-                className="pmx-reset-demo-btn dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
-                onClick={() => setRecentBookings(resetToCleanDemoBookings())}
-              >
-                {t('resetDemoBookingsBtn')}
-              </button>
-            </div>
+            <h3 className="mb-2.5 text-sm font-bold text-gray-800 dark:text-gray-100">
+              {t('rxScheduledBookings')}
+            </h3>
             <div className="grid gap-2.5 sm:grid-cols-2">
-              {recentBookings.slice(0, 6).map((item) => (
-                <div key={item.id} className="pmx-scheduled-booking-card rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
-                  <div className="pmx-booking-header-row">
-                    <strong className="pmx-booking-doc-name text-emerald-800 dark:text-emerald-400">
-                      {item.vetName || item.doctorName}
-                    </strong>
-                    <span className="pmx-booking-slot-pill">
-                      {item.bookingDate || t('today')} • {item.bookingTime || '--:--'}
-                    </span>
-                  </div>
-                  <p className="mt-1.5 text-gray-600 dark:text-gray-300">
-                    <strong>{item.farmerName || t('farmer')}</strong>
-                    {item.farmName ? ` · ${item.farmName}` : ''} ({t(`districts.${item.district || 'Rajshahi'}`, item.district || 'Rajshahi')}) — {item.concern}
-                  </p>
-                  {item.roomCode && (
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <span className="pmx-room-code-pill">{item.roomCode}</span>
-                      {item.flockSize && (
-                        <small className="text-gray-500 dark:text-gray-400">
-                          {item.birdType || 'Broiler'} · {item.flockSize}
-                        </small>
+              {recentBookings.slice(0, 6).map((item) => {
+                const matchedDoc = findDoctorProfile({ id: item.doctorId, name: item.vetName || item.doctorName, regNo: item.bvcRegNo }, doctorsList)
+                const locDoc = getDoctorLocalizedFields(matchedDoc, language)
+                const sessionActiveOrDone = Boolean(activeRooms[item.roomCode]?.status)
+                return (
+                  <div key={item.id} className="pmx-scheduled-booking-card rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs dark:border-gray-700 dark:bg-gray-900">
+                    <div className="pmx-booking-header-row">
+                      <strong className="pmx-booking-doc-name text-emerald-800 dark:text-emerald-400">
+                        {locDoc.displayName || item.vetName || item.doctorName}
+                      </strong>
+                      <span className="pmx-booking-slot-pill">
+                        {toLocaleDigits(item.bookingDate || t('today'), language)} • {formatSlotTimeDisplay(item.bookingTime, language)}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-gray-600 dark:text-gray-300">
+                      <strong>{item.farmerName || t('farmer')}</strong>
+                      {item.farmName ? ` · ${item.farmName}` : ''} ({t(`districts.${item.district || 'Rajshahi'}`, item.district || 'Rajshahi')}) — {item.concern}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        {item.roomCode && <span className="pmx-room-code-pill">{item.roomCode}</span>}
+                        {item.flockSize && (
+                          <small className="text-gray-500 dark:text-gray-400">
+                            {item.birdType || 'Broiler'} · {item.flockSize}
+                          </small>
+                        )}
+                      </div>
+                      {!sessionActiveOrDone && (
+                        <button
+                          type="button"
+                          className="pmx-cancel-booking-btn"
+                          onClick={() => handleFarmerCancelBooking(item)}
+                        >
+                          {t('cancelBookingReleaseBtn')}
+                        </button>
                       )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
@@ -1158,54 +1308,57 @@ export default function Telemedicine() {
         </p>
       </section>}
 
-      {isRegisteredVet && <section className="telemedicine-booking-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="vet-consultation-room-heading">
-        <div className="pmx-bookings-bar-head" style={{ marginBottom: '12px' }}>
-          <div className="telemedicine-card-heading" style={{ marginBottom: 0 }}>
-            <span className="telemedicine-hero-icon"><Icon name="users" size={21} /></span>
-            <div>
-              <span className="telemedicine-eyebrow">{t('veterinarianWorkspace')}</span>
-              <h2 id="vet-consultation-room-heading">{t('activePatientQueueTitle')}</h2>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="pmx-reset-demo-btn dark:bg-gray-900 dark:border-gray-700 dark:text-gray-300"
-            onClick={() => setRecentBookings(resetToCleanDemoBookings())}
-          >
-            {t('resetDemoBookingsBtn')}
-          </button>
+      {isRegisteredVet && myDoctorProfile && <section className="telemedicine-booking-card bg-white dark:bg-gray-800 text-gray-900 dark:text-white dark:border-gray-700" aria-labelledby="vet-consultation-room-heading">
+        {/* Personal Doctor Profile Header — strict RBAC personal view without multi-doctor switchers or debug buttons */}
+        {(() => {
+          const locDoc = getDoctorLocalizedFields(myDoctorProfile, language)
+          return (
+            <header className="pmx-doctor-personal-hero">
+              <div className="pmx-doctor-personal-left">
+                <span className={`pmx-doc-avatar-badge is-${myDoctorProfile.avatarTone || 'emerald'}`} aria-hidden="true">
+                  {myDoctorProfile.avatarInitials || 'DR'}
+                </span>
+                <div>
+                  <span className="telemedicine-eyebrow">{t('veterinarianWorkspace')} · {myDoctorProfile.regNo}</span>
+                  <h2 id="vet-consultation-room-heading">{locDoc.displayName}</h2>
+                  <p>{locDoc.displayDegrees} · {locDoc.displayClinic}</p>
+                </div>
+              </div>
+              <div className="pmx-doctor-personal-metrics">
+                <span className="pmx-served-counter-pill">
+                  {toLocaleDigits(myDoctorProfile.consultationsServed, language)} {t('doctorServedLabel')}
+                </span>
+                <span className="pmx-booking-slot-pill">
+                  {toLocaleDigits(myDoctorProfile.experienceYears, language)} {t('doctorExpYearsLabel')}
+                </span>
+              </div>
+            </header>
+          )
+        })()}
+
+        {/* Doctor Personal Schedule & Availability Manager */}
+        <DoctorScheduleManager
+          key={`sched-${myDoctorProfile.id}`}
+          doctorSession={doctorSession}
+          doctorId={myDoctorProfile.id}
+          slotVersion={slotVersion}
+          onScheduleUpdated={() => setSlotVersion((v) => v + 1)}
+        />
+
+        <div style={{ marginBottom: '10px' }}>
+          <h3 style={{ margin: '0 0 4px', fontSize: '15px', fontWeight: 800 }}>{t('activePatientQueueTitle')}</h3>
+          <small style={{ color: '#64748b' }}>{t('docPersonalDashboardSubtitle')}</small>
         </div>
 
-        <div className="pmx-vet-directory-bar">
-          <span className="pmx-vet-directory-label">{t('vetDirectoryWorkspaceLabel')}:</span>
-          <div className="pmx-vet-directory-chips">
-            {doctorsList.map((doc) => {
-              const isActiveDoc = prescription.vetId === doc.id || prescription.bvcRegNo === doc.regNo
-              return (
-                <button
-                  key={doc.id}
-                  type="button"
-                  className={`pmx-vet-dir-chip${isActiveDoc ? ' is-active' : ''} dark:bg-gray-900 dark:border-gray-700 dark:text-gray-200`}
-                  onClick={() => applyDoctorProfileToPrescription(doc)}
-                >
-                  <strong>{formatVetHeaderDisplay(doc.name)}</strong>
-                  <span>{doc.regNo} · {doc.consultationsServed} {t('doctorServedLabel')}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {recentBookings.length > 0 ? (
+        {myPersonalBookings.length > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2 mb-4">
-            {recentBookings.slice(0, 6).map((appt) => {
+            {myPersonalBookings.slice(0, 8).map((appt) => {
               const roomBadge = appt.roomCode || appt.roomId || createCallRoomCode(appt.trxId || appt.id)
               const shedLabel = appt.shedSummary || fallbackContext.shedSummary || t('callFlockSnapshotEmpty')
               const aiLabel = appt.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary || t('queueNoAiScanYet')
               const slotEval = evaluateConsultationScheduleWindow(appt.bookingDate, appt.bookingTime, clockMs)
               const qRoomState = activeRooms[roomBadge]
               const isCompleted = qRoomState?.status === 'COMPLETED'
-              const assignedDoc = appt.doctorName || appt.vetName || VETERINARY_DOCTORS[0].name
               return (
                 <div key={appt.id} className="pmx-queue-card dark:bg-gray-900 dark:border-gray-700">
                   <div>
@@ -1214,15 +1367,14 @@ export default function Telemedicine() {
                       <span className="pmx-room-code-pill">{roomBadge}</span>
                     </div>
                     <div className="pmx-booking-header-row pmx-queue-doc-row">
-                      <span className="pmx-booking-doc-name">{assignedDoc}</span>
+                      <span className="pmx-booking-doc-name">
+                        {t(`districts.${appt.district || 'Rajshahi'}`, appt.district || 'Rajshahi')}
+                        {appt.farmName ? ` · ${appt.farmName}` : ''}
+                      </span>
                       <span className="pmx-booking-slot-pill">
-                        {appt.bookingDate || t('today')} • {appt.bookingTime || '--:--'}
+                        {toLocaleDigits(appt.bookingDate || t('today'), language)} • {formatSlotTimeDisplay(appt.bookingTime, language)}
                       </span>
                     </div>
-                    <p className="pmx-queue-meta">
-                      {t(`districts.${appt.district || 'Rajshahi'}`, appt.district || 'Rajshahi')}
-                      {appt.farmName ? ` · ${appt.farmName}` : ''}
-                    </p>
                     <div style={{ margin: '4px 0 6px' }}>
                       <span className={`pmx-schedule-pill is-${isCompleted ? 'completed' : slotEval.phase.toLowerCase()}`}>
                         {isCompleted
@@ -1285,7 +1437,7 @@ export default function Telemedicine() {
             <input
               type="text"
               className="pmx-vet-room-input dark:bg-gray-900 dark:border-gray-700 dark:text-white"
-              value={vetRoomCode || recentBookings[0]?.roomCode || ''}
+              value={vetRoomCode || myPersonalBookings[0]?.roomCode || ''}
               onChange={(event) => setVetRoomCode(event.target.value.toUpperCase())}
               placeholder={t('roomCodeLabel')}
               aria-label={t('roomCodeLabel')}
@@ -1306,21 +1458,21 @@ export default function Telemedicine() {
               userRole={role}
               onToggleMobileRxSheet={() => scrollToUnifiedWorkspace('prescription-builder-heading')}
               doctor={{
-                ...selectedVet,
-                name: prescription.vetName || selectedVet.name,
-                degrees: prescription.vetDegrees || selectedVet.degrees,
-                regNo: prescription.bvcRegNo || prescription.registrationNumber || selectedVet.regNo,
-                clinic: prescription.clinicDetails || selectedVet.clinic,
+                ...myDoctorProfile,
+                name: prescription.vetName || myDoctorProfile.name,
+                degrees: prescription.vetDegrees || myDoctorProfile.degrees,
+                regNo: prescription.bvcRegNo || prescription.registrationNumber || myDoctorProfile.regNo,
+                clinic: prescription.clinicDetails || myDoctorProfile.clinic,
               }}
               bookingContext={{
-                trxId: activeVetPatient?.trxId || recentBookings[0]?.trxId || 'VET-DIRECT',
-                roomCode: vetRoomCode || activeVetPatient?.roomCode || recentBookings[0]?.roomCode || 'PMX-ROOM-LIVE',
-                farmerName: prescription.farmerName || activeVetPatient?.farmerName || recentBookings[0]?.farmerName || t('farmer'),
-                farmName: prescription.farmName || activeVetPatient?.farmName || recentBookings[0]?.farmName || '',
+                trxId: activeVetPatient?.trxId || myPersonalBookings[0]?.trxId || 'VET-DIRECT',
+                roomCode: vetRoomCode || activeVetPatient?.roomCode || myPersonalBookings[0]?.roomCode || 'PMX-ROOM-LIVE',
+                farmerName: prescription.farmerName || activeVetPatient?.farmerName || myPersonalBookings[0]?.farmerName || t('farmer'),
+                farmName: prescription.farmName || activeVetPatient?.farmName || myPersonalBookings[0]?.farmName || '',
                 district: t(`districts.${prescription.district || 'Rajshahi'}`, prescription.district || 'Rajshahi'),
-                concern: prescription.historyNotes || prescription.diagnosis || activeVetPatient?.concern || recentBookings[0]?.concern || 'Clinical Telemedicine Consultation',
-                shedSummary: activeVetPatient?.shedSummary || recentBookings[0]?.shedSummary || fallbackContext.shedSummary,
-                aiDiagnosisSummary: activeVetPatient?.aiDiagnosisSummary || recentBookings[0]?.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary,
+                concern: prescription.historyNotes || prescription.diagnosis || activeVetPatient?.concern || myPersonalBookings[0]?.concern || 'Clinical Telemedicine Consultation',
+                shedSummary: activeVetPatient?.shedSummary || myPersonalBookings[0]?.shedSummary || fallbackContext.shedSummary,
+                aiDiagnosisSummary: activeVetPatient?.aiDiagnosisSummary || myPersonalBookings[0]?.aiDiagnosisSummary || fallbackContext.aiDiagnosisSummary,
               }}
               onEndCall={handleEndCall}
             />
@@ -1494,6 +1646,21 @@ export default function Telemedicine() {
           </aside>
         </div>
       </section>}
+
+      {detailsModalDoctor && (
+        <DoctorDetailsModal
+          doctor={detailsModalDoctor}
+          initialDate={booking.date}
+          initialTime={booking.vetId === detailsModalDoctor.id ? booking.time : ''}
+          slotVersion={slotVersion}
+          onSelectSlotAndContinue={({ doctorId, date, time }) => {
+            setBooking((current) => ({ ...current, vetId: doctorId, date, time }))
+            setSlotError('')
+            setDetailsModalDoctorId('')
+          }}
+          onClose={() => setDetailsModalDoctorId('')}
+        />
+      )}
 
       {checkoutOpen && (
         <PaymentCheckoutModal

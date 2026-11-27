@@ -3301,3 +3301,567 @@ html[data-theme="dark"] .pmx-unified-connection-banner {
   color: #86efac;
   background: rgba(20, 83, 45, 0.35);
 }
+
+/* Role-Based Personal Doctor Hero, Schedule Manager, White/Soft-Green Specialist Cards & Slot Pills */
+.pmx-specialist-section-head {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pmx-specialist-section-head strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: #15311d;
+}
+
+.pmx-specialist-section-head small {
+  font-size: 11.5px;
+  color: #546b58;
+}
+
+.pmx-specialist-grid {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
+  gap: 14px;
+  margin-bottom: 6px;
+}
+
+.pmx-specialist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #d5e5d8;
+  border-radius: 16px;
+  color: #183220;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(20, 56, 30, 0.04);
+  transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease;
+}
+
+.pmx-specialist-card:hover {
+  transform: translateY(-2px);
+  border-color: #86c79a;
+  background: #f5fbf6;
+  box-shadow: 0 10px 24px rgba(24, 72, 38, 0.09);
+}
+
+.pmx-specialist-card.is-selected {
+  border-color: #16803d;
+  background: #f0faf2;
+  box-shadow: 0 0 0 2px rgba(22, 128, 61, 0.16);
+}
+
+.pmx-specialist-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pmx-doc-avatar-badge {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  place-items: center;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #14532d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+}
+
+.pmx-doc-avatar-badge.is-teal {
+  color: #115e59;
+  background: #ccfbf1;
+  border-color: #99f6e4;
+}
+
+.pmx-doc-avatar-badge.is-sage {
+  color: #365314;
+  background: #ecfccb;
+  border-color: #d9f99d;
+}
+
+.pmx-doc-avatar-badge.is-forest {
+  color: #166534;
+  background: #e2f5e6;
+  border-color: #a7f3d0;
+}
+
+.pmx-specialist-card-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.pmx-specialist-card-info strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.pmx-specialist-card-info span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #3c5d44;
+}
+
+.pmx-specialist-card-info small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #5e7463;
+}
+
+.pmx-specialist-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #36533e;
+}
+
+.pmx-specialist-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e6efe7;
+}
+
+.pmx-slot-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.pmx-slot-status-badge.is-available {
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.pmx-slot-status-badge.is-full {
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.pmx-fully-booked-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pmx-next-available-note {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #991b1b;
+}
+
+.pmx-card-action-hint {
+  font-size: 11px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.pmx-selected-slot-banner {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px;
+  border: 1px solid #86efac;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #14532d;
+  font-size: 12.5px;
+}
+
+.pmx-cancel-booking-btn {
+  padding: 4px 10px;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  color: #b91c1c;
+  background: #fff5f5;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-cancel-booking-btn:hover {
+  background: #fee2e2;
+}
+
+/* Doctor Details Modal & Interactive Slot Picker */
+.pmx-doctor-details-modal {
+  max-width: 620px;
+}
+
+.pmx-modal-doc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pmx-modal-doc-degrees {
+  margin: 2px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b6352;
+}
+
+.pmx-doc-modal-credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 14px;
+  border: 1px solid #dbe6dc;
+  border-radius: 13px;
+  background: #f7fbf7;
+  font-size: 12.5px;
+}
+
+.pmx-doc-cred-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pmx-doc-modal-bio {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #475569;
+}
+
+.pmx-doc-modal-status-row {
+  display: flex;
+  align-items: center;
+}
+
+.pmx-modal-slot-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pmx-slot-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #1f3c26;
+}
+
+.pmx-date-pills-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.pmx-date-pill {
+  padding: 6px 12px;
+  border: 1px solid #cbd9cd;
+  border-radius: 999px;
+  color: #2f4b35;
+  background: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.pmx-date-pill.is-active {
+  border-color: #15803d;
+  color: #ffffff;
+  background: #15803d;
+}
+
+.pmx-time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+  gap: 8px;
+}
+
+.pmx-time-slot-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid #c9decb;
+  border-radius: 11px;
+  color: #14532d;
+  background: #f8fcf8;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.pmx-time-slot-pill small {
+  font-size: 10px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.pmx-time-slot-pill.is-chosen {
+  border-color: #15803d;
+  color: #ffffff;
+  background: #15803d;
+}
+
+.pmx-time-slot-pill.is-chosen small {
+  color: #dcfce7;
+}
+
+.pmx-time-slot-pill.is-booked {
+  border-color: #fecaca;
+  color: #991b1b;
+  background: #fef2f2;
+  opacity: 0.78;
+  cursor: not-allowed;
+}
+
+.pmx-time-slot-pill.is-booked small {
+  color: #b91c1c;
+}
+
+.pmx-empty-slots-note {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Role-Based Personal Doctor Hero & Schedule Manager */
+.pmx-doctor-personal-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #cce2cf;
+  border-radius: 16px;
+  background: #f5fbf6;
+}
+
+.pmx-doctor-personal-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pmx-doctor-personal-left h2 {
+  margin: 4px 0 2px;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.pmx-doctor-personal-left p {
+  margin: 0;
+  font-size: 12px;
+  color: #475f4d;
+}
+
+.pmx-doctor-personal-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pmx-schedule-manager-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #d5e2d7;
+  border-radius: 15px;
+  background: #ffffff;
+}
+
+.pmx-schedule-mgr-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pmx-schedule-mgr-head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.pmx-schedule-mgr-head small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: #5b6e5e;
+}
+
+.pmx-schedule-dates-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pmx-schedule-inputs-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  align-items: end;
+  gap: 10px;
+}
+
+.pmx-schedule-save-wrap {
+  display: flex;
+}
+
+.pmx-schedule-save-wrap .pmx-primary-submit-btn {
+  width: 100%;
+  min-height: 40px;
+}
+
+.pmx-live-slot-monitor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid #e3ece4;
+}
+
+.pmx-live-slot-monitor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.pmx-live-slot-monitor-head select {
+  padding: 4px 8px;
+  border: 1px solid #cbd9cd;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.pmx-doctor-slot-monitor-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pmx-monitor-slot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.pmx-monitor-slot-chip.is-open {
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  background: #ecfdf3;
+}
+
+.pmx-monitor-slot-chip.is-booked {
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+html[data-theme="dark"] .pmx-specialist-card {
+  border-color: #304535;
+  color: #edf5ef;
+  background: #17231b;
+}
+
+html[data-theme="dark"] .pmx-specialist-card:hover {
+  background: #1e2f23;
+}
+
+html[data-theme="dark"] .pmx-specialist-card.is-selected {
+  border-color: #22c55e;
+  background: rgba(20, 83, 45, 0.35);
+}
+
+html[data-theme="dark"] .pmx-specialist-card-info span,
+html[data-theme="dark"] .pmx-specialist-stats,
+html[data-theme="dark"] .pmx-specialist-section-head small {
+  color: #b7c9bb;
+}
+
+html[data-theme="dark"] .pmx-specialist-section-head strong,
+html[data-theme="dark"] .pmx-slot-section-label {
+  color: #edf5ef;
+}
+
+html[data-theme="dark"] .pmx-specialist-card-footer {
+  border-top-color: #2c4031;
+}
+
+html[data-theme="dark"] .pmx-doctor-personal-hero {
+  border-color: #2c4732;
+  background: #152219;
+}
+
+html[data-theme="dark"] .pmx-doctor-personal-left p,
+html[data-theme="dark"] .pmx-schedule-mgr-head small,
+html[data-theme="dark"] .pmx-modal-doc-degrees {
+  color: #a9bdb0;
+}
+
+html[data-theme="dark"] .pmx-selected-slot-banner {
+  border-color: #166534;
+  background: rgba(20, 83, 45, 0.35);
+  color: #a7f3d0;
+}
+
+html[data-theme="dark"] .pmx-time-slot-pill.is-booked,
+html[data-theme="dark"] .pmx-monitor-slot-chip.is-booked,
+html[data-theme="dark"] .pmx-slot-status-badge.is-full {
+  border-color: #991b1b;
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
+}
+
+@media (max-width: 600px) {
+  .pmx-specialist-grid,
+  .pmx-schedule-inputs-row {
+    grid-template-columns: 1fr;
+  }
+}
